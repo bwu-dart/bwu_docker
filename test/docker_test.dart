@@ -36,14 +36,30 @@ void main([List<String> args]) {
       const imageName = 'selenium/standalone-chrome';
       const imageVersion ='2.45.0';
       final docker = new Docker(imageName, imageVersion: imageVersion);
-      io.ProcessResult proc = docker.run();
+      io.ProcessResult result = docker.run();
+      expect(result.exitCode, 0);
       expect(docker.id, isNotEmpty);
 
       final ci = DockerCommand.inspectContainer(docker.id);
       expect(ci.config.imageName, imageName);
       expect(ci.config.imageVersion, imageVersion);
-    print('x');
     });
   });
+
+  group('ImageInfo', () {
+    test('get', () {
+      const imageName = 'selenium/standalone-chrome';
+      const imageVersion ='2.45.0';
+      final docker = new Docker(imageName, imageVersion: imageVersion);
+      io.ProcessResult result = docker.run();
+      expect(result.exitCode, 0);
+      expect(docker.id, isNotEmpty);
+
+      final ci = DockerCommand.inspectContainer(docker.id);
+      final ii = DockerCommand.inspectImage(ci.config.image);
+      expect(ci.image, ii.id);
+    });
+  });
+
 }
 
