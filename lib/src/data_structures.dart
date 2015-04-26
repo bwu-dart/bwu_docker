@@ -1,58 +1,75 @@
-library bwu_docker.src.docker;
-
+library bwu_docker.src.data_structures;
 import 'dart:collection';
-import 'dart:io' as io;
-import 'dart:convert' show JSON;
-import 'dart:async' show Completer, Future, Stream;
+
 import 'package:intl/intl.dart';
-
-class DockerCommand {
-  static String executable = 'docker';
-
-  static List inspect(String id) {
-    assert(id != null && id.isNotEmpty);
-    final args = ['inspect', id];
-    final result = io.Process.runSync(executable, args);
-    if (io.exitCode == 0) {
-      try {
-        return JSON.decode(result.stdout);
-      } catch (e) {
-        print(result.stdout);
-        print(result.stderr);
-        rethrow;
-      }
-    }
-    throw result;
-  }
-
-  static ContainerInfo inspectContainer(String id,
-      {String executable: 'docker'}) {
-    final json = inspect(id);
-    if (json[0]['Image'] == null) {
-      throw '"${id}" is not a container id.';
-    }
-    return new ContainerInfo._(json[0]);
-  }
-
-  static ImageInfo inspectImage(String id,
-      {String executable: 'docker'}) {
-    final json = inspect(id);
-    if (json[0]['Container'] == null) {
-      throw '"${id}" is not an image id.';
-    }
-    return new ImageInfo._(json[0]);
-  }
-
-}
 
 final dateFormat = new DateFormat('yyyy-MM-ddThh:mm:ss.SSSSSSSSSZ');
 
 DateTime _parseDate(String dateString) {
-  if(dateString == '0001-01-01T00:00:00Z') {
-    return new DateTime(1,1,1);
+  if (dateString == '0001-01-01T00:00:00Z') {
+    return new DateTime(1, 1, 1);
   }
   return dateFormat.parse(
-          dateString.substring(0, dateString.length - 6) + 'Z', true);
+      dateString.substring(0, dateString.length - 6) + 'Z', true);
+}
+
+UnmodifiableMapView _toUnmodifiableMapView(Map map) {
+  if (map == null) {
+    return null;
+  }
+  return new UnmodifiableMapView(new Map.fromIterable(map.keys,
+      key: (k) => k, value: (k) {
+    if (map == null) {
+      return null;
+    }
+    if (map[k] is Map) {
+      return _toUnmodifiableMapView(map[k]);
+    } else if (map[k] is List) {
+      return _toUnmodifiableListView(map[k]);
+    } else {
+      return map[k];
+    }
+  }));
+}
+
+UnmodifiableListView _toUnmodifiableListView(List list) {
+  if (list == null) {
+    return null;
+  }
+
+  return new UnmodifiableListView(list.map((e) {
+    if (e is Map) {
+      return _toUnmodifiableMapView(e);
+    } else if (e is List) {
+      return _toUnmodifiableListView(e);
+    } else {
+      return e;
+    }
+  }));
+}
+
+class Containerx {
+  final String imageName;
+  final String imageVersion;
+  bool runAsDaemon;
+  String _id;
+  String get id => _id;
+
+
+  Containerx(this.imageName, {this.imageVersion: 'latest',
+      this.runAsDaemon: true}) {
+    assert(imageName != null && imageName.isNotEmpty);
+    assert(imageVersion != null && imageVersion.isNotEmpty);
+    assert(runAsDaemon != null);
+  }
+
+  // TODO(zoechi) write a test
+//  factory Container.fromId(String id) {
+//    assert(id != null && id.isNotEmpty);
+//    final args = ['inspect', id];
+//    }
+//    return result;
+//  }
 }
 
 class ImageInfo {
@@ -89,24 +106,22 @@ class ImageInfo {
   String _parent;
   String get parent => _parent;
 
-
   int _size;
   int get size => _size;
 
   int _virtualSize;
   int get virtualSize => _virtualSize;
 
-
-  ImageInfo._(Map json) {
-    if(json == null) {
+  ImageInfo(Map json) {
+    if (json == null) {
       return;
     }
     _architecture = json['Architecture'];
     _author = json['Author'];
     _comment = json['Comment'];
-    _config = new Config._(json['Config']);
+    _config = new Config(json['Config']);
     _container = json['Container'];
-    _containerConfig = new Config._(json['ContainerConfig']);
+    _containerConfig = new Config(json['ContainerConfig']);
     _created = _parseDate(json['Created']);
     _dockerVersion = json['DockerVersion'];
     _id = json['Id'];
@@ -179,27 +194,27 @@ class ContainerInfo {
   VolumesRw _volumesRw;
   VolumesRw get volumesRw => _volumesRw;
 
-  ContainerInfo._(Map json) {
+  ContainerInfo(Map json) {
     _appArmorProfile = json['AppArmorProfile'];
     _args = new UnmodifiableListView<String>(json['Args']);
-    _config = new Config._(json['Config']);
+    _config = new Config(json['Config']);
     _created = _parseDate(json['Created']);
     _driver = json['Driver'];
     _execDriver = json['ExecDriver'];
-    _hostConfig = new HostConfig._(json['HostConfig']);
+    _hostConfig = new HostConfig(json['HostConfig']);
     _hostnamePath = json['HostnamePath'];
     _hostsPath = json['HostsPath'];
     _id = json['Id'];
     _image = json['Image'];
     _mountLabel = json['MountLabel'];
     _name = json['Name'];
-    _networkSettings = new NetworkSettings._(json['NetworkSettings']);
+    _networkSettings = new NetworkSettings(json['NetworkSettings']);
     _path = json['Path'];
     _processLabel = json['ProcessLabel'];
     _resolvConfPath = json['ResolvConfPath'];
-    _state = new State._(json['State']);
-    _volumes = new Volumes._(json['Volumes']);
-    _volumesRw = new VolumesRw._(json['VolumesRW']);
+    _state = new State(json['State']);
+    _volumes = new Volumes(json['Volumes']);
+    _volumesRw = new VolumesRw(json['VolumesRW']);
     assert(json.keys.length <= 20); // ensure all keys are read
   }
 }
@@ -256,7 +271,7 @@ class HostConfig {
   UnmodifiableMapView _volumesFrom;
   UnmodifiableMapView get volumesFrom => _volumesFrom;
 
-  HostConfig._(Map json) {
+  HostConfig(Map json) {
     _binds = json['Binds'];
     _capAdd = json['CapAdd'];
     _capDrop = json['CapDrop'];
@@ -300,7 +315,7 @@ class NetworkSettings {
   UnmodifiableMapView _ports;
   UnmodifiableMapView get ports => _ports;
 
-  NetworkSettings._(Map json) {
+  NetworkSettings(Map json) {
     _bridge = json['Bridge'];
     _gateway = json['Gateway'];
     _ipAddress = json['IPAddress'];
@@ -311,6 +326,7 @@ class NetworkSettings {
     assert(json.keys.length <= 7); // ensure all keys were read
   }
 }
+
 class State {
   int _exitCode;
   int get exitCode => _exitCode;
@@ -333,8 +349,7 @@ class State {
   DateTime _startedAt;
   DateTime get startedAt => _startedAt;
 
-
-  State._(Map json) {
+  State(Map json) {
     _exitCode = json['ExitCode'];
     _finishedAt = _parseDate(json['FinishedAt']);
     _paused = json['Paused'];
@@ -347,17 +362,21 @@ class State {
 }
 
 class Volumes {
-  Volumes._(Map json) {
-    if(json == null) {
+  Volumes(Map json) {
+    if (json == null) {
       return;
     }
     assert(json.keys.length <= 0); // ensure all keys were read
   }
+
+  Map toJson() {
+    return null;
+  }
 }
 
 class VolumesRw {
-  VolumesRw._(Map json) {
-    if(json == null) {
+  VolumesRw(Map json) {
+    if (json == null) {
       return;
     }
     assert(json.keys.length <= 0); // ensure all keys were read
@@ -438,7 +457,7 @@ class Config {
   String _workingDir;
   String get workingDir => _workingDir;
 
-  Config._(Map json) {
+  Config(Map json) {
     _attachStderr = json['AttachStderr'];
     _attachStdin = json['AttachStdin'];
     _attachStdout = json['AttachStdout'];
@@ -471,124 +490,6 @@ class Config {
   }
 }
 
-UnmodifiableMapView _toUnmodifiableMapView(Map map) {
-  if(map == null) {
-    return null;
-  }
-  return new UnmodifiableMapView(new Map.fromIterable(map.keys,
-      key: (k) => k, value: (k) {
-    if (map == null) {
-      return null;
-    }
-    if (map[k] is Map) {
-      return _toUnmodifiableMapView(map[k]);
-    } else if (map[k] is List) {
-      return _toUnmodifiableListView(map[k]);
-    } else {
-      return map[k];
-    }
-  }));
-}
-
-UnmodifiableListView _toUnmodifiableListView(List list) {
-  if (list == null) {
-    return null;
-  }
-
-  return new UnmodifiableListView(list.map((e) {
-    if (e is Map) {
-      return _toUnmodifiableMapView(e);
-    } else if (e is List) {
-      return _toUnmodifiableListView(e);
-    } else {
-      return e;
-    }
-  }));
-}
-
-class Docker {
-  final String executable;
-  final Set<Port> ports = new Set<Port>();
-  final String imageName;
-  final String imageVersion;
-  bool runAsDaemon;
-  String _id;
-  String get id => _id;
-
-//  DockerProcess _process;
-//  DockerProcess get process => _process;
-
-  Docker(this.imageName, {this.imageVersion: 'latest',
-      this.executable: 'docker', this.runAsDaemon: true}) {
-    assert(imageName != null && imageName.isNotEmpty);
-    assert(imageVersion != null && imageVersion.isNotEmpty);
-    assert(executable != null && executable.isNotEmpty);
-    assert(runAsDaemon != null);
-  }
-
-  factory Docker.fromId(String id, {String executable: 'docker'}) {
-    assert(id != null && id.isNotEmpty);
-    assert(executable != null && executable.isNotEmpty);
-    final args = ['inspect', id];
-    final result = io.Process.runSync(executable, args);
-    if (io.exitCode == 0) {
-      final info = JSON.decode(result.stdout);
-      //return new Docker(info[''], executable,  = info['id'];
-    }
-    return result;
-  }
-
-  io.ProcessResult run() {
-    final args = ['run'];
-    if (runAsDaemon) {
-      args.add('-d');
-    }
-    ports.forEach((p) {
-      args.add('-p=${p.toDockerArgument()}');
-    });
-    args.add('${imageName}:${imageVersion}');
-    final result = io.Process.runSync(executable, args);
-    if (io.exitCode == 0) {
-      _id = result.stdout.split('\n').first;
-    }
-    return result;
-  }
-
-  io.ProcessResult stop() {
-    final args = ['stop', id];
-    if (id == null) {
-      return null;
-    }
-    final result = io.Process.runSync(executable, args);
-    if (io.exitCode == 0) {
-      _id = null;
-    }
-    return result;
-  }
-
-//  DockerProcess runSomethingAsync() {
-//      if (_process != null) {
-//        throw 'Docker process already running. Stop the process before you start it again';
-//      } else {
-//        final args = ['run'];
-//        if (isDaemon) {
-//          args.add('-d');
-//        }
-//        ports.forEach((p) {
-//          args.add('-p=${p.toDockerArgument()}');
-//        });
-//        args.add('${imageName}:${imageVersion}');
-//        _process = new DockerProcess()
-//          .._runSync(executable, args);
-//        return _process;
-//      }
-//    }
-//  }
-
-  // docker run -d -p 4444:4444 selenium/standalone-chrome:2.45.0
-
-}
-
 class Port {
   final String hostIp;
   final int host;
@@ -611,63 +512,5 @@ class Port {
         return '${container}';
       }
     }
-  }
-}
-
-class DockerProcess {
-  io.Process _process;
-  io.Process get process => _process;
-
-  Stream<List<int>> _stdoutStream;
-  Stream<List<int>> get stdout => _stdoutStream;
-
-  Stream<List<int>> _stderrStream;
-  Stream<List<int>> get stderr => _stderrStream;
-
-  Future<int> _exitCode;
-  Future<int> get exitCode => _exitCode;
-
-  DockerProcess();
-
-  Completer<bool> _startedCompleter;
-
-  Future<bool> get onStarted {
-    if (_startedCompleter == null) {
-      _startedCompleter = new Completer<bool>();
-    }
-    return _startedCompleter.future;
-  }
-
-  Future _run(String executable, List<String> args,
-      {String workingDirectory}) async {
-    if (process != null) {
-      return process;
-    }
-    print('execute: ${executable} ${args.join(' ')}');
-    try {
-      _process = await io.Process.start(executable, args,
-          workingDirectory: workingDirectory);
-      _exitCode = process.exitCode;
-    } catch (e) {
-      _process = null;
-    } finally {
-      _startedCompleter.complete(_process != null);
-    }
-
-    process.exitCode.then((exitCode) {
-      _process = null;
-    });
-
-    _stdoutStream = process.stdout.asBroadcastStream();
-    _stderrStream = process.stderr.asBroadcastStream();
-//    stdout.listen(print);
-//    stderr.listen(print);
-  }
-
-  bool _stop() {
-    if (process != null) {
-      return process.kill(io.ProcessSignal.SIGTERM);
-    }
-    return false;
   }
 }

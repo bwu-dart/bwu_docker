@@ -65,6 +65,10 @@ packages:
     description: html
     source: hosted
     version: "0.12.1+1"
+  http:
+    description: http
+    source: hosted
+    version: "0.11.2"
   http_parser:
     description: http_parser
     source: hosted
@@ -76,7 +80,7 @@ packages:
   initialize:
     description: initialize
     source: hosted
-    version: "0.6.0+4"
+    version: "0.6.0+5"
   intl:
     description: intl
     source: hosted
@@ -108,7 +112,7 @@ packages:
   polymer:
     description: polymer
     source: hosted
-    version: "0.16.1+4"
+    version: "0.16.2"
   polymer_expressions:
     description: polymer_expressions
     source: hosted
@@ -172,10 +176,10 @@ packages:
   test:
     description:
       ref: null
-      resolved-ref: "56adfaec59481afd48c46ec7e596c22ee9825918"
+      resolved-ref: e15b4f802452082ffafcac495c16c6d3afbc7b8e
       url: "git@github.com:dart-lang/test.git"
     source: git
-    version: "0.12.0-dev"
+    version: "0.12.0-rc.1"
   utf:
     description: utf
     source: hosted
@@ -187,7 +191,7 @@ packages:
   web_components:
     description: web_components
     source: hosted
-    version: "0.11.3"
+    version: "0.11.3+1"
   webdriver:
     description: webdriver
     source: hosted

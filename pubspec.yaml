@@ -9,6 +9,7 @@ description: Manage Docker
 
 dependencies:
   intl: '^0.12.2'
+  http: '^0.11.2'
 
 dev_dependencies:
   bwu_utils_dev:
