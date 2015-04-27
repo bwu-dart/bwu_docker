@@ -15,14 +15,14 @@ void main([List<String> args]) {
     test('simple', () async {
       // set up
       final docker = new ContainerProcess('selenium/standalone-chrome', imageVersion: '2.45.0');
-      docker.ports.add(new Port(4444,4444));
+      docker.ports.add(new PortArgument(4444,4444));
       io.ProcessResult proc = docker.run();
       expect(docker.id, isNotEmpty);
-      print(proc.stdout);
-      print(proc.stderr);
+//      print(proc.stdout);
+//      print(proc.stderr);
       proc = docker.stop();
-      print(proc.stdout);
-      print(proc.stderr);
+//      print(proc.stdout);
+//      print(proc.stderr);
 
 
       // exercise
@@ -81,7 +81,7 @@ void main([List<String> args]) {
       final io.HttpClientRequest req = await new io.HttpClient().getUrl(Uri.parse('http://localhost:2375/containers/json'));
       req.close();
       final io.HttpClientResponse resp = await req.done;
-      print('data: ${new String.fromCharCodes(await resp.expand((e) => e).toList())}');
+      //print('data: ${new String.fromCharCodes(await resp.expand((e) => e).toList())}');
 
       ncat.stop();
     });

@@ -73,7 +73,7 @@ class DockerCommand {
     if (json[0]['Image'] == null) {
       throw '"${id}" is not a container id.';
     }
-    return new ContainerInfo(json[0]);
+    return new ContainerInfo.fromJson(json[0]);
   }
 
   static ImageInfo inspectImage(String id, {String executable: 'docker'}) {
@@ -85,9 +85,10 @@ class DockerCommand {
   }
 }
 
+/// References a running container.
 class ContainerProcess {
   final String executable;
-  final Set<Port> ports = new Set<Port>();
+  final Set<PortArgument> ports = new Set<PortArgument>();
   final String imageName;
   final String imageVersion;
   bool runAsDaemon;
@@ -106,7 +107,7 @@ class ContainerProcess {
   }
 
   // TODO(zoechi) write a test
-  factory ContainerProcess.ContainerProcess(String id, {String executable: 'docker'}) {
+  factory ContainerProcess.process(String id, {String executable: 'docker'}) {
     assert(id != null && id.isNotEmpty);
     assert(executable != null && executable.isNotEmpty);
     final args = ['inspect', id];

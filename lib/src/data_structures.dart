@@ -1,16 +1,24 @@
 library bwu_docker.src.data_structures;
-import 'dart:collection';
 
+import 'dart:collection';
 import 'package:intl/intl.dart';
+
+final containerNameRegex = new RegExp(r'^/?[a-zA-Z0-9_-]+$');
 
 final dateFormat = new DateFormat('yyyy-MM-ddThh:mm:ss.SSSSSSSSSZ');
 
-DateTime _parseDate(String dateString) {
-  if (dateString == '0001-01-01T00:00:00Z') {
-    return new DateTime(1, 1, 1);
+DateTime _parseDate(dynamic dateValue) {
+  if (dateValue is String) {
+    if (dateValue == '0001-01-01T00:00:00Z') {
+      return new DateTime(1, 1, 1);
+    }
+
+    return dateFormat.parse(
+        dateValue.substring(0, dateValue.length - 6) + 'Z', true);
+  } else if (dateValue is int) {
+    return new DateTime.fromMillisecondsSinceEpoch(dateValue * 1000,
+        isUtc: true);
   }
-  return dateFormat.parse(
-      dateString.substring(0, dateString.length - 6) + 'Z', true);
 }
 
 UnmodifiableMapView _toUnmodifiableMapView(Map map) {
@@ -48,30 +56,147 @@ UnmodifiableListView _toUnmodifiableListView(List list) {
   }));
 }
 
-class Containerx {
-  final String imageName;
-  final String imageVersion;
-  bool runAsDaemon;
+
+/// Response to the top request
+class TopResponse {
+  List<String> _titles;
+  List<String> get titles => _titles;
+
+  List<List<String>> _processes;
+  List<List<String>> get processes => _processes;
+
+  TopResponse.fromJson(Map json) {
+    _titles = _toUnmodifiableListView(json['Titles']);
+    _processes = _toUnmodifiableListView(json['Processes']);
+  }
+
+  Map toJson() {
+    return {'Titles': titles, 'Processes': processes};
+  }
+}
+
+/// The possible running states of a container.
+class ContainerStatus {
+  static const restarting = const ContainerStatus('restarting');
+  static const running = const ContainerStatus('running');
+  static const paused = const ContainerStatus('paused');
+  static const exited = const ContainerStatus('exited');
+
+  static const values = const <ContainerStatus>[];
+
+  final String value;
+
+  const ContainerStatus(this.value);
+
+  @override
+  String toString() => '${value}';
+}
+
+enum RestartPolicyVariant {
+  doNotRestart,
+  always,
+  onFailure
+}
+
+///  The behavior to apply when the container exits. The value is an object with
+///  a `Name` property of either "always" to always restart or `"on-failure"` to
+///  restart only when the container exit code is non-zero. If `on-failure` is
+///  used, `MaximumRetryCount` controls the number of times to retry before
+///  giving up. The default is not to restart. (optional) An ever increasing
+///  delay (double the previous delay, starting at 100mS) is added before each
+///  restart to prevent flooding the server.
+class RestartPolicy {
+  RestartPolicyVariant variant;
+  int maximumRetryCount;
+
+  Map toJson() {
+    assert(maximumRetryCount == null || variant == RestartPolicyVariant.onFailure);
+    switch(variant) {
+      case RestartPolicyVariant.doNotRestart:
+        return null;
+      case RestartPolicyVariant.always:
+        return {'always': null};
+      case RestartPolicyVariant.onFailure:
+        if(maximumRetryCount != null) {
+          return {'on-failure': null, 'MaximumRetryCount': maximumRetryCount};
+        }
+        return {'on-failure': null};
+      default:
+        throw 'Unsupported enum value.';
+    }
+  }
+}
+
+class NetworkMode {
+  static const bridge = const NetworkMode('bridge');
+  static const host = const NetworkMode('host');
+
+  static const values = const <NetworkMode>[bridge, host];
+
+  final String value;
+
+  const NetworkMode(this.value);
+
+  @override
+  String toString() => '${value}';
+}
+
+/// Basic info about a container.
+class Container {
   String _id;
   String get id => _id;
 
+  String _command;
+  String get command => _command;
 
-  Containerx(this.imageName, {this.imageVersion: 'latest',
-      this.runAsDaemon: true}) {
-    assert(imageName != null && imageName.isNotEmpty);
-    assert(imageVersion != null && imageVersion.isNotEmpty);
-    assert(runAsDaemon != null);
+  DateTime _created;
+  DateTime get created => _created;
+
+  String _image;
+  String get image => _image;
+
+  List<String> _names;
+  List<String> get names => _names;
+
+  List<PortArgument> _ports;
+  List<PortArgument> get ports => _ports;
+
+  String _status;
+  String get status => _status;
+
+  Container(this._id);
+
+  Container.fromJson(Map json) {
+    _id = json['Id'];
+    _command = json['Command'];
+    _created = _parseDate(json['Created']);
+    _image = json['Image'];
+    _names = json['Names'];
+    _ports = json['Ports'] == null
+        ? null
+        : json['Ports']
+            .map((p) => new PortResponse.fromJson(p))
+            .toList();
+    _status = json['Status'];
+
+    assert(json.keys.length <= 7);
   }
 
-  // TODO(zoechi) write a test
-//  factory Container.fromId(String id) {
-//    assert(id != null && id.isNotEmpty);
-//    final args = ['inspect', id];
-//    }
-//    return result;
-//  }
+  Map toJson() {
+    final json = {};
+    json['Id'] = id;
+    json['Command'] = command;
+    json['Created'] = created == null ? null : created.toIso8601String();
+    json['Image'] = image;
+    json['Names'] = names;
+    json['Ports'] = ports;
+    json['Status'] = status;
+
+    return json;
+  }
 }
 
+/// Information about an image returned by 'inspect'
 class ImageInfo {
   String _architecture;
   String get architecture => _architecture;
@@ -112,16 +237,16 @@ class ImageInfo {
   int _virtualSize;
   int get virtualSize => _virtualSize;
 
-  ImageInfo(Map json) {
+  ImageInfo.fromJson(Map json) {
     if (json == null) {
       return;
     }
     _architecture = json['Architecture'];
     _author = json['Author'];
     _comment = json['Comment'];
-    _config = new Config(json['Config']);
+    _config = new Config.fromJson(json['Config']);
     _container = json['Container'];
-    _containerConfig = new Config(json['ContainerConfig']);
+    _containerConfig = new Config.fromJson(json['ContainerConfig']);
     _created = _parseDate(json['Created']);
     _dockerVersion = json['DockerVersion'];
     _id = json['Id'];
@@ -194,28 +319,53 @@ class ContainerInfo {
   VolumesRw _volumesRw;
   VolumesRw get volumesRw => _volumesRw;
 
-  ContainerInfo(Map json) {
+  ContainerInfo.fromJson(Map json) {
     _appArmorProfile = json['AppArmorProfile'];
     _args = new UnmodifiableListView<String>(json['Args']);
-    _config = new Config(json['Config']);
+    _config = new Config.fromJson(json['Config']);
     _created = _parseDate(json['Created']);
     _driver = json['Driver'];
     _execDriver = json['ExecDriver'];
-    _hostConfig = new HostConfig(json['HostConfig']);
+    _hostConfig = new HostConfig.fromJson(json['HostConfig']);
     _hostnamePath = json['HostnamePath'];
     _hostsPath = json['HostsPath'];
     _id = json['Id'];
     _image = json['Image'];
     _mountLabel = json['MountLabel'];
     _name = json['Name'];
-    _networkSettings = new NetworkSettings(json['NetworkSettings']);
+    _networkSettings = new NetworkSettings.fromJson(json['NetworkSettings']);
     _path = json['Path'];
     _processLabel = json['ProcessLabel'];
     _resolvConfPath = json['ResolvConfPath'];
-    _state = new State(json['State']);
-    _volumes = new Volumes(json['Volumes']);
-    _volumesRw = new VolumesRw(json['VolumesRW']);
+    _state = new State.fromJson(json['State']);
+    _volumes = new Volumes.fromJson(json['Volumes']);
+    _volumesRw = new VolumesRw.fromJson(json['VolumesRW']);
     assert(json.keys.length <= 20); // ensure all keys are read
+  }
+
+  Map toJson() {
+    final json = {};
+    json['AppArmorProfile'] = appArmorProfile;
+    json['Args'] = args;
+    json['Config'] = config.toJson();
+    json['Created'] = created == null ? null : _created.toIso8601String();
+    json['Driver'] = driver;
+    json['ExecDriver'] = execDriver;
+    json['HostConfig'] = hostConfig.toJson();
+    json['HostnamePath'] = hostnamePath;
+    json['HostsPath'] = hostsPath;
+    json['Id'] = id;
+    json['Image'] = image;
+    json['MountLabel'] = mountLabel;
+    json['Name'] = name;
+    json['NetworkSettings'] = networkSettings.toJson();
+    json['Path'] = path;
+    json['ProcessLabel'] = processLabel;
+    json['ResolvConfPath'] = resolvConfPath;
+    json['State'] = state.toJson();
+    json['Volumes'] = volumes.toJson();
+    json['VolumesRW'] = volumesRw.toJson();
+    return json;
   }
 }
 
@@ -271,7 +421,10 @@ class HostConfig {
   UnmodifiableMapView _volumesFrom;
   UnmodifiableMapView get volumesFrom => _volumesFrom;
 
-  HostConfig(Map json) {
+  HostConfig.fromJson(Map json) {
+    if (json == null) {
+      return;
+    }
     _binds = json['Binds'];
     _capAdd = json['CapAdd'];
     _capDrop = json['CapDrop'];
@@ -290,6 +443,28 @@ class HostConfig {
     _securityOpt = json['SecurityOpt'];
     _volumesFrom = json['VolumesFrom'];
     assert(json.keys.length <= 17); // ensure all keys were read
+  }
+
+  Map toJson() {
+    final json = {};
+  json['Binds'] = binds;
+  json['CapAdd'] = capAdd;
+  json['CapDrop'] = capDrop;
+  json['ContainerIDFile'] = containerIdFile;
+  json['Devices'] = devices;
+  json['Dns'] = dns;
+  json['DnsSearch'] = dnsSearch;
+  json['ExtraHosts'] = extraHosts;
+  json['Links'] = links;
+  json['LxcConf'] = lxcConf;
+  json['NetworkMode'] = networkMode;
+  json['PortBindings'] = portBindings;
+  json['Privileged'] = privileged;
+  json['PublishAllPorts'] = publishAllPorts;
+  json['RestartPolicy'] = restartPolicy;
+  json['SecurityOpt'] = securityOpt;
+  json['VolumesFrom'] = volumesFrom;
+    return json;
   }
 }
 
@@ -315,7 +490,10 @@ class NetworkSettings {
   UnmodifiableMapView _ports;
   UnmodifiableMapView get ports => _ports;
 
-  NetworkSettings(Map json) {
+  NetworkSettings.fromJson(Map json) {
+    if (json == null) {
+      return;
+    }
     _bridge = json['Bridge'];
     _gateway = json['Gateway'];
     _ipAddress = json['IPAddress'];
@@ -324,6 +502,18 @@ class NetworkSettings {
     _portMapping = _toUnmodifiableMapView(json['PortMapping']);
     _ports = _toUnmodifiableMapView(json['Ports']);
     assert(json.keys.length <= 7); // ensure all keys were read
+  }
+
+  Map toJson() {
+    final json = {};
+    json['Bridge'] = bridge;
+    json['Gateway'] = gateway;
+    json['IPAddress'] = ipAddress;
+    json['IPPrefixLen'] = ipPrefixLen;
+    json['MacAddress'] = macAddress;
+    json['PortMapping'] = portMapping;
+    json['Ports'] = ports;
+    return json;
   }
 }
 
@@ -349,7 +539,10 @@ class State {
   DateTime _startedAt;
   DateTime get startedAt => _startedAt;
 
-  State(Map json) {
+  State.fromJson(Map json) {
+    if (json == null) {
+      return;
+    }
     _exitCode = json['ExitCode'];
     _finishedAt = _parseDate(json['FinishedAt']);
     _paused = json['Paused'];
@@ -359,10 +552,24 @@ class State {
     _startedAt = _parseDate(json['StartedAt']);
     assert(json.keys.length <= 7); // ensure all keys were read
   }
+
+  Map toJson() {
+    final json = {};
+    json['ExitCode'] = exitCode;;
+    json['FinishedAt'] = finishedAt;;
+    json['Paused'] = paused;;
+    json['Pid'] = pid;;
+    json['Restarting'] = restarting;;
+    json['Running'] = running;;
+    json['StartedAt'] = startedAt;;
+
+    return json;
+  }
 }
 
 class Volumes {
-  Volumes(Map json) {
+  Volumes();
+  Volumes.fromJson(Map json) {
     if (json == null) {
       return;
     }
@@ -375,11 +582,16 @@ class Volumes {
 }
 
 class VolumesRw {
-  VolumesRw(Map json) {
+  VolumesRw.fromJson(Map json) {
     if (json == null) {
       return;
     }
     assert(json.keys.length <= 0); // ensure all keys were read
+  }
+
+  Map toJson() {
+    final json = {};
+    return json;
   }
 }
 
@@ -388,7 +600,7 @@ class Config {
   bool get attachStderr => _attachStderr;
 
   bool _attachStdin;
-  bool get attachStdIn => _attachStdin;
+  bool get attachStdin => _attachStdin;
 
   bool _attachStdout;
   bool get attachStdout => _attachStdout;
@@ -457,7 +669,10 @@ class Config {
   String _workingDir;
   String get workingDir => _workingDir;
 
-  Config(Map json) {
+  Config.fromJson(Map json) {
+    if (json == null) {
+      return;
+    }
     _attachStderr = json['AttachStderr'];
     _attachStdin = json['AttachStdin'];
     _attachStdout = json['AttachStdout'];
@@ -488,14 +703,276 @@ class Config {
     _workingDir = json['WorkingDir'];
     assert(json.keys.length <= 23); // ensure all keys were read
   }
+
+  Map toJson() {
+    final json = {};
+    json['AttachStderr'] = attachStderr;
+    json['AttachStdin'] = attachStdin;
+    json['AttachStdout'] = attachStdout;
+    json['Cmd'] = cmd;
+    json['CpuShares'] = cpuShares;
+    json['Cpuset'] = cpuSet;
+    json['Domainname'] = domainName;
+    json['Entrypoint'] = entryPoint;
+    json['Env'] = env;
+    json['ExposedPorts'] = exposedPorts;
+    json['Hostname'] = hostName;
+    json['Image'] = image;
+    json['Memory'] = memory;
+    json['MemorySwap'] = memorySwap;
+    json['NetworkDisabled'] = networkDisabled;
+    json['OnBuild'] = onBuild;
+    json['OpenStdin'] = openStdin;
+    json['PortSpecs'] = portSpecs;
+    json['StdinOnce'] = stdinOnce;
+    json['Tty'] = tty;
+    json['User'] = user;
+    json['_volumes'] = volumes;
+    json['WorkingDir'] = workingDir;
+    return json;
+  }
 }
 
-class Port {
+class PortResponse {
+  String _ip;
+  String get ip => _ip;
+
+  int _privatePort;
+  int get privatePort => _privatePort;
+
+  int _publicPort;
+  int get publicPort => _publicPort;
+
+  String _type;
+  String get type => _type;
+
+  PortResponse.fromJson(Map json) {
+    if (json == null) {
+      return;
+    }
+    _ip = json['IP'];
+    _privatePort = json['PrivatePort'];
+    _publicPort = json['PublicPort'];
+    _type = json['Type'];
+    assert(json.keys.length <= 4); // ensure all keys were read
+  }
+}
+
+/// A response which isn't supposed to carry any information.
+class SimpleResponse {
+  SimpleResponse.fromJson(Map json) {
+    if (json != null && json.keys.length > 0) {
+      throw json;
+    }
+  }
+}
+
+/// The response to a [create] request.
+class CreateResponse {
+  Container _container;
+  Container get container => _container;
+
+  CreateResponse.fromJson(Map json) {
+    if (json['Id'] != null && (json['Id'] as String).isNotEmpty) {
+      _container = new Container(json['Id']);
+    }
+    if (json['Warnings'] != null) {
+      throw json['Warnings'];
+    }
+    assert(json.keys.length <= 2);
+  }
+}
+
+
+/// The configuration for the [create] request.
+class CreateContainerRequest {
+  /// The desired hostname to use for the container.
+  String hostName;
+  /// The desired domain name to use for the container.
+  String domainName;
+  /// The user to use inside the container.
+  String user;
+  /// Attaches to stdin.
+  bool attachStdin;
+  /// Attaches to stdout.
+  bool attachStdout;
+  /// Attaches to stderr.
+  bool attachStderr;
+  /// Attach standard streams to a tty, including stdin if it is not closed.
+  bool tty;
+  /// Opens stdin.
+  bool openStdin;
+  /// Close stdin after the 1st attached client disconnects.
+  bool stdinOnce;
+  /// A list of environment variables in the form of `VAR=value`
+  Map<String, String> env; // = <String,String>{};
+  /// Command(s) to run.
+  List<String> cmd = <String>[];
+  /// Set the entrypoint for the container.
+  String entryPoint;
+  /// The image name to use for the container.
+  String image ;
+  /// Adds a map of labels to a container. To specify a map:
+  /// `{"key":"value"[,"key2":"value2"]}`
+  Map<String,String> labels = <String,String>{};
+  /// An object mapping mountpoint paths (strings) inside the container to empty
+  /// objects.
+  Volumes volumes = new Volumes();
+  /// The working dir for commands to run in.
+  String workingDir;
+  /// [true] disables neworking for the container.
+  bool networkDisabled;
+  String macAddress = '';
+  /// An object mapping ports to an empty object in the form of:
+  /// `"ExposedPorts": { "<port>/<tcp|udp>: {}" }`
+  Map<String, Map<String, String>> exposedPorts = <String, Map<String, String>>{
+  };
+  /// Customize labels for MLS systems, such as SELinux.
+  List<String> securityOpts = <String>[];
+  HostConfigRequest hostConfig = new HostConfigRequest();
+
+  Map toJson() {
+    final json = {};
+    json['Hostname'] = hostName;
+    json['Domainname'] = domainName;
+    json['User'] = user;
+    json['AttachStdin'] = attachStdin;
+    json['AttachStdout'] = attachStdout;
+    json['AttachStderr'] = attachStderr;
+    json['Tty'] = tty;
+    json['OpenStdin'] = openStdin;
+    json['StdinOnce'] = stdinOnce;
+    json['Env'] = env;
+    json['Cmd'] = cmd;
+    json['Entrypoint'] = entryPoint;
+    json['Image'] = image;
+    json['Labels'] = labels;
+    json['Volumes'] = volumes != null ? volumes.toJson() : null;
+    json['WorkingDir'] = workingDir;
+    json['NetworkDisabled'] = networkDisabled;
+    json['MacAddress'] = macAddress;
+    json['ExposedPorts'] = exposedPorts;
+    json['SecurityOpts'] = securityOpts;
+    json['HostConfig'] = hostConfig != null ? hostConfig.toJson() : null;
+    return json;
+  }
+}
+
+/// The [CreateRequest.hostConfig] part of the [create] request configuration.
+class HostConfigRequest {
+  ///  Volume bindings for this container. Each volume binding is a string of
+  ///  the form `container_path` (to create a new volume for the container),
+  ///  `host_path:container_path` (to bind-mount a host path into the container),
+  ///  or `host_path:container_path:ro` (to make the bind-mount read-only inside
+  ///  the container).
+  List<String> binds = <String>[];
+  /// Links for the container. Each link entry should be of of the form
+  /// "container_name:alias".
+  List<String> links = <String>[];
+  /// LXC specific configurations. These configurations will only work when
+  /// using the lxc execution driver.
+  Map<String, String> lxcConf = <String,String>{};
+  /// Memory limit in bytes.
+  int memory;
+  /// Total memory limit (memory + swap); set -1 to disable swap, always use
+  /// this with [memory], and make the value larger than [memory].
+  int memorySwap;
+  /// The CPU Shares for container (ie. the relative weight vs othercontainers).
+  int cpuShares;
+  /// The cgroups CpusetCpus to use.
+  String cpusetCpus;
+  /// Exposed container ports and the host port they should map to. It should be
+  /// specified in the form `{ <port>/<protocol>: [{ "HostPort": "<port>" }] }`.
+  /// Take note that port is specified as a string and not an integer value.
+  Map<String, Map<String, String>> portBindings = <String,Map<String,String>>{};
+  /// Allocates a random host port for all of a container's exposed ports.
+  bool publishAllPorts;
+  /// Gives the container full access to the host.
+  bool privileged;
+  ///  Mount the container's root filesystem as read only.
+  bool readonlyRootFs;
+  /// A list of dns servers for the container to use.
+  List<String> dns = <String>[];
+  /// A list of DNS search domains.
+  List<String> dnsSearch = <String>[];
+  /// A list of hostnames/IP mappings to be added to the container's /etc/hosts
+  /// file. Specified in the form `["hostname:IP"]`.
+  List<String> extraHosts = <String>[];
+  /// A list of volumes to inherit from another container. Specified in the
+  /// form `<container name>[:<ro|rw>]`
+  List<String> volumesFrom = <String>[];
+  /// Kernel capabilities to add to the container.
+  List<String> capAdd = <String>[];
+  /// Kernel capabilities to drop from the container.
+  List<String> capDrop = <String>[];
+  /// The behavior to apply when the container exits. The value is an object
+  /// with a `Name` property of either `"always"` to always restart or
+  /// `"on-failure"` to restart only when the container exit code is non-zero.
+  /// If `on-failure` is used, `MaximumRetryCount` controls the number of times
+  /// to retry before giving up. The default is not to restart. (optional) An
+  /// ever increasing delay (double the previous delay, starting at 100mS) is
+  /// added before each restart to prevent flooding the server.
+  RestartPolicy restartPolicy;
+  /// Sets the networking mode for the container. Supported values are:
+  /// [NetworkMode.bridge], [NetworkMode.host], and `container:<name|id>`
+  String networkMode;
+  /// Devices to add to the container specified in the form
+  /// `{ "PathOnHost": "/dev/deviceName", "PathInContainer": "/dev/deviceName", "CgroupPermissions": "mrw"}`
+  Map<String,String> devices = <String,String>{};
+  /// Ulimits to be set in the container, specified as
+  /// `{ "Name": <name>, "Soft": <soft limit>, "Hard": <hard limit> }`, for example:
+  /// `Ulimits: { "Name": "nofile", "Soft": 1024, "Hard", 2048 }`
+  Map uLimits = {};
+  /// Logging configuration for the container in the form
+  /// `{ "Type": "<driver_name>", "Config": {"key1": "val1"}}`
+  /// Available types:`json-file`, `syslog`, `none`.
+  Map<String, Config> logConfig = <String,Config>{};
+  /// Path to cgroups under which the cgroup for the container will be created.
+  /// If the path is not absolute, the path is considered to be relative to the
+  /// cgroups path of the init process. Cgroups will be created if they do not
+  /// already exist.
+  String cGroupParent;
+
+  Map toJson() {
+    final json = {};
+    json['Binds'] = binds;
+    json['Links'] = links;
+    json['LxcConf'] = lxcConf;
+    json['Memory'] = memory;
+    if(memorySwap != null) {
+      assert(memory != null && memory > 0);
+      assert(memorySwap > memory);
+      json['MemorySwap'] = memorySwap;
+    }
+    json['CpuShares'] = cpuShares;
+    json['CpusetCpus'] = cpusetCpus;
+    json['PortBindings'] = portBindings;
+    json['PublishAllPorts'] = publishAllPorts;
+    json['Privileged'] = privileged;
+    json['ReadonlyRootfs'] = readonlyRootFs;
+    json['Dns'] = dns;
+    json['DnsSearch'] = dnsSearch;
+    json['ExtraHosts'] = extraHosts;
+    json['VolumesFrom'] = volumesFrom;
+    json['CapAdd'] = capAdd;
+    json['CapDrop'] = capDrop;
+    json['RestartPolicy'] = restartPolicy;
+    json['NetworkMode'] = networkMode;
+    json['Devices'] = devices;
+    json['Ulimits'] = uLimits;
+    json['LogConfig'] = logConfig;
+    json['CgroupParent'] = cGroupParent;
+
+    return json;
+  }
+}
+
+class PortArgument {
   final String hostIp;
   final int host;
   final int container;
   final String name;
-  const Port(this.host, this.container, {this.name: null, this.hostIp});
+  const PortArgument(this.host, this.container, {this.name: null, this.hostIp});
   String toDockerArgument() {
     assert(container != null && container > 0);
 

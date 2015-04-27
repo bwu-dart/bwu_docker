@@ -7,21 +7,62 @@ import 'package:bwu_utils_dev/testing_server.dart';
 import 'package:bwu_docker/src/remote_api.dart';
 import 'package:bwu_docker/src/data_structures.dart';
 
-
+const imageName = 'selenium/standalone-chrome';
+const imageVersion = '2.45.0';
 
 void main([List<String> args]) {
   initLogging(args);
 
   group('remote_api', () {
-    test('create', () async {
+    DockerConnection connection;
+    setUp(() {
+      connection = new DockerConnection('localhost', 2375);
+    });
+
+    test('containers', () async {
       // set up
-      final imageName = 'selenium/standalone-chrome';
-      final imageVersion = '2.45.0';
-      //final port = getFreeIpPort();
-      final connection = new DockerConnection('localhost' ,2375);
+      var createdContainer = await connection.create(
+          new CreateContainerRequest()..image = '${imageName}:${imageVersion}');
 
       // exercise
-      var response = await connection.create(new CreateContainerRequest()..image = '${imageName}:${imageVersion}');
+      Iterable<Container> containers = await connection.containers();
+
+      // verification
+      expect(containers, isNotEmpty);
+      expect(containers.first.image, isNotEmpty);
+      expect(containers,
+          anyElement((c) => c.image == '${imageName}:${imageVersion}'));
+
+      // tear down
+      // TODO(zeochi) remove createdContainer
+    });
+
+    test('containers all', () async {
+      // set up
+      final createdContainer = await connection.create(
+          new CreateContainerRequest()..image = '${imageName}:${imageVersion}');
+
+      // exercise
+      final Iterable<Container> containers =
+          await connection.containers(all: true);
+
+      // verification
+      expect(containers, isNotEmpty);
+      expect(containers.first.image, isNotEmpty);
+      expect(containers,
+          anyElement((c) => c.image == '${imageName}:${imageVersion}'));
+      // TODO(zeochi) stop container and check if it is still listed
+
+      // tear down
+      // TODO(zeochi) remove createdContainer
+    });
+
+    test('create', () async {
+      // set up
+
+      // exercise
+      var response = await connection.create(
+          new CreateContainerRequest()..image = '${imageName}:${imageVersion}');
 
       // verification
       expect(response.container, new isInstanceOf<Container>());
@@ -30,79 +71,112 @@ void main([List<String> args]) {
       // tear down
     });
 
-    test('create', () async {
+    test('create with name', () async {
       // set up
-      final imageName = 'selenium/standalone-chrome';
-      final imageVersion = '2.45.0';
-      //final port = getFreeIpPort();
-      final connection = new DockerConnection('localhost' ,2375);
-      var container = await connection.create(new CreateContainerRequest()..image = '${imageName}:${imageVersion}');
-      expect(container.container, new isInstanceOf<Container>());
-      expect(container.container.id, isNotEmpty);
+      const containerName = '/dummy_name';
+      // exercise
+      final CreateResponse createdContainer = await connection.create(
+          new CreateContainerRequest()..image = '${imageName}:${imageVersion}',
+          name: 'dummy_name');
+      expect(createdContainer.container, new isInstanceOf<Container>());
+      expect(createdContainer.container.id, isNotEmpty);
+
+      final Iterable<Container> containers =
+          await connection.containers(filters: {'name': [containerName]});
+      //print(containers.map((c) => c.toJson()).toList());
+
+      // verification
+      expect(containers.length, greaterThan(0));
+      containers.forEach((c) => print(c.toJson()));
+      expect(containers, everyElement((c) => c.names.contains(containerName)));
+
+      // tear down
+    }, skip: 'figure out how to pass a name to `create`.');
+
+    test('start', () async {
+      // set up
+      final CreateResponse createdResponse = await connection.create(
+          new CreateContainerRequest()..image = '${imageName}:${imageVersion}');
 
       // exercise
-      var response = await connection.start(container.container);
+      final SimpleResponse startedContainer =
+          await connection.start(createdResponse.container);
+
       // verification
+      expect(startedContainer, isNotNull);
+      final Iterable<Container> containers = await connection.containers(
+          filters: {'status': [ContainerStatus.running.toString()]});
+      //print(containers.map((c) => c.toJson()).toList());
+
+      expect(
+          containers, anyElement((c) => c.id == createdResponse.container.id));
+
       // tear down
     });
 
+    test('top', () async {
+      // set up
+      final CreateResponse createdResponse = await connection.create(
+          new CreateContainerRequest()..image = '${imageName}:${imageVersion}');
+      final SimpleResponse startedContainer =
+          await connection.start(createdResponse.container);
+      expect(startedContainer, isNotNull);
+
+      // exercise
+      final TopResponse topResponse =
+          await connection.top(createdResponse.container);
+
+      // verification
+      const titles = const [
+        'UID',
+        'PID',
+        'PPID',
+        'C',
+        'STIME',
+        'TTY',
+        'TIME',
+        'CMD'
+      ];
+      expect(topResponse.titles, orderedEquals(titles));
+      expect(topResponse.processes.length, greaterThan(0));
+      expect(topResponse.processes, anyElement((e) =>
+          e.any((i) => i.contains('/bin/bash /opt/bin/entry_point.sh'))));
+
+      // tear down
+    });
+
+    test('top with ps_args', () async {
+      // set up
+      final CreateResponse createdResponse = await connection.create(
+          new CreateContainerRequest()..image = '${imageName}:${imageVersion}');
+      final SimpleResponse startedContainer =
+          await connection.start(createdResponse.container);
+      expect(startedContainer, isNotNull);
+
+      // exercise
+      final TopResponse topResponse =
+          await connection.top(createdResponse.container, psArgs: 'aux');
+
+      // verification
+      const titles = const [
+        'USER',
+        'PID',
+        '%CPU',
+        '%MEM',
+        'VSZ',
+        'RSS',
+        'TTY',
+        'STAT',
+        'START',
+        'TIME',
+        'COMMAND'
+      ];
+      expect(topResponse.titles, orderedEquals(titles));
+      expect(topResponse.processes.length, greaterThan(0));
+      expect(topResponse.processes, anyElement((e) =>
+          e.any((i) => i.contains('/bin/bash /opt/bin/entry_point.sh'))));
+
+      // tear down
+    });
   });
-
-  group('ContainerInfo', () {
-    test('get by incpect', () {
-      const imageName = 'selenium/standalone-chrome';
-      const imageVersion ='2.45.0';
-      final docker = new ContainerProcess(imageName, imageVersion: imageVersion);
-      io.ProcessResult result = docker.run();
-      expect(result.exitCode, 0);
-      expect(docker.id, isNotEmpty);
-
-      final ci = DockerCommand.inspectContainer(docker.id);
-      expect(ci.config.imageName, imageName);
-      expect(ci.config.imageVersion, imageVersion);
-      result = docker.stop();
-      expect(result.exitCode, 0);
-    }, skip: 'wip');
-  });
-
-  group('ImageInfo', () {
-    test('get by incpect', () {
-      const imageName = 'selenium/standalone-chrome';
-      const imageVersion ='2.45.0';
-      final docker = new ContainerProcess(imageName, imageVersion: imageVersion);
-      io.ProcessResult result = docker.run();
-      expect(result.exitCode, 0);
-      expect(docker.id, isNotEmpty);
-
-      final ci = DockerCommand.inspectContainer(docker.id);
-      final ii = DockerCommand.inspectImage(ci.config.image);
-      expect(ci.image, ii.id);
-      result = docker.stop();
-      expect(result.exitCode, 0);
-
-    },skip: 'wip');
-  });
-
-  group('ps', () {
-    test('ps', () async {
-      // var result = DockerCommand.ps();
-      //io.File f = new io.File('unix:///var/run/docker.sock');
-      final port = await getFreeIpPort();
-      final ncat = new NCatSocketProcess();
-      //await ncat.run(port);
-      //final io.Socket socket = await io.Socket.connect('localhost', 2375);
-      //socket.listen((d) => print('data: $d'));
-      //socket.add('GET /containers/json'.codeUnits);
-      //final io.HttpClientRequest req = await new io.HttpClient().getUrl(Uri.parse('http://localhost:${port}/containers/json'));
-      final io.HttpClientRequest req = await new io.HttpClient().getUrl(Uri.parse('http://localhost:2375/containers/json'));
-      req.close();
-      final io.HttpClientResponse resp = await req.done;
-      print('data: ${new String.fromCharCodes(await resp.expand((e) => e).toList())}');
-
-      ncat.stop();
-    },skip: 'wip');
-
-  });
-
 }
-

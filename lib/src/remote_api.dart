@@ -14,162 +14,97 @@ class DockerConnection {
     client = new http.Client();
   }
 
-  Future<List<Container>> ps() async {
-    final http.Response resp =
-        await client.get(Uri.parse('http://localhost:2375/containers/json'));
-    print(resp.body);
-    //print('data: ${new String.fromCharCodes(resp.expand((e) => e).toList())}');
+  /// Send a POST request to the Docker service.
+  Future<Map> _post(String path, {Map json, Map query}) async {
+    String data;
+    if (json != null) {
+      data = JSON.encode(json);
+    }
+    final url = new Uri(
+        scheme: 'http',
+        host: host,
+        port: port,
+        path: path,
+        queryParameters: query);
+
+    final http.Response response = await client.post(url,
+        headers: headers, body: data);
+    if(response.statusCode < 200 && response.statusCode >= 300) {
+      throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
+    }
+    if (response.body != null && response.body.isNotEmpty) {
+      return JSON.decode(response.body);
+    }
+    return null;
   }
 
-  Future<CreateResponse> create(CreateContainerRequest request) async {
-    final http.Response resp =
-        await client.post(Uri.parse('http://localhost:2375/containers/create'), headers: headers, body: JSON.encode(request));
-    return new CreateResponse.fromJson(JSON.decode(resp.body));
+  Future<dynamic> _get(String path, {Map<String,String> query}) async {
+    final url = new Uri(
+        scheme: 'http',
+        host: host,
+        port: port,
+        path: path,
+        queryParameters: query);
+    final http.Response response = await client.get(url, headers: headers);
+    if(response.statusCode < 200 || response.statusCode >= 300) {
+      throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
+    }
+
+    if (response.body != null && response.body.isNotEmpty) {
+      return JSON.decode(response.body);
+    }
+    return null;
+  }
+
+  /// Request the list of containers from the Docker service.
+  /// [all] - Show all containers. Only running containers are shown by default (i.e., this defaults to false)
+  /// [limit] - Show limit last created containers, include non-running ones.
+  /// [since] - Show only containers created since Id, include non-running ones.
+  /// [before] - Show only containers created before Id, include non-running ones.
+  /// [size] - Show the containers sizes
+  /// [filters] - filters to process on the containers list. Available filters:
+  ///  `exited`=<[int]> - containers with exit code of <int>
+  ///  `status`=[ContainerStatus]
+  Future<Iterable<Container>> containers({bool all, int limit, String since,
+      String before, bool size, Map<String, List> filters}) async {
+    Map<String,String> query = {};
+    if (all != null) query['all'] = all.toString();
+    if (limit != null) query['limit'] = limit.toString();
+    if (since != null) query['since'] = since;
+    if (before != null) query['before'] = before;
+    if (size != null) query['size'] = size.toString();
+    if (filters != null) query['filters'] = JSON.encode(filters);
+
+    final List response = await _get('/containers/json', query: query);
+    return response.map((e) => new Container.fromJson(e));
+  }
+
+  /// Create a container from a container configuration.
+  Future<CreateResponse> create(CreateContainerRequest request, {String name}) async {
+    Map query;
+    if(name != null) {
+      assert(containerNameRegex.hasMatch(name));
+      query = {'name': name};
+    }
+    final Map response =
+        await _post('/containers/create', json: request.toJson(), query: query);
+    return new CreateResponse.fromJson(response);
   }
 
   Future<SimpleResponse> start(Container container) async {
-    final http.Response resp =
-        await client.post(Uri.parse('http://localhost:2375/containers/${container.id}/start'), headers: headers);
-    return new SimpleResponse.fromJson(resp.body.length == 0 ? null : JSON.decode(resp.body));
+    final Map response = await _post('/containers/${container.id}/start');
+    return new SimpleResponse.fromJson(response);
   }
-}
 
-class SimpleResponse {
-  SimpleResponse.fromJson(Map json) {
-    if(json != null && json.keys.length > 0) {
-      throw json;
+  Future<TopResponse> top(Container container, {String psArgs}) async {
+    Map query;
+    if(psArgs != null) {
+      query = {'ps_args': psArgs};
     }
+
+    final Map response = await _get('/containers/${container.id}/top', query: query);
+    return new TopResponse.fromJson(response);
+
   }
 }
 
-class CreateResponse {
-  Container _container;
-  Container get container => _container;
-
-  CreateResponse.fromJson(Map json) {
-    if(json['Id'] != null && (json['Id'] as String).isNotEmpty) {
-      _container = new Container.fromJson(json);
-    }
-    if(json['Warnings'] != null) {
-      throw json['Warnings'];
-    }
-  }
-}
-class Container {
-  final String id;
-  Container(this.id);
-
-  factory Container.fromJson(Map json) {
-    final id = json['Id'];
-    assert(json.keys.length <= 2);
-    return new Container(id);
-  }
-}
-
-class CreateContainerRequest {
-  String hostName = '';
-  String domainName = '';
-  String user = '';
-  bool attachStdin = false;
-  bool attachStdout = true;
-  bool attachStderr = true;
-  bool tty = false;
-  bool openStdin = false;
-  bool stdinOnce = false;
-  Map<String, String> env;
-  List<String> cmd = [];
-  String entryPoint = '';
-  String image = '';
-  List<String> labels = <String>[];
-  Volumes volumes;
-  String workingDir = '';
-  bool networkDisabled = false;
-  String macAddress = '';
-  Map<String, Map<String, String>> exposedPorts = <String, Map<String, String>>{
-  };
-  List<String> securityOpts = [""];
-  HostConfigRequest hostConfig = new HostConfigRequest();
-
-  Map toJson() {
-    final json = {};
-    json['Hostname'] = hostName;
-    json['Domainname'] = domainName;
-    json['User'] = user;
-    json['AttachStdin'] = attachStdin;
-    json['AttachStdout'] = attachStdout;
-    json['AttachStderr'] = attachStderr;
-    json['Tty'] = tty;
-    json['OpenStdin'] = openStdin;
-    json['StdinOnce'] = stdinOnce;
-    json['Env'] = env;
-    json['Cmd'] = cmd;
-    json['Entrypoint'] = entryPoint;
-    json['Image'] = image;
-    json['Labels'] = labels;
-    json['Volumes'] = volumes != null ? volumes.toJson() : null;
-    json['WorkingDir'] = workingDir;
-    json['NetworkDisabled'] = networkDisabled;
-    json['MacAddress'] = macAddress;
-    json['ExposedPorts'] = exposedPorts;
-    json['SecurityOpts'] = securityOpts;
-    json['HostConfig'] = hostConfig != null ? hostConfig.toJson(): null;
-    return json;
-  }
-}
-
-class HostConfigRequest {
-  List<String> binds = ['/tmp:/tmp'];
-  List<String> links = [];
-  Map<String, String> lxcConf = {"lxc.utsname": "docker"};
-  int memory = 0;
-  int memorySwap = 0;
-  int cpuShares = 512;
-  String cpusetCpus = "0,1";
-  Map<String, Map<String, String>> portBindings = {
-    "22/tcp": [{"HostPort": "11022"}]
-  };
-  bool publishAllPorts = false;
-  bool privileged = false;
-  bool readonlyRootFs = false;
-  List<String> dns = ["8.8.8.8"];
-  List<String> dnsSearch = [""];
-  List<String> extraHosts = null;
-  List<String> volumesFrom = [];
-  List<String> capAdd = ["NET_ADMIN"];
-  List<String> capDrop = ["MKNOD"];
-  Map restartPolicy = {"Name": "", "MaximumRetryCount": 0};
-  String networkMode = "bridge";
-  List<String> devices = [];
-  List<Map<String, int>> uLimits = [{}];
-  Map<String, Config> logConfig = {"Type": "json-file" /*, Config: {}*/};
-  String cGroupParent = '';
-
-  Map toJson() {
-    final json = {};
-    json['Binds'] = binds;
-    json['Links'] = links;
-    json['LxcConf'] = lxcConf;
-    json['Memory'] = memory;
-    json['MemorySwap'] = memorySwap;
-    json['CpuShares'] = cpuShares;
-    json['CpusetCpus'] = cpusetCpus;
-    json['PortBindings'] = portBindings;
-    json['PublishAllPorts'] = publishAllPorts;
-    json['Privileged'] = privileged;
-    json['ReadonlyRootfs'] = readonlyRootFs;
-    json['Dns'] = dns;
-    json['DnsSearch'] = dnsSearch;
-    json['ExtraHosts'] = extraHosts;
-    json['VolumesFrom'] = volumesFrom;
-    json['CapAdd'] = capAdd;
-    json['CapDrop'] = capDrop;
-    json['RestartPolicy'] = restartPolicy;
-    json['NetworkMode'] = networkMode;
-    json['Devices'] = devices;
-    json['Ulimits'] = uLimits;
-    json['LogConfig'] = logConfig;
-    json['CgroupParent'] = cGroupParent;
-
-    return json;
-  }
-}
