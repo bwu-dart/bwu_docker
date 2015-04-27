@@ -9,6 +9,7 @@ import 'package:bwu_docker/src/data_structures.dart';
 
 const imageName = 'selenium/standalone-chrome';
 const imageVersion = '2.45.0';
+const imageNameAndVersion = '${imageName}:${imageVersion}';
 
 void main([List<String> args]) {
   initLogging(args);
@@ -22,7 +23,7 @@ void main([List<String> args]) {
     test('containers', () async {
       // set up
       var createdContainer = await connection.create(
-          new CreateContainerRequest()..image = '${imageName}:${imageVersion}');
+          new CreateContainerRequest()..image = imageNameAndVersion);
 
       // exercise
       Iterable<Container> containers = await connection.containers();
@@ -31,7 +32,7 @@ void main([List<String> args]) {
       expect(containers, isNotEmpty);
       expect(containers.first.image, isNotEmpty);
       expect(containers,
-          anyElement((c) => c.image == '${imageName}:${imageVersion}'));
+          anyElement((c) => c.image == imageNameAndVersion));
 
       // tear down
       // TODO(zeochi) remove createdContainer
@@ -40,7 +41,7 @@ void main([List<String> args]) {
     test('containers all', () async {
       // set up
       final createdContainer = await connection.create(
-          new CreateContainerRequest()..image = '${imageName}:${imageVersion}');
+          new CreateContainerRequest()..image = imageNameAndVersion);
 
       // exercise
       final Iterable<Container> containers =
@@ -50,7 +51,7 @@ void main([List<String> args]) {
       expect(containers, isNotEmpty);
       expect(containers.first.image, isNotEmpty);
       expect(containers,
-          anyElement((c) => c.image == '${imageName}:${imageVersion}'));
+          anyElement((c) => c.image == imageNameAndVersion));
       // TODO(zeochi) stop container and check if it is still listed
 
       // tear down
@@ -62,7 +63,7 @@ void main([List<String> args]) {
 
       // exercise
       var response = await connection.create(
-          new CreateContainerRequest()..image = '${imageName}:${imageVersion}');
+          new CreateContainerRequest()..image = imageNameAndVersion);
 
       // verification
       expect(response.container, new isInstanceOf<Container>());
@@ -76,7 +77,7 @@ void main([List<String> args]) {
       const containerName = '/dummy_name';
       // exercise
       final CreateResponse createdContainer = await connection.create(
-          new CreateContainerRequest()..image = '${imageName}:${imageVersion}',
+          new CreateContainerRequest()..image = imageNameAndVersion,
           name: 'dummy_name');
       expect(createdContainer.container, new isInstanceOf<Container>());
       expect(createdContainer.container.id, isNotEmpty);
@@ -93,10 +94,32 @@ void main([List<String> args]) {
       // tear down
     }, skip: 'figure out how to pass a name to `create`.');
 
+    test('container', () async {
+      // set up
+
+      // exercise
+      final CreateResponse response = await connection.create(
+          new CreateContainerRequest()..image = imageNameAndVersion);
+      expect(response.container, new isInstanceOf<Container>());
+      expect(response.container.id, isNotEmpty);
+      await connection.start(response.container);
+      final ContainerInfo container = await connection.container(response.container);
+
+      // verification
+      expect(container, new isInstanceOf<ContainerInfo>());
+      print(container.toJson());
+      expect(container.id, response.container.id);
+      expect(container.config.cmd, ['/opt/bin/entry_point.sh']);
+      expect(container.config.image, imageNameAndVersion);
+      expect(container.state.running, isTrue);
+
+      // tear down
+    });
+
     test('start', () async {
       // set up
       final CreateResponse createdResponse = await connection.create(
-          new CreateContainerRequest()..image = '${imageName}:${imageVersion}');
+          new CreateContainerRequest()..image = imageNameAndVersion);
 
       // exercise
       final SimpleResponse startedContainer =
@@ -117,7 +140,7 @@ void main([List<String> args]) {
     test('top', () async {
       // set up
       final CreateResponse createdResponse = await connection.create(
-          new CreateContainerRequest()..image = '${imageName}:${imageVersion}');
+          new CreateContainerRequest()..image = imageNameAndVersion);
       final SimpleResponse startedContainer =
           await connection.start(createdResponse.container);
       expect(startedContainer, isNotNull);
@@ -148,7 +171,7 @@ void main([List<String> args]) {
     test('top with ps_args', () async {
       // set up
       final CreateResponse createdResponse = await connection.create(
-          new CreateContainerRequest()..image = '${imageName}:${imageVersion}');
+          new CreateContainerRequest()..image = imageNameAndVersion);
       final SimpleResponse startedContainer =
           await connection.start(createdResponse.container);
       expect(startedContainer, isNotNull);

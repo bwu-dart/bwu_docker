@@ -65,6 +65,10 @@ class DockerConnection {
   /// [filters] - filters to process on the containers list. Available filters:
   ///  `exited`=<[int]> - containers with exit code of <int>
   ///  `status`=[ContainerStatus]
+  ///  Status Codes:
+  /// 200 – no error
+  /// 400 – bad parameter
+  /// 500 – server error
   Future<Iterable<Container>> containers({bool all, int limit, String since,
       String before, bool size, Map<String, List> filters}) async {
     Map<String,String> query = {};
@@ -80,6 +84,12 @@ class DockerConnection {
   }
 
   /// Create a container from a container configuration.
+  /// [name] - Assign the specified name to the container.
+  /// Status Codes:
+  /// 201 – no error
+  /// 404 – no such container
+  /// 406 – impossible to attach (container not running)
+  /// 500 – server error
   Future<CreateResponse> create(CreateContainerRequest request, {String name}) async {
     Map query;
     if(name != null) {
@@ -96,6 +106,23 @@ class DockerConnection {
     return new SimpleResponse.fromJson(response);
   }
 
+  /// Return low-level information on the container [container].
+  /// The passed [container] argument must have an existing id assigned.
+  /// Status Codes:
+  /// 200 – no error
+  /// 404 – no such container
+  /// 500 – server error
+  Future<ContainerInfo> container(Container container) async {
+    final Map response = await _get('/containers/${container.id}/json');
+    return new ContainerInfo.fromJson(response);
+  }
+
+  /// List processes running inside the container.
+  /// [psArgs] – `ps` arguments to use (e.g., `aux`)
+  /// Status Codes:
+  /// 200 – no error
+  /// 404 – no such container
+  /// 500 – server error
   Future<TopResponse> top(Container container, {String psArgs}) async {
     Map query;
     if(psArgs != null) {

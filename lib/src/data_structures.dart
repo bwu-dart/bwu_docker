@@ -14,7 +14,7 @@ DateTime _parseDate(dynamic dateValue) {
     }
 
     return dateFormat.parse(
-        dateValue.substring(0, dateValue.length - 6) + 'Z', true);
+        dateValue.substring(0, dateValue.length - 7) + 'Z', true);
   } else if (dateValue is int) {
     return new DateTime.fromMillisecondsSinceEpoch(dateValue * 1000,
         isUtc: true);
@@ -40,9 +40,12 @@ UnmodifiableMapView _toUnmodifiableMapView(Map map) {
   }));
 }
 
-UnmodifiableListView _toUnmodifiableListView(List list) {
+UnmodifiableListView _toUnmodifiableListView(Iterable list) {
   if (list == null) {
     return null;
+  }
+  if(list.length == 0) {
+    return new UnmodifiableListView(const []);
   }
 
   return new UnmodifiableListView(list.map((e) {
@@ -55,7 +58,6 @@ UnmodifiableListView _toUnmodifiableListView(List list) {
     }
   }));
 }
-
 
 /// Response to the top request
 class TopResponse {
@@ -82,7 +84,12 @@ class ContainerStatus {
   static const paused = const ContainerStatus('paused');
   static const exited = const ContainerStatus('exited');
 
-  static const values = const <ContainerStatus>[];
+  static const values = const <ContainerStatus>[
+    restarting,
+    running,
+    paused,
+    exited
+  ];
 
   final String value;
 
@@ -92,11 +99,7 @@ class ContainerStatus {
   String toString() => '${value}';
 }
 
-enum RestartPolicyVariant {
-  doNotRestart,
-  always,
-  onFailure
-}
+enum RestartPolicyVariant { doNotRestart, always, onFailure }
 
 ///  The behavior to apply when the container exits. The value is an object with
 ///  a `Name` property of either "always" to always restart or `"on-failure"` to
@@ -106,19 +109,42 @@ enum RestartPolicyVariant {
 ///  delay (double the previous delay, starting at 100mS) is added before each
 ///  restart to prevent flooding the server.
 class RestartPolicy {
-  RestartPolicyVariant variant;
-  int maximumRetryCount;
+  RestartPolicyVariant _variant;
+  RestartPolicyVariant get variant => _variant;
+  int _maximumRetryCount;
+  int get maximumRetryCount => _maximumRetryCount;
+
+  RestartPolicy(this._variant, this._maximumRetryCount);
+
+  RestartPolicy.fromJson(Map json) {
+    if (json['Name'] != null && json['Name'].isNotEmpty) {
+      final value = RestartPolicyVariant.values
+          .where((v) => v.toString().endsWith(json['Name']));
+      print(json);
+      if(value.length != 1) {
+        throw 'Invalid value "${json['Name']}".';
+      }
+      _variant = value;
+      if(value == RestartPolicyVariant.onFailure) {
+        _maximumRetryCount = json['MaximumRetryCount'];
+      }
+    }
+  }
 
   Map toJson() {
-    assert(maximumRetryCount == null || variant == RestartPolicyVariant.onFailure);
-    switch(variant) {
+    assert(_maximumRetryCount == null ||
+        _variant == RestartPolicyVariant.onFailure);
+    if(variant == null) {
+      return null;
+    }
+    switch (_variant) {
       case RestartPolicyVariant.doNotRestart:
         return null;
       case RestartPolicyVariant.always:
         return {'always': null};
       case RestartPolicyVariant.onFailure:
-        if(maximumRetryCount != null) {
-          return {'on-failure': null, 'MaximumRetryCount': maximumRetryCount};
+        if (_maximumRetryCount != null) {
+          return {'on-failure': null, 'MaximumRetryCount': _maximumRetryCount};
         }
         return {'on-failure': null};
       default:
@@ -174,9 +200,7 @@ class Container {
     _names = json['Names'];
     _ports = json['Ports'] == null
         ? null
-        : json['Ports']
-            .map((p) => new PortResponse.fromJson(p))
-            .toList();
+        : json['Ports'].map((p) => new PortResponse.fromJson(p)).toList();
     _status = json['Status'];
 
     assert(json.keys.length <= 7);
@@ -321,7 +345,7 @@ class ContainerInfo {
 
   ContainerInfo.fromJson(Map json) {
     _appArmorProfile = json['AppArmorProfile'];
-    _args = new UnmodifiableListView<String>(json['Args']);
+    _args = _toUnmodifiableListView(json['Args']);
     _config = new Config.fromJson(json['Config']);
     _created = _parseDate(json['Created']);
     _driver = json['Driver'];
@@ -370,14 +394,14 @@ class ContainerInfo {
 }
 
 class HostConfig {
-  String _binds;
-  String get binds => _binds;
+  UnmodifiableListView<String> _binds;
+  UnmodifiableListView<String> get binds => _binds;
 
-  String _capAdd;
-  String get capAdd => _capAdd;
+  UnmodifiableListView<String> _capAdd;
+  UnmodifiableListView<String> get capAdd => _capAdd;
 
-  String _capDrop;
-  String get capDrop => _capDrop;
+  UnmodifiableListView<String> _capDrop;
+  UnmodifiableListView<String> get capDrop => _capDrop;
 
   String _containerIdFile;
   String get containerIdFile => _containerIdFile;
@@ -385,11 +409,11 @@ class HostConfig {
   UnmodifiableListView<String> _devices;
   UnmodifiableListView<String> get devices => _devices;
 
-  String _dns;
-  String get dns => _dns;
+  UnmodifiableListView<String> _dns;
+  UnmodifiableListView<String> get dns => _dns;
 
-  String _dnsSearch;
-  String get dnsSearch => _dnsSearch;
+  UnmodifiableListView<String> _dnsSearch;
+  UnmodifiableListView<String> get dnsSearch => _dnsSearch;
 
   UnmodifiableListView<String> _extraHosts;
   UnmodifiableListView<String> get extraHosts => _extraHosts;
@@ -412,58 +436,58 @@ class HostConfig {
   bool _publishAllPorts;
   bool get publishAllPorts => _publishAllPorts;
 
-  UnmodifiableMapView _restartPolicy;
-  UnmodifiableMapView get restartPolicy => _restartPolicy;
+  RestartPolicy _restartPolicy;
+  RestartPolicy get restartPolicy => _restartPolicy;
 
   String _securityOpt;
   String get securityOpt => _securityOpt;
 
-  UnmodifiableMapView _volumesFrom;
-  UnmodifiableMapView get volumesFrom => _volumesFrom;
+  UnmodifiableListView _volumesFrom;
+  UnmodifiableListView get volumesFrom => _volumesFrom;
 
   HostConfig.fromJson(Map json) {
     if (json == null) {
       return;
     }
-    _binds = json['Binds'];
-    _capAdd = json['CapAdd'];
-    _capDrop = json['CapDrop'];
+    _binds = _toUnmodifiableListView(json['Binds']);
+    _capAdd = _toUnmodifiableListView(json['CapAdd']);
+    _capDrop = _toUnmodifiableListView(json['CapDrop']);
     _containerIdFile = json['ContainerIDFile'];
-    _devices = new UnmodifiableListView(json['Devices']);
-    _dns = json['Dns'];
-    _dnsSearch = json['DnsSearch'];
-    _extraHosts = new UnmodifiableListView(json['ExtraHosts']);
-    _links = new UnmodifiableListView(json['Links']);
-    _lxcConf = new UnmodifiableListView(json['LxcConf']);
+    _devices = _toUnmodifiableListView(json['Devices']);
+    _dns = _toUnmodifiableListView(json['Dns']);
+    _dnsSearch = _toUnmodifiableListView(json['DnsSearch']);
+    _extraHosts = _toUnmodifiableListView(json['ExtraHosts']);
+    _links = _toUnmodifiableListView(json['Links']);
+    _lxcConf = _toUnmodifiableListView(json['LxcConf']);
     _networkMode = json['NetworkMode'];
     _portBindings = _toUnmodifiableMapView(json['PortBindings']);
     _privileged = json['Privileged'];
     _publishAllPorts = json['PublishAllPorts'];
-    _restartPolicy = _toUnmodifiableMapView(json['RestartPolicy']);
+    _restartPolicy = new RestartPolicy.fromJson(json['RestartPolicy']);
     _securityOpt = json['SecurityOpt'];
-    _volumesFrom = json['VolumesFrom'];
+    _volumesFrom = _toUnmodifiableListView(json['VolumesFrom']);
     assert(json.keys.length <= 17); // ensure all keys were read
   }
 
   Map toJson() {
     final json = {};
-  json['Binds'] = binds;
-  json['CapAdd'] = capAdd;
-  json['CapDrop'] = capDrop;
-  json['ContainerIDFile'] = containerIdFile;
-  json['Devices'] = devices;
-  json['Dns'] = dns;
-  json['DnsSearch'] = dnsSearch;
-  json['ExtraHosts'] = extraHosts;
-  json['Links'] = links;
-  json['LxcConf'] = lxcConf;
-  json['NetworkMode'] = networkMode;
-  json['PortBindings'] = portBindings;
-  json['Privileged'] = privileged;
-  json['PublishAllPorts'] = publishAllPorts;
-  json['RestartPolicy'] = restartPolicy;
-  json['SecurityOpt'] = securityOpt;
-  json['VolumesFrom'] = volumesFrom;
+    json['Binds'] = binds;
+    json['CapAdd'] = capAdd;
+    json['CapDrop'] = capDrop;
+    json['ContainerIDFile'] = containerIdFile;
+    json['Devices'] = devices;
+    json['Dns'] = dns;
+    json['DnsSearch'] = dnsSearch;
+    json['ExtraHosts'] = extraHosts;
+    json['Links'] = links;
+    json['LxcConf'] = lxcConf;
+    json['NetworkMode'] = networkMode;
+    json['PortBindings'] = portBindings;
+    json['Privileged'] = privileged;
+    json['PublishAllPorts'] = publishAllPorts;
+    json['RestartPolicy'] = restartPolicy.toJson();
+    json['SecurityOpt'] = securityOpt;
+    json['VolumesFrom'] = volumesFrom;
     return json;
   }
 }
@@ -555,13 +579,13 @@ class State {
 
   Map toJson() {
     final json = {};
-    json['ExitCode'] = exitCode;;
-    json['FinishedAt'] = finishedAt;;
-    json['Paused'] = paused;;
-    json['Pid'] = pid;;
-    json['Restarting'] = restarting;;
-    json['Running'] = running;;
-    json['StartedAt'] = startedAt;;
+    json['ExitCode'] = exitCode;
+    json['FinishedAt'] = finishedAt;
+    json['Paused'] = paused;
+    json['Pid'] = pid;
+    json['Restarting'] = restarting;
+    json['Running'] = running;
+    json['StartedAt'] = startedAt;
 
     return json;
   }
@@ -590,8 +614,9 @@ class VolumesRw {
   }
 
   Map toJson() {
-    final json = {};
-    return json;
+    return null;
+//    final json = {};
+//    return json;
   }
 }
 
@@ -676,14 +701,14 @@ class Config {
     _attachStderr = json['AttachStderr'];
     _attachStdin = json['AttachStdin'];
     _attachStdout = json['AttachStdout'];
-    _cmd = new UnmodifiableListView<String>(json['Cmd']);
+    _cmd = _toUnmodifiableListView(json['Cmd']);
     _cpuShares = json['CpuShares'];
     _cpuSet = json['Cpuset'];
     _domainName = json['Domainname'];
     _entryPoint = json['Entrypoint'];
     final e = json['Env'];
     if (e != null) {
-      _env = new UnmodifiableMapView<String, String>(
+      _env = _toUnmodifiableMapView(
           new Map<String, String>.fromIterable(e.map((i) => i.split('=')),
               key: (i) => i[0], value: (i) => i.length == 2 ? i[1] : null));
     }
@@ -693,13 +718,13 @@ class Config {
     _memory = json['Memory'];
     _memorySwap = json['MemorySwap'];
     _networkDisabled = json['NetworkDisabled'];
-    _onBuild = new UnmodifiableListView(json['OnBuild']);
+    _onBuild = _toUnmodifiableListView(json['OnBuild']);
     _openStdin = json['OpenStdin'];
     _portSpecs = json['PortSpecs'];
     _stdinOnce = json['StdinOnce'];
     _tty = json['Tty'];
     _user = json['User'];
-    _volumes = new UnmodifiableListView<String>(json['_volumes']);
+    _volumes = _toUnmodifiableListView(json['Volumes']);
     _workingDir = json['WorkingDir'];
     assert(json.keys.length <= 23); // ensure all keys were read
   }
@@ -783,7 +808,6 @@ class CreateResponse {
   }
 }
 
-
 /// The configuration for the [create] request.
 class CreateContainerRequest {
   /// The desired hostname to use for the container.
@@ -811,10 +835,10 @@ class CreateContainerRequest {
   /// Set the entrypoint for the container.
   String entryPoint;
   /// The image name to use for the container.
-  String image ;
+  String image;
   /// Adds a map of labels to a container. To specify a map:
   /// `{"key":"value"[,"key2":"value2"]}`
-  Map<String,String> labels = <String,String>{};
+  Map<String, String> labels = <String, String>{};
   /// An object mapping mountpoint paths (strings) inside the container to empty
   /// objects.
   Volumes volumes = new Volumes();
@@ -871,7 +895,7 @@ class HostConfigRequest {
   List<String> links = <String>[];
   /// LXC specific configurations. These configurations will only work when
   /// using the lxc execution driver.
-  Map<String, String> lxcConf = <String,String>{};
+  Map<String, String> lxcConf = <String, String>{};
   /// Memory limit in bytes.
   int memory;
   /// Total memory limit (memory + swap); set -1 to disable swap, always use
@@ -884,7 +908,8 @@ class HostConfigRequest {
   /// Exposed container ports and the host port they should map to. It should be
   /// specified in the form `{ <port>/<protocol>: [{ "HostPort": "<port>" }] }`.
   /// Take note that port is specified as a string and not an integer value.
-  Map<String, Map<String, String>> portBindings = <String,Map<String,String>>{};
+  Map<String, Map<String, String>> portBindings = <String, Map<String, String>>{
+  };
   /// Allocates a random host port for all of a container's exposed ports.
   bool publishAllPorts;
   /// Gives the container full access to the host.
@@ -918,7 +943,7 @@ class HostConfigRequest {
   String networkMode;
   /// Devices to add to the container specified in the form
   /// `{ "PathOnHost": "/dev/deviceName", "PathInContainer": "/dev/deviceName", "CgroupPermissions": "mrw"}`
-  Map<String,String> devices = <String,String>{};
+  Map<String, String> devices = <String, String>{};
   /// Ulimits to be set in the container, specified as
   /// `{ "Name": <name>, "Soft": <soft limit>, "Hard": <hard limit> }`, for example:
   /// `Ulimits: { "Name": "nofile", "Soft": 1024, "Hard", 2048 }`
@@ -926,7 +951,7 @@ class HostConfigRequest {
   /// Logging configuration for the container in the form
   /// `{ "Type": "<driver_name>", "Config": {"key1": "val1"}}`
   /// Available types:`json-file`, `syslog`, `none`.
-  Map<String, Config> logConfig = <String,Config>{};
+  Map<String, Config> logConfig = <String, Config>{};
   /// Path to cgroups under which the cgroup for the container will be created.
   /// If the path is not absolute, the path is considered to be relative to the
   /// cgroups path of the init process. Cgroups will be created if they do not
@@ -939,7 +964,7 @@ class HostConfigRequest {
     json['Links'] = links;
     json['LxcConf'] = lxcConf;
     json['Memory'] = memory;
-    if(memorySwap != null) {
+    if (memorySwap != null) {
       assert(memory != null && memory > 0);
       assert(memorySwap > memory);
       json['MemorySwap'] = memorySwap;
