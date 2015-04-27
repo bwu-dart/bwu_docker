@@ -59,7 +59,18 @@ UnmodifiableListView _toUnmodifiableListView(Iterable list) {
   }));
 }
 
-/// Response to the top request
+/// Response to the logs request.
+class LogResponse {
+  LogResponse.fromJson(Map json) {
+    print(json);
+  }
+
+  Map toJson() {
+  }
+}
+
+
+/// Response to the top request.
 class TopResponse {
   List<String> _titles;
   List<String> get titles => _titles;
@@ -844,7 +855,7 @@ class CreateContainerRequest {
   Volumes volumes = new Volumes();
   /// The working dir for commands to run in.
   String workingDir;
-  /// [true] disables neworking for the container.
+  /// [true] disables networking for the container.
   bool networkDisabled;
   String macAddress = '';
   /// An object mapping ports to an empty object in the form of:

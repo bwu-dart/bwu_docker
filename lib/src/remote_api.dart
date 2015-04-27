@@ -27,9 +27,9 @@ class DockerConnection {
         path: path,
         queryParameters: query);
 
-    final http.Response response = await client.post(url,
-        headers: headers, body: data);
-    if(response.statusCode < 200 && response.statusCode >= 300) {
+    final http.Response response =
+        await client.post(url, headers: headers, body: data);
+    if (response.statusCode < 200 && response.statusCode >= 300) {
       throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
     }
     if (response.body != null && response.body.isNotEmpty) {
@@ -38,7 +38,7 @@ class DockerConnection {
     return null;
   }
 
-  Future<dynamic> _get(String path, {Map<String,String> query}) async {
+  Future<dynamic> _get(String path, {Map<String, String> query}) async {
     final url = new Uri(
         scheme: 'http',
         host: host,
@@ -46,7 +46,7 @@ class DockerConnection {
         path: path,
         queryParameters: query);
     final http.Response response = await client.get(url, headers: headers);
-    if(response.statusCode < 200 || response.statusCode >= 300) {
+    if (response.statusCode < 200 || response.statusCode >= 300) {
       throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
     }
 
@@ -71,7 +71,7 @@ class DockerConnection {
   /// 500 – server error
   Future<Iterable<Container>> containers({bool all, int limit, String since,
       String before, bool size, Map<String, List> filters}) async {
-    Map<String,String> query = {};
+    Map<String, String> query = {};
     if (all != null) query['all'] = all.toString();
     if (limit != null) query['limit'] = limit.toString();
     if (since != null) query['since'] = since;
@@ -90,9 +90,10 @@ class DockerConnection {
   /// 404 – no such container
   /// 406 – impossible to attach (container not running)
   /// 500 – server error
-  Future<CreateResponse> create(CreateContainerRequest request, {String name}) async {
+  Future<CreateResponse> create(CreateContainerRequest request,
+      {String name}) async {
     Map query;
-    if(name != null) {
+    if (name != null) {
       assert(containerNameRegex.hasMatch(name));
       query = {'name': name};
     }
@@ -125,13 +126,46 @@ class DockerConnection {
   /// 500 – server error
   Future<TopResponse> top(Container container, {String psArgs}) async {
     Map query;
-    if(psArgs != null) {
+    if (psArgs != null) {
       query = {'ps_args': psArgs};
     }
 
-    final Map response = await _get('/containers/${container.id}/top', query: query);
+    final Map response =
+        await _get('/containers/${container.id}/top', query: query);
     return new TopResponse.fromJson(response);
+  }
 
+  /// Get stdout and stderr logs from [container].
+  ///
+  /// Note: This endpoint works only for containers with `json-file` logging
+  /// driver.
+  /// [follow] - Return stream. Default [:false:]
+  /// [stdout] - Show stdout log. Default [:false:]
+  /// [stderr] - Show stderr log. Default [:false:]
+  /// [timestamps] - Print timestamps for every log line. Default [:false:]
+  /// [tail] - Output specified number of lines at the end of logs: all or
+  /// <number>. Default all
+  /// Status Codes:
+  ///
+  /// 101 – no error, hints proxy about hijacking
+  /// 200 – no error, no upgrade header found
+  /// 404 – no such container
+  /// 500 – server error
+  Future<LogResponse> logs(Container container, {bool follow, bool stdout,
+      bool stderr, bool timestamps, dynamic tail}) async {
+    assert(stdout == true || stderr == true);
+    final query = {};
+    if (follow != null) query['follow']= follow.toString();
+    if (stdout != null) query['stdout']= stdout.toString();
+    if (stderr != null) query['stderr']= stderr.toString();
+    if (timestamps != null) query['timestamps'] = timestamps.toString();
+    if (tail != null) {
+      assert(tail == 'all' || tail is int);
+      query['tail'] = tail.toString();
+    }
+
+    final Map response = await _get('/containers/${container.id}/logs', query: query);
+    return new LogResponse.fromJson(response);
   }
 }
 
