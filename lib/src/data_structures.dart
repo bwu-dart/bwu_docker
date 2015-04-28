@@ -60,7 +60,7 @@ UnmodifiableListView _toUnmodifiableListView(Iterable list) {
   }));
 }
 
-class LogsResponseNetwork {
+class StatsResponseNetwork {
   int _rxDropped;
   int get rxDropped => _rxDropped;
 
@@ -85,7 +85,7 @@ class LogsResponseNetwork {
   int _txBytes;
   int get txBytes => _txBytes;
 
-  LogsResponseNetwork.fromJson(Map json) {
+  StatsResponseNetwork.fromJson(Map json) {
     _rxDropped = json['rx_dropped'];
     _rxBytes = json['rx_bytes'];
     _rxErrors = json['rx_errors'];
@@ -98,9 +98,9 @@ class LogsResponseNetwork {
   }
 }
 
-class LogsResponseMemoryStats {
-  LogsResponseMemoryStatsStats _stats;
-  LogsResponseMemoryStatsStats get stats => _stats;
+class StatsResponseMemoryStats {
+  StatsResponseMemoryStatsStats _stats;
+  StatsResponseMemoryStatsStats get stats => _stats;
 
   int _maxUsage;
   int get maxUsage => _maxUsage;
@@ -114,8 +114,8 @@ class LogsResponseMemoryStats {
   int _limit;
   int get limit => _limit;
 
-  LogsResponseMemoryStats.fromJson(Map json) {
-    _stats = new LogsResponseMemoryStatsStats.fromJson(json['name']);
+  StatsResponseMemoryStats.fromJson(Map json) {
+    _stats = new StatsResponseMemoryStatsStats.fromJson(json['name']);
     _maxUsage = json['max_usage'];
     _usage = json['usage'];
     _failCount = json['failcnt'];
@@ -124,7 +124,7 @@ class LogsResponseMemoryStats {
   }
 }
 
-class LogsResponseMemoryStatsStats {
+class StatsResponseMemoryStatsStats {
   int _totalPgmajFault;
   int get totalPgmajFault => _totalPgmajFault;
 
@@ -212,7 +212,7 @@ class LogsResponseMemoryStatsStats {
   int _totalPgpgIn;
   int get totalPgpgIn => _totalPgpgIn;
 
-  LogsResponseMemoryStatsStats.fromJson(Map json) {
+  StatsResponseMemoryStatsStats.fromJson(Map json) {
     _totalPgmajFault = json['total_pgmajfault'];
     _cache = json['cache'];
     _mappedFile = json['mapped_file'];
@@ -248,7 +248,7 @@ class LogsResponseMemoryStatsStats {
 
 
 
-class LogsResponseCpuUsage {
+class StatsResponseCpuUsage {
   UnmodifiableListView<int> _perCpuUsage;
   UnmodifiableListView<int> get perCpuUsage => _perCpuUsage;
 
@@ -261,7 +261,7 @@ class LogsResponseCpuUsage {
   int _usageInKernelMode;
   int get usageInKernelMode => _usageInKernelMode;
 
-  LogsResponseCpuUsage.fromJson(Map json) {
+  StatsResponseCpuUsage.fromJson(Map json) {
     _perCpuUsage = _toUnmodifiableListView(json['percpu_usage']);
     _usageInUserMode = json['usage_in_usermode'];
     _totalUsage = json['total_usage'];
@@ -271,9 +271,9 @@ class LogsResponseCpuUsage {
 }
 
 
-class LogsResponseCpuStats {
-  LogsResponseCpuUsage _cupUsage;
-  LogsResponseCpuUsage get cupUsage => _cupUsage;
+class StatsResponseCpuStats {
+  StatsResponseCpuUsage _cupUsage;
+  StatsResponseCpuUsage get cupUsage => _cupUsage;
 
   int _systemCpuUsage;
   int get systemCpuUsage => _systemCpuUsage;
@@ -281,8 +281,8 @@ class LogsResponseCpuStats {
   UnmodifiableListView _throttlingData;
   UnmodifiableListView get throttlingData => _throttlingData;
 
-  LogsResponseCpuStats.fromJson(Map json) {
-    _cupUsage = new LogsResponseCpuUsage.fromJson(json['cpu_usage']);
+  StatsResponseCpuStats.fromJson(Map json) {
+    _cupUsage = new StatsResponseCpuUsage.fromJson(json['cpu_usage']);
     _systemCpuUsage = json['system_cpu_usage'];
     _throttlingData = _toUnmodifiableListView(json['throttling_data']);
     assert(json.keys.length <= 3); // ensure all keys were read
@@ -290,28 +290,28 @@ class LogsResponseCpuStats {
 }
 
 /// The response to a logs request.
-class LogsResponse {
+class StatsResponse {
   DateTime _read;
   DateTime get read => _read;
 
-  LogsResponseNetwork _network;
-  LogsResponseNetwork get network => _network;
+  StatsResponseNetwork _network;
+  StatsResponseNetwork get network => _network;
 
-  LogsResponseMemoryStats _memoryStats;
-  LogsResponseMemoryStats get memoryStats => _memoryStats;
+  StatsResponseMemoryStats _memoryStats;
+  StatsResponseMemoryStats get memoryStats => _memoryStats;
 
   Map _blkIoStats;
   Map get blkIoStats => _blkIoStats;
 
-  LogsResponseCpuStats _cpuStats;
-  LogsResponseCpuStats get cpuStats => _cpuStats;
+  StatsResponseCpuStats _cpuStats;
+  StatsResponseCpuStats get cpuStats => _cpuStats;
 
-  LogsResponse.fromJson(Map json) {
+  StatsResponse.fromJson(Map json) {
     _read = _parseDate(json['read']);
-    _network = new LogsResponseNetwork.fromJson(json['network']);
-    _memoryStats = new LogsResponseMemoryStats.fromJson(json['memory_stats']);
+    _network = new StatsResponseNetwork.fromJson(json['network']);
+    _memoryStats = new StatsResponseMemoryStats.fromJson(json['memory_stats']);
     _blkIoStats = _toUnmodifiableMapView(json['blkio_stats']);
-    _cpuStats = new LogsResponseCpuStats.fromJson(json['cpu_stats']);
+    _cpuStats = new StatsResponseCpuStats.fromJson(json['cpu_stats']);
     assert(json.keys.length <= 5); // ensure all keys were read
   }
 }

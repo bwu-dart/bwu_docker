@@ -245,14 +245,3 @@ class DockerConnection {
   }
 }
 
-class StatsResponse {
-
-  StatsResponse.fromJson(Map json) {
-    print(json);
-  }
-
-  Map toJson() {
-    final json = {};
-    return json;
-  }
-}
