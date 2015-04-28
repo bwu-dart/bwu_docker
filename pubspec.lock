@@ -84,7 +84,7 @@ packages:
   intl:
     description: intl
     source: hosted
-    version: "0.12.2"
+    version: "0.12.2+1"
   logging:
     description: logging
     source: hosted
@@ -164,7 +164,7 @@ packages:
   stack_trace:
     description: stack_trace
     source: hosted
-    version: "1.3.1"
+    version: "1.3.2"
   string_scanner:
     description: string_scanner
     source: hosted

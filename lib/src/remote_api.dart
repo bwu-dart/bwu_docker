@@ -219,12 +219,40 @@ class DockerConnection {
     return new ChangesResponse.fromJson(response);
   }
 
-  /// Export a container
+  /// Export the contents of [container].
+  /// Returns a tar of the container as stream.
   /// Status Codes:
   /// 200 - no error
   /// 404 - no such container
   /// 500 - server error
   Future<http.ByteStream> export(Container container) async {
     return _getStream('/containers/${container.id}/export');
+  }
+
+  /// This endpoint returns a live stream of a container's resource usage
+  /// statistics.
+  ///
+  /// Note: this functionality currently only works when using the libcontainer
+  /// exec-driver.
+  ///
+  /// Status Codes:
+  /// 200 - no error
+  /// 404 - no such container
+  /// 500 - server error
+  Future<StatsResponse> stats(Container container) async {
+    final Map response = await _get('/containers/${container.id}/stats');
+    return new StatsResponse.fromJson(response);
+  }
+}
+
+class StatsResponse {
+
+  StatsResponse.fromJson(Map json) {
+    print(json);
+  }
+
+  Map toJson() {
+    final json = {};
+    return json;
   }
 }

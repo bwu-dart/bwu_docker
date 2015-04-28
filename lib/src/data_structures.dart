@@ -2,6 +2,7 @@ library bwu_docker.src.data_structures;
 
 import 'dart:collection';
 import 'package:intl/intl.dart';
+import 'package:quiver/core.dart' show hash2;
 
 final containerNameRegex = new RegExp(r'^/?[a-zA-Z0-9_-]+$');
 
@@ -59,14 +60,309 @@ UnmodifiableListView _toUnmodifiableListView(Iterable list) {
   }));
 }
 
-/// Response to the logs request.
-class LogResponse {
-  LogResponse.fromJson(Map json) {
-    print(json);
+class LogsResponseNetwork {
+  int _rxDropped;
+  int get rxDropped => _rxDropped;
+
+  int _rxBytes;
+  int get rxBytes => _rxBytes;
+
+  int _rxErrors;
+  int get rxErrors => _rxErrors;
+
+  int _txPackets;
+  int get txPackets => _txPackets;
+
+  int _txDropped;
+  int get txDropped => _txDropped;
+
+  int _rxPackets;
+  int get rxPackets => _rxPackets;
+
+  int _txErrors;
+  int get txErrors => _txErrors;
+
+  int _txBytes;
+  int get txBytes => _txBytes;
+
+  LogsResponseNetwork.fromJson(Map json) {
+    _rxDropped = json['rx_dropped'];
+    _rxBytes = json['rx_bytes'];
+    _rxErrors = json['rx_errors'];
+    _txPackets = json['tx_packets'];
+    _txDropped = json['tx_dropped'];
+    _rxPackets = json['rx_packets'];
+    _txErrors = json['tx_errors'];
+    _txBytes = json['tx_bytes'];
+    assert(json.keys.length <= 8); // ensure all keys were read
+  }
+}
+
+class LogsResponseMemoryStats {
+  LogsResponseMemoryStatsStats _stats;
+  LogsResponseMemoryStatsStats get stats => _stats;
+
+  int _maxUsage;
+  int get maxUsage => _maxUsage;
+
+  int _usage;
+  int get usage => _usage;
+
+  int _failCount;
+  int get failCount => _failCount;
+
+  int _limit;
+  int get limit => _limit;
+
+  LogsResponseMemoryStats.fromJson(Map json) {
+    _stats = new LogsResponseMemoryStatsStats.fromJson(json['name']);
+    _maxUsage = json['max_usage'];
+    _usage = json['usage'];
+    _failCount = json['failcnt'];
+    _limit = json['limit'];
+    assert(json.keys.length <= 5); // ensure all keys were read
+  }
+}
+
+class LogsResponseMemoryStatsStats {
+  int _totalPgmajFault;
+  int get totalPgmajFault => _totalPgmajFault;
+
+  int _cache;
+  int get cache => _cache;
+
+  int _mappedFile;
+  int get mappedFile => _mappedFile;
+
+  int _totalInactiveFile;
+  int get totalInactiveFile => _totalInactiveFile;
+
+  int _pgpgOut;
+  int get pgpgOut => _pgpgOut;
+
+  int _rss;
+  int get rss => _rss;
+
+  int _totalMappedFile;
+  int get totalMappedFile => _totalMappedFile;
+
+  int _writeBack;
+  int get writeBack => _writeBack;
+
+  int _unevictable;
+  int get unevictable => _unevictable;
+
+  int _pgpgIn;
+  int get pgpgIn => _pgpgIn;
+
+  int _totalUnevictable;
+  int get totalUnevictable => _totalUnevictable;
+
+  int _pgmajFault;
+  int get pgmajFault => _pgmajFault;
+
+  int _totalRss;
+  int get totalRss => _totalRss;
+
+  int _totalRssHuge;
+  int get totalRssHuge => _totalRssHuge;
+
+  int _totalWriteback;
+  int get totalWriteback => _totalWriteback;
+
+  int _totalInactiveAnon;
+  int get totalInactiveAnon => _totalInactiveAnon;
+
+  int _rssHuge;
+  int get rssHuge => _rssHuge;
+
+  int _hierarchicalMemoryLimit;
+  int get hierarchicalMemoryLimit => _hierarchicalMemoryLimit;
+
+  int _totalPgFault;
+  int get totalPgFault => _totalPgFault;
+
+  int _totalActiveFile;
+  int get totalActiveFile => _totalActiveFile;
+
+  int _activeAnon;
+  int get activeAnon => _activeAnon;
+
+  int _totalActiveAnon;
+  int get totalActiveAnon => _totalActiveAnon;
+
+  int _totalPgpgOut;
+  int get totalPgpgOut => _totalPgpgOut;
+
+  int _totalCache;
+  int get totalCache => _totalCache;
+
+  int _inactiveAnon;
+  int get inactiveAnon => _inactiveAnon;
+
+  int _activeFile;
+  int get activeFile => _activeFile;
+
+  int _pgFault;
+  int get pgFault => _pgFault;
+
+  int _inactiveFile;
+  int get inactiveFile => _inactiveFile;
+
+  int _totalPgpgIn;
+  int get totalPgpgIn => _totalPgpgIn;
+
+  LogsResponseMemoryStatsStats.fromJson(Map json) {
+    _totalPgmajFault = json['total_pgmajfault'];
+    _cache = json['cache'];
+    _mappedFile = json['mapped_file'];
+    _totalInactiveFile = json['total_inactive_file'];
+    _pgpgOut = json['pgpgout'];
+    _rss = json['rss'];
+    _totalMappedFile = json['total_mapped_file'];
+    _writeBack = json['writeback'];
+    _unevictable = json['unevictable'];
+    _pgpgIn = json['pgpgin'];
+    _totalUnevictable = json['total_unevictable'];
+    _pgmajFault = json['pgmajfault'];
+    _totalRss = json['total_rss'];
+    _totalRssHuge = json['total_rss_huge'];
+    _totalWriteback = json['total_writeback'];
+    _totalInactiveAnon = json['total_inactive_anon'];
+    _rssHuge = json['rss_huge'];
+    _hierarchicalMemoryLimit = json['hierarchical_memory_limit'];
+    _totalPgFault = json['total_pgfault'];
+    _totalActiveFile = json['total_active_file'];
+    _activeAnon = json['active_anon'];
+    _totalActiveAnon = json['total_active_anon'];
+    _totalPgpgOut = json['total_pgpgout'];
+    _totalCache = json['total_cache'];
+    _inactiveAnon = json['inactive_anon'];
+    _activeFile = json['active_file'];
+    _pgFault = json['pgfault'];
+    _inactiveFile = json['inactive_file'];
+    _totalPgpgIn = json['total_pgpgin'];
+    assert(json.keys.length <= 29); // ensure all keys were read
+  }
+}
+
+
+
+class LogsResponseCpuUsage {
+  UnmodifiableListView<int> _perCpuUsage;
+  UnmodifiableListView<int> get perCpuUsage => _perCpuUsage;
+
+  int _usageInUserMode;
+  int get usageInUserMode => _usageInUserMode;
+
+  int _totalUsage;
+  int get totalUsage => _totalUsage;
+
+  int _usageInKernelMode;
+  int get usageInKernelMode => _usageInKernelMode;
+
+  LogsResponseCpuUsage.fromJson(Map json) {
+    _perCpuUsage = _toUnmodifiableListView(json['percpu_usage']);
+    _usageInUserMode = json['usage_in_usermode'];
+    _totalUsage = json['total_usage'];
+    _usageInKernelMode = json['usage_in_kernelmode'];
+    assert(json.keys.length <= 4); // ensure all keys were read
+  }
+}
+
+
+class LogsResponseCpuStats {
+  LogsResponseCpuUsage _cupUsage;
+  LogsResponseCpuUsage get cupUsage => _cupUsage;
+
+  int _systemCpuUsage;
+  int get systemCpuUsage => _systemCpuUsage;
+
+  UnmodifiableListView _throttlingData;
+  UnmodifiableListView get throttlingData => _throttlingData;
+
+  LogsResponseCpuStats.fromJson(Map json) {
+    _cupUsage = new LogsResponseCpuUsage.fromJson(json['cpu_usage']);
+    _systemCpuUsage = json['system_cpu_usage'];
+    _throttlingData = _toUnmodifiableListView(json['throttling_data']);
+    assert(json.keys.length <= 3); // ensure all keys were read
+  }
+}
+
+/// The response to a logs request.
+class LogsResponse {
+  DateTime _read;
+  DateTime get read => _read;
+
+  LogsResponseNetwork _network;
+  LogsResponseNetwork get network => _network;
+
+  LogsResponseMemoryStats _memoryStats;
+  LogsResponseMemoryStats get memoryStats => _memoryStats;
+
+  Map _blkIoStats;
+  Map get blkIoStats => _blkIoStats;
+
+  LogsResponseCpuStats _cpuStats;
+  LogsResponseCpuStats get cpuStats => _cpuStats;
+
+  LogsResponse.fromJson(Map json) {
+    _read = _parseDate(json['read']);
+    _network = new LogsResponseNetwork.fromJson(json['network']);
+    _memoryStats = new LogsResponseMemoryStats.fromJson(json['memory_stats']);
+    _blkIoStats = _toUnmodifiableMapView(json['blkio_stats']);
+    _cpuStats = new LogsResponseCpuStats.fromJson(json['cpu_stats']);
+    assert(json.keys.length <= 5); // ensure all keys were read
+  }
+}
+
+/// The available change kinds for the changes request.
+enum ChangeKind {
+  modify,
+  add,
+  delete,
+}
+
+/// The argument for the changes request.
+class ChangesResponse{
+  final Set<_ChangesPath> _changes = new Set<_ChangesPath>();
+  List<_ChangesPath> get changes => new UnmodifiableListView(_changes);
+
+  void _add(String path, ChangeKind kind) {
+    _changes.add(new _ChangesPath(path, kind));
   }
 
-  Map toJson() {
+  List<Map> toJson() {
+    return _changes.map((c) => c.toJson()).toList();
   }
+
+  ChangesResponse.fromJson(List json) {
+    json.forEach((Map c) {
+      _add(c['Path'], ChangeKind.values.firstWhere((v) => v.index == c['Kind']));
+    });
+  }
+}
+
+/// A path/change kind entry for the [ChangeRequest].
+class _ChangesPath {
+  final String path;
+  final ChangeKind kind;
+
+  _ChangesPath(this.path, this.kind) {
+    assert(path != null && path.isNotEmpty);
+    assert(kind != null);
+  }
+
+  @override
+  int get hashCode => hash2(path, kind);
+
+  @override
+  bool operator==(other) {
+    return(other is _ChangesPath && other.path == path && other.kind == kind);
+  }
+
+  Map toJson() =>
+    {'Path': path, 'Kind': kind.index};
 }
 
 
@@ -214,7 +510,7 @@ class Container {
         : json['Ports'].map((p) => new PortResponse.fromJson(p)).toList();
     _status = json['Status'];
 
-    assert(json.keys.length <= 7);
+    assert(json.keys.length <= 7); // ensure all keys were read
   }
 
   Map toJson() {

@@ -1,8 +1,8 @@
 @TestOn('vm')
 library bwu_docker.test.docker;
 
-import 'dart:io' as io;
-import 'package:bwu_utils/bwu_utils_server.dart';
+import 'dart:io' show BytesBuilder;
+import 'dart:async' show Future, Stream, StreamSubscription;
 import 'package:bwu_utils_dev/testing_server.dart';
 import 'package:bwu_docker/src/remote_api.dart';
 import 'package:bwu_docker/src/data_structures.dart';
@@ -14,12 +14,12 @@ const imageNameAndVersion = '${imageName}:${imageVersion}';
 void main([List<String> args]) {
   initLogging(args);
 
-  group('containers', () {
-    DockerConnection connection;
-    setUp(() {
-      connection = new DockerConnection('localhost', 2375);
-    });
+  DockerConnection connection;
+  setUp(() {
+    connection = new DockerConnection('localhost', 2375);
+  });
 
+  group('containers', () {
     test('simple', () async {
       // set up
       final createdContainer = await connection
@@ -59,11 +59,6 @@ void main([List<String> args]) {
   });
 
   group('create', () {
-    DockerConnection connection;
-    setUp(() {
-      connection = new DockerConnection('localhost', 2375);
-    });
-
     test('simple', () async {
       // set up
 
@@ -102,25 +97,22 @@ void main([List<String> args]) {
   });
 
   group('container', () {
-    DockerConnection connection;
-    setUp(() {
-      connection = new DockerConnection('localhost', 2375);
-    });
     test('simple', () async {
       // set up
 
-      // exercise
       final CreateResponse response = await connection
           .create(new CreateContainerRequest()..image = imageNameAndVersion);
       expect(response.container, new isInstanceOf<Container>());
       expect(response.container.id, isNotEmpty);
       await connection.start(response.container);
+
+      // exercise
       final ContainerInfo container =
           await connection.container(response.container);
 
       // verification
       expect(container, new isInstanceOf<ContainerInfo>());
-      print(container.toJson());
+//      print(container.toJson());
       expect(container.id, response.container.id);
       expect(container.config.cmd, ['/opt/bin/entry_point.sh']);
       expect(container.config.image, imageNameAndVersion);
@@ -131,10 +123,6 @@ void main([List<String> args]) {
   });
 
   group('start', () {
-    DockerConnection connection;
-    setUp(() {
-      connection = new DockerConnection('localhost', 2375);
-    });
     test('simple', () async {
       // set up
       final CreateResponse createdResponse = await connection
@@ -158,10 +146,6 @@ void main([List<String> args]) {
   });
 
   group('top', () {
-    DockerConnection connection;
-    setUp(() {
-      connection = new DockerConnection('localhost', 2375);
-    });
     test('simple', () async {
       // set up
       final CreateResponse createdResponse = await connection
@@ -229,11 +213,7 @@ void main([List<String> args]) {
   });
 
   group('logs', () {
-    DockerConnection connection;
-    setUp(() {
-      connection = new DockerConnection('localhost', 2375);
-    });
-    test('xxx', () async {
+    test('simple', () async {
       // set up
       final CreateResponse createdResponse = await connection.create(
           new CreateContainerRequest()
@@ -244,17 +224,122 @@ void main([List<String> args]) {
       expect(startedContainer, isNotNull);
 
       // exercise
-      final LogResponse logResponse = await connection.logs(
-          createdResponse.container,
-          stdout: true, stderr: true, timestamps: true, follow: false, tail: 10);
+      Stream log = await connection.logs(createdResponse.container,
+          stdout: true,
+          stderr: true,
+          timestamps: true,
+          follow: false,
+          tail: 10);
+      final buf = new BytesBuilder(copy: false);
+      StreamSubscription sub;
+      Completer c = new Completer();
+      sub = log.listen((data) {
+        buf.add(data);
+        if(buf.length > 100) {
+          sub.cancel();
+          c.complete();
+        }
+      });
+      await c.future;
 
-      print(logResponse);
+      print(buf.length);
+      print(buf.toBytes());
+
       // verification
-//      expect(topResponse.processes.length, greaterThan(0));
-//      expect(topResponse.processes, anyElement((e) =>
-//          e.any((i) => i.contains('/bin/bash /opt/bin/entry_point.sh'))));
+      expect(buf, isNotNull);
 
       // tear down
-    }, skip: 'find a way to produce log output, currently the return value is always null');
+    }, skip: 'find a way to produce log output, currently the returned data is always empty');
+  });
+
+  group('changes', () {
+    test('simple', () async {
+      // set up
+      final CreateResponse createdResponse = await connection.create(
+          new CreateContainerRequest()
+        ..image = imageNameAndVersion
+        ..hostConfig.logConfig = {'Type': 'json-file'});
+      final SimpleResponse startedContainer =
+          await connection.start(createdResponse.container);
+      expect(startedContainer, isNotNull);
+
+      await new Future.delayed(const Duration(milliseconds: 100));
+
+      // exercise
+      final ChangesResponse changesResponse =
+          await connection.changes(createdResponse.container);
+
+      // print(changesResponse.toJson());
+
+      // verification
+      // TODO(zoechi) provoke some changes and check the result
+      expect(changesResponse.changes.length, greaterThan(0));
+      expect(changesResponse.changes, everyElement((c) => c.path.startsWith('/')));
+      expect(changesResponse.changes, everyElement((c) => c.kind != null));
+
+      // tear down
+    });
+  });
+
+  group('export', () {
+    test('simple', () async {
+      // set up
+      final CreateResponse createdResponse = await connection.create(
+          new CreateContainerRequest()
+        ..image = imageNameAndVersion
+        ..hostConfig.logConfig = {'Type': 'json-file'});
+      final SimpleResponse startedContainer =
+          await connection.start(createdResponse.container);
+      expect(startedContainer, isNotNull);
+
+      // exercise
+      final Stream exportResponse =
+          await connection.export(createdResponse.container);
+      final buf = new BytesBuilder(copy: false);
+      StreamSubscription sub;
+      Completer c = new Completer();
+      sub = exportResponse.listen((data) {
+        buf.add(data);
+        if(buf.length > 1000000) {
+          sub.cancel();
+          c.complete();
+        }
+      });
+      await c.future;
+
+      // verification
+      expect(buf.length, greaterThan(1000000));
+
+      // tear down
+    });
+  });
+
+  group('stats', () {
+    test('simple', () async {
+      // set up
+      final CreateResponse createdResponse = await connection.create(
+          new CreateContainerRequest()
+        ..image = imageNameAndVersion
+        ..hostConfig.logConfig = {'Type': 'json-file'});
+      final SimpleResponse startedContainer =
+          await connection.start(createdResponse.container);
+      expect(startedContainer, isNotNull);
+
+      //await new Future.delayed(const Duration(milliseconds: 100));
+
+      // exercise
+      final StatsResponse statsResponse =
+          await connection.stats(createdResponse.container);
+
+      print(statsResponse.toJson());
+
+      // verification
+      // TODO(zoechi) provoke some changes and check the result
+//      expect(changesResponse.changes.length, greaterThan(0));
+//      expect(changesResponse.changes, everyElement((c) => c.path.startsWith('/')));
+//      expect(changesResponse.changes, everyElement((c) => c.kind != null));
+
+      // tear down
+    },skip: 'check API version and skip the test when version < 1.17 when /info request is implemented');
   });
 }
