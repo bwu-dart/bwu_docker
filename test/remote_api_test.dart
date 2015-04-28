@@ -36,7 +36,7 @@ void main([List<String> args]) {
       expect(containers, anyElement((c) => c.image == imageNameAndVersion));
 
       // tear down
-      return connection.stop(createdResponse.container);
+      await connection.stop(createdResponse.container);
       // TODO(zeochi) remove createdResponse
     });
 
@@ -56,7 +56,7 @@ void main([List<String> args]) {
       // TODO(zeochi) stop container and check if it is still listed
 
       // tear down
-      // return connection.stop(createdResponse.container);
+      // await connection.stop(createdResponse.container);
       // TODO(zeochi) remove createdResponse
     });
   });
@@ -74,7 +74,7 @@ void main([List<String> args]) {
       expect(createdResponse.container.id, isNotEmpty);
 
       // tear down
-      // return connection.stop(createdResponse.container);
+      // await connection.stop(createdResponse.container);
     });
 
     test('with name', () async {
@@ -93,11 +93,11 @@ void main([List<String> args]) {
 
       // verification
       expect(containers.length, greaterThan(0));
-      containers.forEach((c) => print(c.toJson()));
+      //containers.forEach((c) => print(c.toJson()));
       expect(containers, everyElement((c) => c.names.contains(containerName)));
 
       // tear down
-      return connection.stop(createdResponse.container);
+      await connection.stop(createdResponse.container);
     }, skip: 'figure out how to pass a name to `create`.');
   });
 
@@ -124,7 +124,7 @@ void main([List<String> args]) {
       expect(container.state.running, isTrue);
 
       // tear down
-      return connection.stop(createdResponse.container);
+      await connection.stop(createdResponse.container);
     });
   });
 
@@ -158,7 +158,7 @@ void main([List<String> args]) {
           e.any((i) => i.contains('/bin/bash /opt/bin/entry_point.sh'))));
 
       // tear down
-      return connection.stop(createdResponse.container);
+      await connection.stop(createdResponse.container);
     });
 
     test('with ps_args', () async {
@@ -193,7 +193,7 @@ void main([List<String> args]) {
           e.any((i) => i.contains('/bin/bash /opt/bin/entry_point.sh'))));
 
       // tear down
-      return connection.stop(createdResponse.container);
+      await connection.stop(createdResponse.container);
     });
   });
 
@@ -238,7 +238,7 @@ void main([List<String> args]) {
       expect(buf, isNotNull);
 
       // tear down
-      return connection.stop(createdResponse.container);
+      await connection.stop(createdResponse.container);
     }, skip: 'find a way to produce log output, currently the returned data is always empty');
   });
 
@@ -269,7 +269,7 @@ void main([List<String> args]) {
       expect(changesResponse.changes, everyElement((c) => c.kind != null));
 
       // tear down
-      return connection.stop(createdResponse.container);
+      await connection.stop(createdResponse.container);
     });
   });
 
@@ -307,7 +307,7 @@ void main([List<String> args]) {
       expect(buf.length, greaterThan(1000000));
 
       // tear down
-      return connection.stop(createdResponse.container);
+      await connection.stop(createdResponse.container);
     });
   });
 
@@ -334,7 +334,7 @@ void main([List<String> args]) {
       // TODO(zoechi)
 
       // tear down
-      return connection.stop(createdResponse.container);
+      await connection.stop(createdResponse.container);
     }, skip: 'check API version and skip the test when version < 1.17 when /info request is implemented');
   });
 
@@ -364,7 +364,7 @@ void main([List<String> args]) {
       expect(resizeResponse, isNotNull);
 
       // tear down
-      return connection.stop(createdResponse.container);
+      await connection.stop(createdResponse.container);
     }, skip: 'check result after restart is implemented and when there is a way to check the effect');
   });
 
@@ -388,7 +388,7 @@ void main([List<String> args]) {
           containers, anyElement((c) => c.id == createdResponse.container.id));
 
       // tear down
-      return connection.stop(createdResponse.container);
+      await connection.stop(createdResponse.container);
     });
   });
 
@@ -460,7 +460,7 @@ void main([List<String> args]) {
 
       await new Future.delayed(const Duration(milliseconds: 100), () {});
       // tear down
-      return connection.stop(createdResponse.container);
+      await connection.stop(createdResponse.container);
     }, skip: 'restart seems not to work properly (also not at the console');
   });
 
@@ -526,7 +526,7 @@ void main([List<String> args]) {
       expect(renamedStatus.name, 'SomeOtherName');
 
       // tear down
-      return connection.stop(createdResponse.container);
+      await connection.stop(createdResponse.container);
     }, skip: 'execute test only if Docker API version is > 1.17');
   });
 
@@ -557,7 +557,7 @@ void main([List<String> args]) {
       // tear down
       await connection.unpause(createdResponse.container);
       await new Future.delayed(const Duration(milliseconds: 100), () {});
-      return connection.stop(createdResponse.container);
+      await connection.stop(createdResponse.container);
     });
   });
 
@@ -595,7 +595,7 @@ void main([List<String> args]) {
       expect(unpausedStatus.state.running, isTrue);
 
       // tear down
-      return connection.stop(createdResponse.container);
+      await connection.stop(createdResponse.container);
     });
   });
 
@@ -635,7 +635,101 @@ void main([List<String> args]) {
       expect(buf.length, greaterThan(1000));
 
       // tear down
-      return connection.stop(createdResponse.container);
+      await connection.stop(createdResponse.container);
     }, skip: 'available API version >= 1.17');
+  });
+
+  group('attachWs', () {
+    test('simple', () async {
+      // set up
+      final CreateResponse createdResponse = await connection.create(
+          new CreateContainerRequest()
+        ..image = imageNameAndVersion
+        ..hostConfig.logConfig = {'Type': 'json-file'});
+      final SimpleResponse startedContainer =
+          await connection.start(createdResponse.container);
+      expect(startedContainer, isNotNull);
+
+      // exercise
+      final Stream attachResponse = await connection.attachWs(
+          createdResponse.container,
+          logs: true, stream: true, stdin: true, stdout: true, stderr: true);
+      final buf = new BytesBuilder(copy: false);
+      StreamSubscription sub;
+      Completer c = new Completer();
+      sub = attachResponse.listen((data) {
+        print(UTF8.decode(data));
+        buf.add(data);
+        if (buf.length > 1000) {
+          sub.cancel();
+          c.complete();
+        }
+      }, onDone: () {
+        if (!c.isCompleted) {
+          c.complete();
+        }
+      });
+      await c.future;
+      print(UTF8.decode(buf.takeBytes()));
+      // verification
+      expect(buf.length, greaterThan(1000));
+
+      // tear down
+      await connection.stop(createdResponse.container);
+    }, skip: 'available API version >= 1.17 - and not yet implemented');
+  });
+
+  group('wait', () {
+    test('simple', () async {
+      // set up
+      final CreateResponse createdResponse = await connection
+          .create(new CreateContainerRequest()..image = imageNameAndVersion);
+      final SimpleResponse startedContainer =
+          await connection.start(createdResponse.container);
+      expect(startedContainer, isNotNull);
+      await new Future.delayed(const Duration(milliseconds: 100), () {});
+      final ContainerInfo startedStatus =
+          await connection.container(createdResponse.container);
+      expect(startedStatus.state.running, isNotNull);
+
+      final waitReturned = expectAsync(() {});
+
+      // exercise
+      connection.wait(createdResponse.container).then((response) {
+        // verification
+        expect(response, isNotNull);
+        expect(response.statusCode, isNot(0));
+        waitReturned();
+      });
+
+      // exercise
+      await new Future.delayed(const Duration(milliseconds: 100), () {});
+      await connection.stop(createdResponse.container);
+
+      // tear down
+    }, timeout: const Timeout(const Duration(seconds: 60)));
+  });
+
+  group('remove', () {
+    test('simple', () async {
+      // set up
+      final CreateResponse createdResponse = await connection
+          .create(new CreateContainerRequest()..image = imageNameAndVersion);
+      final SimpleResponse startedContainer =
+          await connection.start(createdResponse.container);
+      expect(startedContainer, isNotNull);
+      await new Future.delayed(const Duration(milliseconds: 100), () {});
+
+      await connection.stop(createdResponse.container);
+
+      // exercise
+      await connection.remove(createdResponse.container);
+
+      // verification
+      expect(connection.container(createdResponse.container),
+          throws);
+
+      // tear down
+    }, timeout: const Timeout(const Duration(seconds: 60)));
   });
 }

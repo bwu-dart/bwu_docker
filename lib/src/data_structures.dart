@@ -60,6 +60,17 @@ UnmodifiableListView _toUnmodifiableListView(Iterable list) {
   }));
 }
 
+
+/// The response to a wait request.
+class WaitResponse {
+  int _statusCode;
+  int get statusCode => _statusCode;
+
+  WaitResponse.fromJson(Map json) {
+    _statusCode = json['StatusCode'];
+  }
+}
+
 class StatsResponseNetwork {
   int _rxDropped;
   int get rxDropped => _rxDropped;

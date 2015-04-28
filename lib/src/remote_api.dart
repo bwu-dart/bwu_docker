@@ -98,11 +98,32 @@ class DockerConnection {
     return response.stream;
   }
 
+  Future<dynamic> _delete(String path, {Map<String, String> query}) async {
+    final url = new Uri(
+        scheme: 'http',
+        host: host,
+        port: port,
+        path: path,
+        queryParameters: query);
+    final http.Response response = await client.delete(url, headers: headers);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
+    }
+
+    if (response.body != null && response.body.isNotEmpty) {
+      return JSON.decode(response.body);
+    }
+    return null;
+  }
+
+
   /// Request the list of containers from the Docker service.
-  /// [all] - Show all containers. Only running containers are shown by default (i.e., this defaults to false)
+  /// [all] - Show all containers. Only running containers are shown by default
+  /// (i.e., this defaults to false)
   /// [limit] - Show limit last created containers, include non-running ones.
   /// [since] - Show only containers created since Id, include non-running ones.
-  /// [before] - Show only containers created before Id, include non-running ones.
+  /// [before] - Show only containers created before Id, include non-running
+  /// ones.
   /// [size] - Show the containers sizes
   /// [filters] - filters to process on the containers list. Available filters:
   ///  `exited`=<[int]> - containers with exit code of <int>
@@ -354,10 +375,11 @@ class DockerConnection {
   /// [logs] - Return logs. Default [:false:]
   /// [stream] - Return stream. Default [:false:]
   /// [stdin] - if stream=true, attach to stdin. Default [:false:]
-  /// [stdout] - if logs==true, return stdout log, if stream==true, attach to stdout. Default [:false:]
-  /// [stderr] - if logs==true, return stderr log, if stream==true, attach to stderr. Default [:false:]
+  /// [stdout] - if logs==true, return stdout log, if stream==true, attach to
+  ///     stdout. Default [:false:]
+  /// [stderr] - if logs==true, return stderr log, if stream==true, attach to
+  ///     stderr. Default [:false:]
   /// Status Codes:
-  ///
   /// 101 – no error, hints proxy about hijacking
   /// 200 – no error, no upgrade header found
   /// 400 – bad parameter
@@ -366,13 +388,18 @@ class DockerConnection {
   ///
   /// Stream details:
   ///
-  /// When using the TTY setting is enabled in POST /containers/create , the stream is the raw data from the process PTY and client's stdin. When the TTY is disabled, then the stream is multiplexed to separate stdout and stderr.
+  /// When using the TTY setting is enabled in POST /containers/create , the
+  /// stream is the raw data from the process PTY and client's stdin. When the
+  /// TTY is disabled, then the stream is multiplexed to separate stdout and
+  /// stderr.
   ///
   /// The format is a Header and a Payload (frame).
   ///
   /// HEADER
   ///
-  /// The header will contain the information on which stream write the stream (stdout or stderr). It also contain the size of the associated frame encoded on the last 4 bytes (uint32).
+  /// The header will contain the information on which stream write the stream
+  /// (stdout or stderr). It also contain the size of the associated frame
+  /// encoded on the last 4 bytes (uint32).
   ///
   /// It is encoded on the first 8 bytes like this:
   ///
@@ -384,7 +411,8 @@ class DockerConnection {
   /// 1: stdout
   /// 2: stderr
   ///
-  /// SIZE1, SIZE2, SIZE3, SIZE4 are the 4 bytes of the uint32 size encoded as big endian.
+  /// SIZE1, SIZE2, SIZE3, SIZE4 are the 4 bytes of the uint32 size encoded as
+  /// big endian.
   ///
   /// PAYLOAD
   ///
@@ -396,9 +424,11 @@ class DockerConnection {
   ///
   /// Read 8 bytes
   /// chose stdout or stderr depending on the first byte
-  /// Extract the frame size from the last 4 byets
+  /// Extract the frame size from the last 4 bytes
   /// Read the extracted size and output it on the correct output
   /// Goto 1
+  // TODO(zoechi) return an instance of a class which provides access to the
+  // stdout/stderr as separate streams
   Future<http.ByteStream> attach(Container container,
       {bool logs, bool stream, bool stdin, bool stdout, bool stderr}) async {
     final query = {};
@@ -410,4 +440,63 @@ class DockerConnection {
 
     return _getStream('/containers/${container.id}/attach', query: query);
   }
+
+  /// Attach to the [container] via websocket
+  /// [logs] - Return logs. Default [:false:]
+  /// [stream] - Return stream. Default [:false:]
+  /// [stdin] - if stream=true, attach to stdin. Default [:false:]
+  /// [stdout] - if logs==true, return stdout log, if stream==true, attach to
+  ///     stdout. Default [:false:]
+  /// [stderr] - if logs==true, return stderr log, if stream==true, attach to
+  ///     stderr. Default [:false:]
+  /// Status Codes:
+  /// 200 - no error
+  /// 400 - bad parameter
+  /// 404 - no such container
+  /// 500 - server error
+  // TODO(zoechi) implement
+  Future<http.ByteStream> attachWs(Container container,
+      {bool logs, bool stream, bool stdin, bool stdout, bool stderr}) async {
+    final query = {};
+    if (logs != null) query['logs'] = logs.toString();
+    if (stream != null) query['stream'] = stream.toString();
+    if (stdin != null) query['stdin'] = stdin.toString();
+    if (stdout != null) query['stdout'] = stdout.toString();
+    if (stderr != null) query['stderr'] = stderr.toString();
+
+    throw 'AttachWs is not yet implemented';
+    //return http. _getStream('/containers/${container.id}/attach', query: query);
+  }
+
+  /// Block until [container] stops, then returns the exit code.
+  /// Status Codes:
+  /// 200 - no error
+  /// 404 - no such container
+  /// 500 - server error
+  Future<WaitResponse> wait(Container container) async {
+    final Map response = await _post('/containers/${container.id}/wait');
+    return new WaitResponse.fromJson(response);
+  }
+
+  /// Remove the [container] from the filesystem.
+  /// [removeVolumes] - Remove the volumes associated to the [container].
+  /// Default false
+  /// [force] - 1/True/true or 0/False/false, Kill then remove the container.
+  /// Default false
+  /// Status Codes:
+  /// 204 – no error
+  /// 400 – bad parameter
+  /// 404 – no such container
+  /// 500 – server error
+  Future<SimpleResponse> remove(Container container, {bool removeVolumes, bool force}) async {
+    final query = {};
+    if (removeVolumes != null) query['v'] = removeVolumes.toString();
+    if (force != null) query['force'] = force.toString();
+
+    final Map response = await _delete('/containers/${container.id}');
+    return new SimpleResponse.fromJson(response);
+  }
+
 }
+
+
