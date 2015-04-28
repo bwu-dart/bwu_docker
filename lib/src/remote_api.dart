@@ -1,7 +1,7 @@
 library bwu_docker.src.remote_api.dart;
 
 import 'dart:convert' show JSON;
-import 'dart:async' show Future, Stream;
+import 'dart:async' show Future, Stream, ByteStream;
 import 'package:http/http.dart' as http;
 import 'data_structures.dart';
 
@@ -38,6 +38,30 @@ class DockerConnection {
     return null;
   }
 
+  /// Post request expecting a streamed response.
+  Future<Stream> _postStream(String path,
+      {Map json, Map<String, String> query}) async {
+    String data;
+    if (json != null) {
+      data = JSON.encode(json);
+    }
+    final url = new Uri(
+        scheme: 'http',
+        host: host,
+        port: port,
+        path: path,
+        queryParameters: query);
+    final request = new http.Request('GET', url)
+      ..body = data
+      ..headers.addAll(headers);
+    final http.StreamedResponse response =
+        await request.send().then(http.Response.fromStream);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
+    }
+    return response.stream;
+  }
+
   Future<dynamic> _get(String path, {Map<String, String> query}) async {
     final url = new Uri(
         scheme: 'http',
@@ -54,6 +78,24 @@ class DockerConnection {
       return JSON.decode(response.body);
     }
     return null;
+  }
+
+  /// Get request expecting a streamed response.
+  Future<http.ByteStream> _getStream(String path,
+      {Map<String, String> query}) async {
+    final url = new Uri(
+        scheme: 'http',
+        host: host,
+        port: port,
+        path: path,
+        queryParameters: query);
+    final request = new http.Request('GET', url);
+    request.headers.addAll(headers);
+    final http.StreamedResponse response = await request.send();
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
+    }
+    return response.stream;
   }
 
   /// Request the list of containers from the Docker service.
@@ -151,21 +193,38 @@ class DockerConnection {
   /// 200 – no error, no upgrade header found
   /// 404 – no such container
   /// 500 – server error
-  Future<LogResponse> logs(Container container, {bool follow, bool stdout,
+  Future<Stream> logs(Container container, {bool follow, bool stdout,
       bool stderr, bool timestamps, dynamic tail}) async {
     assert(stdout == true || stderr == true);
     final query = {};
-    if (follow != null) query['follow']= follow.toString();
-    if (stdout != null) query['stdout']= stdout.toString();
-    if (stderr != null) query['stderr']= stderr.toString();
+    if (follow != null) query['follow'] = follow.toString();
+    if (stdout != null) query['stdout'] = stdout.toString();
+    if (stderr != null) query['stderr'] = stderr.toString();
     if (timestamps != null) query['timestamps'] = timestamps.toString();
     if (tail != null) {
       assert(tail == 'all' || tail is int);
       query['tail'] = tail.toString();
     }
 
-    final Map response = await _get('/containers/${container.id}/logs', query: query);
-    return new LogResponse.fromJson(response);
+    return _getStream('/containers/${container.id}/logs', query: query);
+  }
+
+  /// Inspect changes on container id's filesystem
+  /// Status Codes:
+  /// 200 - no error
+  /// 404 - no such container
+  /// 500 - server error
+  Future<ChangesResponse> changes(Container container) async {
+    final List response = await _get('/containers/${container.id}/changes');
+    return new ChangesResponse.fromJson(response);
+  }
+
+  /// Export a container
+  /// Status Codes:
+  /// 200 - no error
+  /// 404 - no such container
+  /// 500 - server error
+  Future<http.ByteStream> export(Container container) async {
+    return _getStream('/containers/${container.id}/export');
   }
 }
-
