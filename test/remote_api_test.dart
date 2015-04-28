@@ -22,9 +22,9 @@ void main([List<String> args]) {
   group('containers', () {
     test('simple', () async {
       // set up
-      final createdContainer = await connection
+      final CreateResponse createdResponse = await connection
           .create(new CreateContainerRequest()..image = imageNameAndVersion);
-      await connection.start(createdContainer.container);
+      await connection.start(createdResponse.container);
 
       // exercise
       Iterable<Container> containers = await connection.containers();
@@ -35,12 +35,13 @@ void main([List<String> args]) {
       expect(containers, anyElement((c) => c.image == imageNameAndVersion));
 
       // tear down
-      // TODO(zeochi) remove createdContainer
+      return connection.stop(createdResponse.container);
+      // TODO(zeochi) remove createdResponse
     });
 
     test('all argument', () async {
       // set up
-      final createdContainer = await connection
+      final CreateResponse createdResponse = await connection
           .create(new CreateContainerRequest()..image = imageNameAndVersion);
 
       // exercise
@@ -54,7 +55,8 @@ void main([List<String> args]) {
       // TODO(zeochi) stop container and check if it is still listed
 
       // tear down
-      // TODO(zeochi) remove createdContainer
+      return connection.stop(createdResponse.container);
+      // TODO(zeochi) remove createdResponse
     });
   });
 
@@ -63,25 +65,26 @@ void main([List<String> args]) {
       // set up
 
       // exercise
-      final response = await connection
+      final CreateResponse createdResponse = await connection
           .create(new CreateContainerRequest()..image = imageNameAndVersion);
 
       // verification
-      expect(response.container, new isInstanceOf<Container>());
-      expect(response.container.id, isNotEmpty);
+      expect(createdResponse.container, new isInstanceOf<Container>());
+      expect(createdResponse.container.id, isNotEmpty);
 
       // tear down
+      return connection.stop(createdResponse.container);
     });
 
     test('with name', () async {
       // set up
       const containerName = '/dummy_name';
       // exercise
-      final CreateResponse createdContainer = await connection.create(
+      final CreateResponse createdResponse = await connection.create(
           new CreateContainerRequest()..image = imageNameAndVersion,
           name: 'dummy_name');
-      expect(createdContainer.container, new isInstanceOf<Container>());
-      expect(createdContainer.container.id, isNotEmpty);
+      expect(createdResponse.container, new isInstanceOf<Container>());
+      expect(createdResponse.container.id, isNotEmpty);
 
       final Iterable<Container> containers =
           await connection.containers(filters: {'name': [containerName]});
@@ -93,6 +96,7 @@ void main([List<String> args]) {
       expect(containers, everyElement((c) => c.names.contains(containerName)));
 
       // tear down
+      return connection.stop(createdResponse.container);
     }, skip: 'figure out how to pass a name to `create`.');
   });
 
@@ -100,48 +104,26 @@ void main([List<String> args]) {
     test('simple', () async {
       // set up
 
-      final CreateResponse response = await connection
+      final CreateResponse createdResponse = await connection
           .create(new CreateContainerRequest()..image = imageNameAndVersion);
-      expect(response.container, new isInstanceOf<Container>());
-      expect(response.container.id, isNotEmpty);
-      await connection.start(response.container);
+      expect(createdResponse.container, new isInstanceOf<Container>());
+      expect(createdResponse.container.id, isNotEmpty);
+      await connection.start(createdResponse.container);
 
       // exercise
       final ContainerInfo container =
-          await connection.container(response.container);
+          await connection.container(createdResponse.container);
 
       // verification
       expect(container, new isInstanceOf<ContainerInfo>());
 //      print(container.toJson());
-      expect(container.id, response.container.id);
+      expect(container.id, createdResponse.container.id);
       expect(container.config.cmd, ['/opt/bin/entry_point.sh']);
       expect(container.config.image, imageNameAndVersion);
       expect(container.state.running, isTrue);
 
       // tear down
-    });
-  });
-
-  group('start', () {
-    test('simple', () async {
-      // set up
-      final CreateResponse createdResponse = await connection
-          .create(new CreateContainerRequest()..image = imageNameAndVersion);
-
-      // exercise
-      final SimpleResponse startedContainer =
-          await connection.start(createdResponse.container);
-
-      // verification
-      expect(startedContainer, isNotNull);
-      final Iterable<Container> containers = await connection.containers(
-          filters: {'status': [ContainerStatus.running.toString()]});
-      //print(containers.map((c) => c.toJson()).toList());
-
-      expect(
-          containers, anyElement((c) => c.id == createdResponse.container.id));
-
-      // tear down
+      return connection.stop(createdResponse.container);
     });
   });
 
@@ -175,6 +157,7 @@ void main([List<String> args]) {
           e.any((i) => i.contains('/bin/bash /opt/bin/entry_point.sh'))));
 
       // tear down
+      return connection.stop(createdResponse.container);
     });
 
     test('with ps_args', () async {
@@ -209,6 +192,7 @@ void main([List<String> args]) {
           e.any((i) => i.contains('/bin/bash /opt/bin/entry_point.sh'))));
 
       // tear down
+      return connection.stop(createdResponse.container);
     });
   });
 
@@ -235,7 +219,7 @@ void main([List<String> args]) {
       Completer c = new Completer();
       sub = log.listen((data) {
         buf.add(data);
-        if(buf.length > 100) {
+        if (buf.length > 100) {
           sub.cancel();
           c.complete();
         }
@@ -249,6 +233,7 @@ void main([List<String> args]) {
       expect(buf, isNotNull);
 
       // tear down
+      return connection.stop(createdResponse.container);
     }, skip: 'find a way to produce log output, currently the returned data is always empty');
   });
 
@@ -274,10 +259,12 @@ void main([List<String> args]) {
       // verification
       // TODO(zoechi) provoke some changes and check the result
       expect(changesResponse.changes.length, greaterThan(0));
-      expect(changesResponse.changes, everyElement((c) => c.path.startsWith('/')));
+      expect(
+          changesResponse.changes, everyElement((c) => c.path.startsWith('/')));
       expect(changesResponse.changes, everyElement((c) => c.kind != null));
 
       // tear down
+      return connection.stop(createdResponse.container);
     });
   });
 
@@ -300,7 +287,7 @@ void main([List<String> args]) {
       Completer c = new Completer();
       sub = exportResponse.listen((data) {
         buf.add(data);
-        if(buf.length > 1000000) {
+        if (buf.length > 1000000) {
           sub.cancel();
           c.complete();
         }
@@ -311,6 +298,7 @@ void main([List<String> args]) {
       expect(buf.length, greaterThan(1000000));
 
       // tear down
+      return connection.stop(createdResponse.container);
     });
   });
 
@@ -331,15 +319,103 @@ void main([List<String> args]) {
       final StatsResponse statsResponse =
           await connection.stats(createdResponse.container);
 
-      print(statsResponse.toJson());
+      // print(statsResponse.toJson());
 
       // verification
-      // TODO(zoechi) provoke some changes and check the result
-//      expect(changesResponse.changes.length, greaterThan(0));
-//      expect(changesResponse.changes, everyElement((c) => c.path.startsWith('/')));
-//      expect(changesResponse.changes, everyElement((c) => c.kind != null));
+      // TODO(zoechi)
 
       // tear down
-    },skip: 'check API version and skip the test when version < 1.17 when /info request is implemented');
+      return connection.stop(createdResponse.container);
+    }, skip: 'check API version and skip the test when version < 1.17 when /info request is implemented');
+  });
+
+  group('resize', () {
+    test('simple', () async {
+      // set up
+      final CreateResponse createdResponse = await connection.create(
+          new CreateContainerRequest()
+        ..image = imageNameAndVersion
+        ..hostConfig.logConfig = {'Type': 'json-file'});
+      final SimpleResponse startedContainer =
+          await connection.start(createdResponse.container);
+      expect(startedContainer, isNotNull);
+
+      //await new Future.delayed(const Duration(milliseconds: 100));
+
+      // exercise
+      final SimpleResponse resizeResponse =
+          await connection.resize(createdResponse.container, 60, 20);
+
+      // TODO(zoechi) restart
+
+      final ContainerInfo containerInfo =
+          await connection.container(createdResponse.container);
+
+      // verification
+      expect(resizeResponse, isNotNull);
+
+      // tear down
+      return connection.stop(createdResponse.container);
+    }, skip: 'check result after restart is implemented and when there is a way to check the effect');
+  });
+
+  group('start', () {
+    test('simple', () async {
+      // set up
+      final CreateResponse createdResponse = await connection
+          .create(new CreateContainerRequest()..image = imageNameAndVersion);
+
+      // exercise
+      final SimpleResponse startedContainer =
+          await connection.start(createdResponse.container);
+
+      // verification
+      expect(startedContainer, isNotNull);
+      final Iterable<Container> containers = await connection.containers(
+          filters: {'status': [ContainerStatus.running.toString()]});
+      //print(containers.map((c) => c.toJson()).toList());
+
+      expect(
+          containers, anyElement((c) => c.id == createdResponse.container.id));
+
+      // tear down
+      return connection.stop(createdResponse.container);
+    });
+  });
+
+  group('stop', () {
+    test('simple', () async {
+      // set up
+      final CreateResponse createdResponse = await connection
+          .create(new CreateContainerRequest()..image = imageNameAndVersion);
+      final SimpleResponse startedContainer =
+          await connection.start(createdResponse.container);
+      expect(startedContainer, isNotNull);
+      await new Future.delayed(const Duration(milliseconds: 100), () {});
+      final ContainerInfo startedStatus =
+          await connection.container(createdResponse.container);
+      expect(startedStatus.state.running, isNotNull);
+
+      final referenceTime = new DateTime.now().toUtc();
+
+      // exercise
+      final SimpleResponse stoppedResponse =
+          await connection.stop(createdResponse.container);
+      final ContainerInfo stoppedStatus =
+          await connection.container(createdResponse.container);
+
+      // verification
+      expect(stoppedResponse, isNotNull);
+      expect(stoppedStatus.state.running, isFalse);
+      expect(stoppedStatus.state.exitCode,
+          isNot(0));
+      expect(stoppedStatus.state.finishedAt.millisecondsSinceEpoch,
+          greaterThan(referenceTime.millisecondsSinceEpoch));
+      expect(stoppedStatus.state.finishedAt.millisecondsSinceEpoch,
+          lessThan(new DateTime.now().millisecondsSinceEpoch));
+
+      // tear down
+      return connection.stop(createdResponse.container);
+    });
   });
 }

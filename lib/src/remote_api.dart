@@ -144,11 +144,6 @@ class DockerConnection {
     return new CreateResponse.fromJson(response);
   }
 
-  Future<SimpleResponse> start(Container container) async {
-    final Map response = await _post('/containers/${container.id}/start');
-    return new SimpleResponse.fromJson(response);
-  }
-
   /// Return low-level information on the container [container].
   /// The passed [container] argument must have an existing id assigned.
   /// Status Codes:
@@ -243,5 +238,44 @@ class DockerConnection {
     final Map response = await _get('/containers/${container.id}/stats');
     return new StatsResponse.fromJson(response);
   }
+
+  /// Resize the TTY for [container].
+  /// The container must be restarted for the
+  /// resize to take effect.
+  /// Status Codes:
+  /// 200 - no error
+  /// 404 - No such container
+  /// 500 - Cannot resize container
+  Future<SimpleResponse> resize(Container container, int width, int height) async {
+    assert(height != null && height > 0);
+    assert(width != null && width > 0);
+    final query = {'h': height.toString(), 'w': width.toString()};
+    final Map response = await _post('/containers/${container.id}/resize', query: query);
+    return new SimpleResponse.fromJson(response);
+  }
+
+  /// Start the container.
+  /// Status Codes:
+  /// 204 - no error
+  /// 304 - container already started
+  /// 404 - no such container
+  /// 500 - server error
+  Future<SimpleResponse> start(Container container) async {
+    final Map response = await _post('/containers/${container.id}/start');
+    return new SimpleResponse.fromJson(response);
+  }
+
+  /// Stop the container.
+  /// Status Codes:
+  /// 204 - no error
+  /// 304 - container already stopped
+  /// 404 - no such container
+  /// 500 - server error
+  Future<SimpleResponse> stop(Container container) async {
+    final Map response = await _post('/containers/${container.id}/stop');
+    return new SimpleResponse.fromJson(response);
+  }
+
+
 }
 
