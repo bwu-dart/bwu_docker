@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'data_structures.dart';
 
 class DockerConnection {
-  static const headers = const {'Content-Type': 'application/json'};
+  final Map headers = {'Content-Type': 'application/json'};
   final String host;
   final int port;
   http.Client client;
@@ -29,7 +29,7 @@ class DockerConnection {
 
     final http.Response response =
         await client.post(url, headers: headers, body: data);
-    if (response.statusCode < 200 && response.statusCode >= 300) {
+    if (response.statusCode < 200 || response.statusCode >= 300) {
       throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
     }
     if (response.body != null && response.body.isNotEmpty) {
@@ -144,7 +144,7 @@ class DockerConnection {
     return new CreateResponse.fromJson(response);
   }
 
-  /// Return low-level information on the container [container].
+  /// Return low-level information of [container].
   /// The passed [container] argument must have an existing id assigned.
   /// Status Codes:
   /// 200 – no error
@@ -152,10 +152,11 @@ class DockerConnection {
   /// 500 – server error
   Future<ContainerInfo> container(Container container) async {
     final Map response = await _get('/containers/${container.id}/json');
+    print(response);
     return new ContainerInfo.fromJson(response);
   }
 
-  /// List processes running inside the container.
+  /// List processes running inside the [container].
   /// [psArgs] – `ps` arguments to use (e.g., `aux`)
   /// Status Codes:
   /// 200 – no error
@@ -204,7 +205,7 @@ class DockerConnection {
     return _getStream('/containers/${container.id}/logs', query: query);
   }
 
-  /// Inspect changes on container id's filesystem
+  /// Inspect changes on [container]'s filesystem
   /// Status Codes:
   /// 200 - no error
   /// 404 - no such container
@@ -224,7 +225,7 @@ class DockerConnection {
     return _getStream('/containers/${container.id}/export');
   }
 
-  /// This endpoint returns a live stream of a container's resource usage
+  /// This endpoint returns a live stream of a [container]'s resource usage
   /// statistics.
   ///
   /// Note: this functionality currently only works when using the libcontainer
@@ -246,15 +247,17 @@ class DockerConnection {
   /// 200 - no error
   /// 404 - No such container
   /// 500 - Cannot resize container
-  Future<SimpleResponse> resize(Container container, int width, int height) async {
+  Future<SimpleResponse> resize(
+      Container container, int width, int height) async {
     assert(height != null && height > 0);
     assert(width != null && width > 0);
     final query = {'h': height.toString(), 'w': width.toString()};
-    final Map response = await _post('/containers/${container.id}/resize', query: query);
+    final Map response =
+        await _post('/containers/${container.id}/resize', query: query);
     return new SimpleResponse.fromJson(response);
   }
 
-  /// Start the container.
+  /// Start the [container].
   /// Status Codes:
   /// 204 - no error
   /// 304 - container already started
@@ -265,17 +268,146 @@ class DockerConnection {
     return new SimpleResponse.fromJson(response);
   }
 
-  /// Stop the container.
+  /// Stop the [container].
+  /// [timeout] – number of seconds to wait before killing the container
   /// Status Codes:
   /// 204 - no error
   /// 304 - container already stopped
   /// 404 - no such container
   /// 500 - server error
-  Future<SimpleResponse> stop(Container container) async {
-    final Map response = await _post('/containers/${container.id}/stop');
+  Future<SimpleResponse> stop(Container container, {int timeout}) async {
+    assert(timeout == null || timeout > 0);
+    final query = {'t': timeout.toString()};
+    final Map response =
+        await _post('/containers/${container.id}/stop', query: query);
     return new SimpleResponse.fromJson(response);
   }
 
+  /// Restart the [container].
+  /// [timeout] – number of seconds to wait before killing the container
+  /// Status Codes:
+  /// 204 - no error
+  /// 404 - no such container
+  /// 500 - server error
+  Future<SimpleResponse> restart(Container container, {int timeout}) async {
+    assert(timeout == null || timeout > 0);
+    final query = {'t': timeout.toString()};
+    final Map response =
+        await _post('/containers/${container.id}/restart', query: query);
+    return new SimpleResponse.fromJson(response);
+  }
 
+  /// Kill the [container].
+  /// [signal] - Signal to send to the container: integer or string like
+  /// "SIGINT". When not set, SIGKILL is assumed and the call will wait for the
+  /// container to exit.
+  /// Status Codes:
+  /// 204 - no error
+  /// 404 - no such container
+  /// 500 - server error
+  Future<SimpleResponse> kill(Container container, dynamic signal) async {
+    assert(signal == null ||
+        (signal is String && signal.isNotEmpty) ||
+        (signal is int));
+    final query = {'signal': signal.toString()};
+    final Map response =
+        await _post('/containers/${container.id}/kill', query: query);
+    return new SimpleResponse.fromJson(response);
+  }
+
+  /// Rename the [container] to [name].
+  /// [name] - new name for the container
+  /// Status Codes:
+  /// 204 - no error
+  /// 404 - no such container
+  /// 409 - conflict name already assigned
+  /// 500 - server error
+  Future<SimpleResponse> rename(Container container, String name) async {
+    assert(name != null);
+    final query = {'name': name.toString()};
+    final Map response =
+        await _post('/containers/${container.id}/rename', query: query);
+    return new SimpleResponse.fromJson(response);
+  }
+
+  /// Pause the [container].
+  /// Status Codes:
+  /// 204 - no error
+  /// 404 - no such container
+  /// 500 - server error
+  Future<SimpleResponse> pause(Container container) async {
+    final Map response = await _post('/containers/${container.id}/pause');
+    return new SimpleResponse.fromJson(response);
+  }
+
+  /// Unpause the [container].
+  /// Status Codes:
+  /// 204 - no error
+  /// 404 - no such container
+  /// 500 - server error
+  Future<SimpleResponse> unpause(Container container) async {
+    final Map response = await _post('/containers/${container.id}/unpause');
+    return new SimpleResponse.fromJson(response);
+  }
+
+  /// Attach to the [container].
+  /// [logs] - Return logs. Default [:false:]
+  /// [stream] - Return stream. Default [:false:]
+  /// [stdin] - if stream=true, attach to stdin. Default [:false:]
+  /// [stdout] - if logs==true, return stdout log, if stream==true, attach to stdout. Default [:false:]
+  /// [stderr] - if logs==true, return stderr log, if stream==true, attach to stderr. Default [:false:]
+  /// Status Codes:
+  ///
+  /// 101 – no error, hints proxy about hijacking
+  /// 200 – no error, no upgrade header found
+  /// 400 – bad parameter
+  /// 404 – no such container
+  /// 500 – server error
+  ///
+  /// Stream details:
+  ///
+  /// When using the TTY setting is enabled in POST /containers/create , the stream is the raw data from the process PTY and client's stdin. When the TTY is disabled, then the stream is multiplexed to separate stdout and stderr.
+  ///
+  /// The format is a Header and a Payload (frame).
+  ///
+  /// HEADER
+  ///
+  /// The header will contain the information on which stream write the stream (stdout or stderr). It also contain the size of the associated frame encoded on the last 4 bytes (uint32).
+  ///
+  /// It is encoded on the first 8 bytes like this:
+  ///
+  /// header := [8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}
+  /// STREAM_TYPE can be:
+  ///
+  /// 0: stdin (will be written on stdout)
+  ///
+  /// 1: stdout
+  /// 2: stderr
+  ///
+  /// SIZE1, SIZE2, SIZE3, SIZE4 are the 4 bytes of the uint32 size encoded as big endian.
+  ///
+  /// PAYLOAD
+  ///
+  /// The payload is the raw stream.
+  ///
+  /// IMPLEMENTATION
+  ///
+  /// The simplest way to implement the Attach protocol is the following:
+  ///
+  /// Read 8 bytes
+  /// chose stdout or stderr depending on the first byte
+  /// Extract the frame size from the last 4 byets
+  /// Read the extracted size and output it on the correct output
+  /// Goto 1
+  Future<http.ByteStream> attach(Container container,
+      {bool logs, bool stream, bool stdin, bool stdout, bool stderr}) async {
+    final query = {};
+    if (logs != null) query['logs'] = logs.toString();
+    if (stream != null) query['stream'] = stream.toString();
+    if (stdin != null) query['stdin'] = stdin.toString();
+    if (stdout != null) query['stdout'] = stdout.toString();
+    if (stderr != null) query['stderr'] = stderr.toString();
+
+    return _getStream('/containers/${container.id}/attach', query: query);
+  }
 }
-

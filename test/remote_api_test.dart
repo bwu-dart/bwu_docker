@@ -3,6 +3,7 @@ library bwu_docker.test.docker;
 
 import 'dart:io' show BytesBuilder;
 import 'dart:async' show Future, Stream, StreamSubscription;
+import 'dart:convert' show UTF8;
 import 'package:bwu_utils_dev/testing_server.dart';
 import 'package:bwu_docker/src/remote_api.dart';
 import 'package:bwu_docker/src/data_structures.dart';
@@ -55,7 +56,7 @@ void main([List<String> args]) {
       // TODO(zeochi) stop container and check if it is still listed
 
       // tear down
-      return connection.stop(createdResponse.container);
+      // return connection.stop(createdResponse.container);
       // TODO(zeochi) remove createdResponse
     });
   });
@@ -73,7 +74,7 @@ void main([List<String> args]) {
       expect(createdResponse.container.id, isNotEmpty);
 
       // tear down
-      return connection.stop(createdResponse.container);
+      // return connection.stop(createdResponse.container);
     });
 
     test('with name', () async {
@@ -223,6 +224,10 @@ void main([List<String> args]) {
           sub.cancel();
           c.complete();
         }
+      }, onDone: () {
+        if (!c.isCompleted) {
+          c.complete();
+        }
       });
       await c.future;
 
@@ -291,6 +296,10 @@ void main([List<String> args]) {
           sub.cancel();
           c.complete();
         }
+      }, onDone: () {
+        if (!c.isCompleted) {
+          c.complete();
+        }
       });
       await c.future;
 
@@ -316,8 +325,8 @@ void main([List<String> args]) {
       //await new Future.delayed(const Duration(milliseconds: 100));
 
       // exercise
-      final StatsResponse statsResponse =
-          await connection.stats(createdResponse.container);
+      //final StatsResponse statsResponse =
+      await connection.stats(createdResponse.container);
 
       // print(statsResponse.toJson());
 
@@ -348,8 +357,8 @@ void main([List<String> args]) {
 
       // TODO(zoechi) restart
 
-      final ContainerInfo containerInfo =
-          await connection.container(createdResponse.container);
+      //final ContainerInfo containerInfo =
+      await connection.container(createdResponse.container);
 
       // verification
       expect(resizeResponse, isNotNull);
@@ -399,23 +408,234 @@ void main([List<String> args]) {
       final referenceTime = new DateTime.now().toUtc();
 
       // exercise
-      final SimpleResponse stoppedResponse =
+      final SimpleResponse stopResponse =
           await connection.stop(createdResponse.container);
       final ContainerInfo stoppedStatus =
           await connection.container(createdResponse.container);
 
+      print(
+          'ref: ${referenceTime} finishedAt: ${stoppedStatus.state.finishedAt}');
       // verification
-      expect(stoppedResponse, isNotNull);
+      expect(stopResponse, isNotNull);
       expect(stoppedStatus.state.running, isFalse);
-      expect(stoppedStatus.state.exitCode,
-          isNot(0));
+      expect(stoppedStatus.state.exitCode, isNot(0));
+      // a bit flaky
       expect(stoppedStatus.state.finishedAt.millisecondsSinceEpoch,
           greaterThan(referenceTime.millisecondsSinceEpoch));
       expect(stoppedStatus.state.finishedAt.millisecondsSinceEpoch,
           lessThan(new DateTime.now().millisecondsSinceEpoch));
 
       // tear down
+    });
+  });
+
+  group('restart', () {
+    test('simple', () async {
+      // set up
+      final CreateResponse createdResponse = await connection
+          .create(new CreateContainerRequest()..image = imageNameAndVersion);
+      final SimpleResponse startedContainer =
+          await connection.start(createdResponse.container);
+      expect(startedContainer, isNotNull);
+      await new Future.delayed(const Duration(milliseconds: 100), () {});
+      final ContainerInfo startedStatus =
+          await connection.container(createdResponse.container);
+      expect(startedStatus.state.running, isNotNull);
+
+      // exercise
+      final SimpleResponse restartResponse =
+          await connection.restart(createdResponse.container);
+      await new Future.delayed(const Duration(milliseconds: 100), () {});
+      final ContainerInfo restartedStatus =
+          await connection.container(createdResponse.container);
+
+      // verification
+      expect(restartResponse, isNotNull);
+      // I expected it to be true but [restarting] seems not to be set
+      //expect(restartedStatus.state.restarting, isTrue);
+      // TODO(zoechi) check why running is false after restarting
+      expect(restartedStatus.state.running, isFalse);
+      expect(restartedStatus.state.startedAt.millisecondsSinceEpoch,
+          greaterThan(startedStatus.state.startedAt.millisecondsSinceEpoch));
+
+      await new Future.delayed(const Duration(milliseconds: 100), () {});
+      // tear down
+      return connection.stop(createdResponse.container);
+    }, skip: 'restart seems not to work properly (also not at the console');
+  });
+
+  group('kill', () {
+    test('simple', () async {
+      // set up
+      final CreateResponse createdResponse = await connection
+          .create(new CreateContainerRequest()..image = imageNameAndVersion);
+      final SimpleResponse startedContainer =
+          await connection.start(createdResponse.container);
+      expect(startedContainer, isNotNull);
+      await new Future.delayed(const Duration(milliseconds: 100), () {});
+      final ContainerInfo startedStatus =
+          await connection.container(createdResponse.container);
+      expect(startedStatus.state.running, isNotNull);
+
+      final referenceTime = new DateTime.now().toUtc();
+
+      // exercise
+      final SimpleResponse killResponse =
+          await connection.kill(createdResponse.container, 'SIGKILL');
+      await new Future.delayed(const Duration(milliseconds: 100), () {});
+      final ContainerInfo killedStatus =
+          await connection.container(createdResponse.container);
+
+      print(
+          'ref: ${referenceTime} finishedAt: ${killedStatus.state.finishedAt}');
+      // verification
+      expect(killResponse, isNotNull);
+      expect(killedStatus.state.running, isFalse);
+      expect(killedStatus.state.exitCode, -1);
+      expect(killedStatus.state.finishedAt.millisecondsSinceEpoch,
+          greaterThan(referenceTime.millisecondsSinceEpoch));
+      expect(killedStatus.state.finishedAt.millisecondsSinceEpoch,
+          lessThan(new DateTime.now().millisecondsSinceEpoch));
+
+      // tear down
+    });
+  });
+
+  group('rename', () {
+    test('simple', () async {
+      // set up
+      final CreateResponse createdResponse = await connection
+          .create(new CreateContainerRequest()..image = imageNameAndVersion);
+      final SimpleResponse startedContainer =
+          await connection.start(createdResponse.container);
+      expect(startedContainer, isNotNull);
+      await new Future.delayed(const Duration(milliseconds: 100), () {});
+      final ContainerInfo startedStatus =
+          await connection.container(createdResponse.container);
+      expect(startedStatus.state.running, isNotNull);
+      expect(startedStatus.name, isNot('SomeOtherName'));
+
+      // exercise
+      final SimpleResponse renameResponse =
+          await connection.rename(createdResponse.container, 'SomeOtherName');
+      final ContainerInfo renamedStatus =
+          await connection.container(createdResponse.container);
+
+      // verification
+      expect(renameResponse, isNotNull);
+      expect(renamedStatus.name, 'SomeOtherName');
+
+      // tear down
+      return connection.stop(createdResponse.container);
+    }, skip: 'execute test only if Docker API version is > 1.17');
+  });
+
+  group('pause', () {
+    test('simple', () async {
+      // set up
+      final CreateResponse createdResponse = await connection
+          .create(new CreateContainerRequest()..image = imageNameAndVersion);
+      final SimpleResponse startedContainer =
+          await connection.start(createdResponse.container);
+      expect(startedContainer, isNotNull);
+      await new Future.delayed(const Duration(milliseconds: 100), () {});
+      final ContainerInfo startedStatus =
+          await connection.container(createdResponse.container);
+      expect(startedStatus.state.running, isNotNull);
+
+      // exercise
+      final SimpleResponse pauseResponse =
+          await connection.pause(createdResponse.container);
+      final ContainerInfo pausedStatus =
+          await connection.container(createdResponse.container);
+
+      // verification
+      expect(pauseResponse, isNotNull);
+      expect(pausedStatus.state.paused, isTrue);
+      expect(pausedStatus.state.running, isTrue);
+
+      // tear down
+      await connection.unpause(createdResponse.container);
+      await new Future.delayed(const Duration(milliseconds: 100), () {});
       return connection.stop(createdResponse.container);
     });
+  });
+
+  group('unpause', () {
+    test('simple', () async {
+      // set up
+      final CreateResponse createdResponse = await connection
+          .create(new CreateContainerRequest()..image = imageNameAndVersion);
+      final SimpleResponse startedContainer =
+          await connection.start(createdResponse.container);
+      expect(startedContainer, isNotNull);
+      await new Future.delayed(const Duration(milliseconds: 100), () {});
+      final ContainerInfo startedStatus =
+          await connection.container(createdResponse.container);
+      expect(startedStatus.state.running, isNotNull);
+
+      final SimpleResponse pauseResponse =
+          await connection.pause(createdResponse.container);
+      final ContainerInfo pausedStatus =
+          await connection.container(createdResponse.container);
+
+      expect(pauseResponse, isNotNull);
+      expect(pausedStatus.state.paused, isTrue);
+      expect(pausedStatus.state.running, isTrue);
+
+      // exercise
+      final SimpleResponse unpauseResponse =
+          await connection.unpause(createdResponse.container);
+      final ContainerInfo unpausedStatus =
+          await connection.container(createdResponse.container);
+
+      // verification
+      expect(unpauseResponse, isNotNull);
+      expect(unpausedStatus.state.paused, isFalse);
+      expect(unpausedStatus.state.running, isTrue);
+
+      // tear down
+      return connection.stop(createdResponse.container);
+    });
+  });
+
+  group('attach', () {
+    test('simple', () async {
+      // set up
+      final CreateResponse createdResponse = await connection.create(
+          new CreateContainerRequest()
+        ..image = imageNameAndVersion
+        ..hostConfig.logConfig = {'Type': 'json-file'});
+      final SimpleResponse startedContainer =
+          await connection.start(createdResponse.container);
+      expect(startedContainer, isNotNull);
+
+      // exercise
+      final Stream attachResponse = await connection.attach(
+          createdResponse.container,
+          logs: true, stream: true, stdin: true, stdout: true, stderr: true);
+      final buf = new BytesBuilder(copy: false);
+      StreamSubscription sub;
+      Completer c = new Completer();
+      sub = attachResponse.listen((data) {
+        print(UTF8.decode(data));
+        buf.add(data);
+        if (buf.length > 1000) {
+          sub.cancel();
+          c.complete();
+        }
+      }, onDone: () {
+        if (!c.isCompleted) {
+          c.complete();
+        }
+      });
+      await c.future;
+      print(UTF8.decode(buf.takeBytes()));
+      // verification
+      expect(buf.length, greaterThan(1000));
+
+      // tear down
+      return connection.stop(createdResponse.container);
+    }, skip: 'available API version >= 1.17');
   });
 }

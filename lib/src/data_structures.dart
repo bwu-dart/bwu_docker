@@ -6,7 +6,7 @@ import 'package:quiver/core.dart' show hash2;
 
 final containerNameRegex = new RegExp(r'^/?[a-zA-Z0-9_-]+$');
 
-final dateFormat = new DateFormat('yyyy-MM-ddThh:mm:ss.SSSSSSSSSZ');
+final dateFormat = new DateFormat('yyyy-MM-ddTHH:mm:ss.SSSSSSSSSZ');
 
 DateTime _parseDate(dynamic dateValue) {
   if (dateValue is String) {
