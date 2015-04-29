@@ -116,7 +116,6 @@ class DockerConnection {
     return null;
   }
 
-
   /// Request the list of containers from the Docker service.
   /// [all] - Show all containers. Only running containers are shown by default
   /// (i.e., this defaults to false)
@@ -172,6 +171,8 @@ class DockerConnection {
   /// 404 – no such container
   /// 500 – server error
   Future<ContainerInfo> container(Container container) async {
+    assert(
+        container != null && container.id != null && container.id.isNotEmpty);
     final Map response = await _get('/containers/${container.id}/json');
     print(response);
     return new ContainerInfo.fromJson(response);
@@ -184,6 +185,8 @@ class DockerConnection {
   /// 404 – no such container
   /// 500 – server error
   Future<TopResponse> top(Container container, {String psArgs}) async {
+    assert(
+        container != null && container.id != null && container.id.isNotEmpty);
     Map query;
     if (psArgs != null) {
       query = {'ps_args': psArgs};
@@ -212,6 +215,8 @@ class DockerConnection {
   /// 500 – server error
   Future<Stream> logs(Container container, {bool follow, bool stdout,
       bool stderr, bool timestamps, dynamic tail}) async {
+    assert(
+        container != null && container.id != null && container.id.isNotEmpty);
     assert(stdout == true || stderr == true);
     final query = {};
     if (follow != null) query['follow'] = follow.toString();
@@ -232,6 +237,8 @@ class DockerConnection {
   /// 404 - no such container
   /// 500 - server error
   Future<ChangesResponse> changes(Container container) async {
+    assert(
+        container != null && container.id != null && container.id.isNotEmpty);
     final List response = await _get('/containers/${container.id}/changes');
     return new ChangesResponse.fromJson(response);
   }
@@ -243,6 +250,8 @@ class DockerConnection {
   /// 404 - no such container
   /// 500 - server error
   Future<http.ByteStream> export(Container container) async {
+    assert(
+        container != null && container.id != null && container.id.isNotEmpty);
     return _getStream('/containers/${container.id}/export');
   }
 
@@ -257,6 +266,8 @@ class DockerConnection {
   /// 404 - no such container
   /// 500 - server error
   Future<StatsResponse> stats(Container container) async {
+    assert(
+        container != null && container.id != null && container.id.isNotEmpty);
     final Map response = await _get('/containers/${container.id}/stats');
     return new StatsResponse.fromJson(response);
   }
@@ -270,6 +281,8 @@ class DockerConnection {
   /// 500 - Cannot resize container
   Future<SimpleResponse> resize(
       Container container, int width, int height) async {
+    assert(
+        container != null && container.id != null && container.id.isNotEmpty);
     assert(height != null && height > 0);
     assert(width != null && width > 0);
     final query = {'h': height.toString(), 'w': width.toString()};
@@ -285,6 +298,8 @@ class DockerConnection {
   /// 404 - no such container
   /// 500 - server error
   Future<SimpleResponse> start(Container container) async {
+    assert(
+        container != null && container.id != null && container.id.isNotEmpty);
     final Map response = await _post('/containers/${container.id}/start');
     return new SimpleResponse.fromJson(response);
   }
@@ -297,6 +312,8 @@ class DockerConnection {
   /// 404 - no such container
   /// 500 - server error
   Future<SimpleResponse> stop(Container container, {int timeout}) async {
+    assert(
+        container != null && container.id != null && container.id.isNotEmpty);
     assert(timeout == null || timeout > 0);
     final query = {'t': timeout.toString()};
     final Map response =
@@ -311,6 +328,8 @@ class DockerConnection {
   /// 404 - no such container
   /// 500 - server error
   Future<SimpleResponse> restart(Container container, {int timeout}) async {
+    assert(
+        container != null && container.id != null && container.id.isNotEmpty);
     assert(timeout == null || timeout > 0);
     final query = {'t': timeout.toString()};
     final Map response =
@@ -326,7 +345,9 @@ class DockerConnection {
   /// 204 - no error
   /// 404 - no such container
   /// 500 - server error
-  Future<SimpleResponse> kill(Container container, dynamic signal) async {
+  Future<SimpleResponse> kill(Container container, {dynamic signal}) async {
+    assert(
+        container != null && container.id != null && container.id.isNotEmpty);
     assert(signal == null ||
         (signal is String && signal.isNotEmpty) ||
         (signal is int));
@@ -344,6 +365,8 @@ class DockerConnection {
   /// 409 - conflict name already assigned
   /// 500 - server error
   Future<SimpleResponse> rename(Container container, String name) async {
+    assert(
+        container != null && container.id != null && container.id.isNotEmpty);
     assert(name != null);
     final query = {'name': name.toString()};
     final Map response =
@@ -357,6 +380,8 @@ class DockerConnection {
   /// 404 - no such container
   /// 500 - server error
   Future<SimpleResponse> pause(Container container) async {
+    assert(
+        container != null && container.id != null && container.id.isNotEmpty);
     final Map response = await _post('/containers/${container.id}/pause');
     return new SimpleResponse.fromJson(response);
   }
@@ -367,6 +392,8 @@ class DockerConnection {
   /// 404 - no such container
   /// 500 - server error
   Future<SimpleResponse> unpause(Container container) async {
+    assert(
+        container != null && container.id != null && container.id.isNotEmpty);
     final Map response = await _post('/containers/${container.id}/unpause');
     return new SimpleResponse.fromJson(response);
   }
@@ -431,6 +458,8 @@ class DockerConnection {
   // stdout/stderr as separate streams
   Future<http.ByteStream> attach(Container container,
       {bool logs, bool stream, bool stdin, bool stdout, bool stderr}) async {
+    assert(
+        container != null && container.id != null && container.id.isNotEmpty);
     final query = {};
     if (logs != null) query['logs'] = logs.toString();
     if (stream != null) query['stream'] = stream.toString();
@@ -457,6 +486,8 @@ class DockerConnection {
   // TODO(zoechi) implement
   Future<http.ByteStream> attachWs(Container container,
       {bool logs, bool stream, bool stdin, bool stdout, bool stderr}) async {
+    assert(
+        container != null && container.id != null && container.id.isNotEmpty);
     final query = {};
     if (logs != null) query['logs'] = logs.toString();
     if (stream != null) query['stream'] = stream.toString();
@@ -474,6 +505,8 @@ class DockerConnection {
   /// 404 - no such container
   /// 500 - server error
   Future<WaitResponse> wait(Container container) async {
+    assert(
+        container != null && container.id != null && container.id.isNotEmpty);
     final Map response = await _post('/containers/${container.id}/wait');
     return new WaitResponse.fromJson(response);
   }
@@ -488,7 +521,10 @@ class DockerConnection {
   /// 400 – bad parameter
   /// 404 – no such container
   /// 500 – server error
-  Future<SimpleResponse> remove(Container container, {bool removeVolumes, bool force}) async {
+  Future<SimpleResponse> remove(Container container,
+      {bool removeVolumes, bool force}) async {
+    assert(
+        container != null && container.id != null && container.id.isNotEmpty);
     final query = {};
     if (removeVolumes != null) query['v'] = removeVolumes.toString();
     if (force != null) query['force'] = force.toString();
@@ -496,7 +532,4 @@ class DockerConnection {
     final Map response = await _delete('/containers/${container.id}');
     return new SimpleResponse.fromJson(response);
   }
-
 }
-
-
