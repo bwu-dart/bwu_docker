@@ -8,6 +8,7 @@ environment:
 description: Manage Docker
 
 dependencies:
+  crypto: '^0.9.0'
   intl: '^0.12.2'
   http: '^0.11.2'
   quiver: '^0.21.3'

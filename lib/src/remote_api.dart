@@ -1,12 +1,14 @@
 library bwu_docker.src.remote_api.dart;
 
-import 'dart:convert' show JSON;
+import 'dart:convert' show JSON, UTF8;
+import 'package:crypto/crypto.dart' show CryptoUtils;
 import 'dart:async' show Future, Stream, ByteStream;
 import 'package:http/http.dart' as http;
 import 'data_structures.dart';
 
 class DockerConnection {
-  final Map headers = {'Content-Type': 'application/json'};
+  final Map headersJson = {'Content-Type': 'application/json'};
+  final Map headersTar = {'Content-Type': 'application/tar'};
   final String host;
   final int port;
   http.Client client;
@@ -15,7 +17,8 @@ class DockerConnection {
   }
 
   /// Send a POST request to the Docker service.
-  Future<Map> _post(String path, {Map json, Map query}) async {
+  Future<Map> _post(String path,
+      {Map json, Map query, Map<String, String> headers}) async {
     String data;
     if (json != null) {
       data = JSON.encode(json);
@@ -27,8 +30,8 @@ class DockerConnection {
         path: path,
         queryParameters: query);
 
-    final http.Response response =
-        await client.post(url, headers: headers, body: data);
+    final http.Response response = await client.post(url,
+        headers: headers != null ? headers : headersJson, body: data);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
     }
@@ -38,9 +41,11 @@ class DockerConnection {
     return null;
   }
 
-  /// Post request expecting a streamed response.
-  Future<Stream> _postStream(String path,
-      {Map json, Map<String, String> query}) async {
+  /// Send a POST request to the Docker service.
+  /// This is to support the weird response content of some concatenated JSON
+  /// parts. With some postprocessing valid parsable JSON is created.
+  Future<Iterable<Map>> _postReturnListOfJson(String path,
+      {Map json, Map query, Map<String, String> headers}) async {
     String data;
     if (json != null) {
       data = JSON.encode(json);
@@ -51,15 +56,63 @@ class DockerConnection {
         port: port,
         path: path,
         queryParameters: query);
-    final request = new http.Request('GET', url)
-      ..body = data
-      ..headers.addAll(headers);
-    final http.StreamedResponse response =
+
+    final http.Response response = await client.post(url,
+        headers: headers != null ? headers : headersJson, body: data);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
+    }
+    if (response.body != null && response.body.isNotEmpty) {
+      return JSON.decode('[${response.body.replaceAll(new RegExp(r'\}\s*\{', multiLine: true), '},\n{')}]');
+    }
+    return null;
+  }
+
+  /// Post request expecting a streamed response.
+  Future<Stream> _postReturnStream(String path, {Map json,
+      Map<String, String> query, Map<String, String> headers}) async {
+    String data;
+    if (json != null) {
+      data = JSON.encode(json);
+    }
+    final url = new Uri(
+        scheme: 'http',
+        host: host,
+        port: port,
+        path: path,
+        queryParameters: query);
+    final request = new http.Request('POST', url)
+      ..headers.addAll(headers != null ? headers : headersJson);
+    if(data != null) {
+      request.body = data;
+    }
+    final http.BaseResponse response =
         await request.send().then(http.Response.fromStream);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
     }
-    return response.stream;
+    return (response as http.StreamedResponse).stream;
+  }
+
+  /// Send a POST request to the Docker service.
+  Future<Stream> _postStreamReturnStream(String path, Stream<List<int>> stream,
+      {Map<String, String> query}) async {
+    assert(stream != null);
+    final url = new Uri(
+        scheme: 'http',
+        host: host,
+        port: port,
+        path: path,
+        queryParameters: query);
+    final request = new http.StreamedRequest('POST', url)
+      ..headers.addAll(headersTar);
+    stream.listen(request.sink.add);
+    final http.BaseResponse response =
+        await request.send().then(http.Response.fromStream);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
+    }
+    return (response as http.StreamedResponse).stream;
   }
 
   Future<dynamic> _get(String path, {Map<String, String> query}) async {
@@ -69,7 +122,7 @@ class DockerConnection {
         port: port,
         path: path,
         queryParameters: query);
-    final http.Response response = await client.get(url, headers: headers);
+    final http.Response response = await client.get(url, headers: headersJson);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
     }
@@ -81,7 +134,7 @@ class DockerConnection {
   }
 
   /// Get request expecting a streamed response.
-  Future<http.ByteStream> _getStream(String path,
+  Future<http.ByteStream> _getReturnStream(String path,
       {Map<String, String> query}) async {
     final url = new Uri(
         scheme: 'http',
@@ -90,12 +143,12 @@ class DockerConnection {
         path: path,
         queryParameters: query);
     final request = new http.Request('GET', url);
-    request.headers.addAll(headers);
-    final http.StreamedResponse response = await request.send();
+    request.headers.addAll(headersJson);
+    final http.BaseResponse response = await request.send();
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
     }
-    return response.stream;
+    return (response as http.StreamedResponse).stream;
   }
 
   Future<dynamic> _delete(String path, {Map<String, String> query}) async {
@@ -105,7 +158,8 @@ class DockerConnection {
         port: port,
         path: path,
         queryParameters: query);
-    final http.Response response = await client.delete(url, headers: headers);
+    final http.Response response =
+        await client.delete(url, headers: headersJson);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
     }
@@ -152,7 +206,7 @@ class DockerConnection {
   /// 404 – no such container
   /// 406 – impossible to attach (container not running)
   /// 500 – server error
-  Future<CreateResponse> create(CreateContainerRequest request,
+  Future<CreateResponse> createContainer(CreateContainerRequest request,
       {String name}) async {
     Map query;
     if (name != null) {
@@ -228,7 +282,7 @@ class DockerConnection {
       query['tail'] = tail.toString();
     }
 
-    return _getStream('/containers/${container.id}/logs', query: query);
+    return _getReturnStream('/containers/${container.id}/logs', query: query);
   }
 
   /// Inspect changes on [container]'s filesystem
@@ -252,7 +306,7 @@ class DockerConnection {
   Future<http.ByteStream> export(Container container) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
-    return _getStream('/containers/${container.id}/export');
+    return _getReturnStream('/containers/${container.id}/export');
   }
 
   /// This endpoint returns a live stream of a [container]'s resource usage
@@ -467,7 +521,7 @@ class DockerConnection {
     if (stdout != null) query['stdout'] = stdout.toString();
     if (stderr != null) query['stderr'] = stderr.toString();
 
-    return _getStream('/containers/${container.id}/attach', query: query);
+    return _getReturnStream('/containers/${container.id}/attach', query: query);
   }
 
   /// Attach to the [container] via websocket
@@ -521,6 +575,7 @@ class DockerConnection {
   /// 400 – bad parameter
   /// 404 – no such container
   /// 500 – server error
+  /// It seems the container must be stopped before it can be removed.
   Future<SimpleResponse> remove(Container container,
       {bool removeVolumes, bool force}) async {
     assert(
@@ -532,4 +587,175 @@ class DockerConnection {
     final Map response = await _delete('/containers/${container.id}');
     return new SimpleResponse.fromJson(response);
   }
+
+  /// Copy files or folders of [container].
+  /// Status Codes:
+  /// 200 - no error
+  /// 404 - no such container
+  /// 500 - server error
+  // TODO(zoechi) figure out whether it's possible to request more than one file
+  // or directory with one request.
+  /// [resource] is the path of a file or directory;
+  Future<Stream> copy(Container container, String resource) async {
+    assert(
+        container != null && container.id != null && container.id.isNotEmpty);
+    final json = new CopyRequestPath(resource).toJson();
+
+    return _postReturnStream('/containers/${container.id}/copy', json: json);
+  }
+
+  /// List images.
+  /// The response shows a single image `Id` associated with two repositories
+  /// (`RepoTags`): `localhost:5000/test/busybox`: and `playdate`. A caller can
+  /// use either of the `RepoTags` values `localhost:5000/test/busybox:latest`
+  /// or `playdate:latest` to reference the image.
+  ///
+  /// You can also use `RepoDigests` values to reference an image. In this
+  /// response, the array has only one reference and that is to the
+  /// `localhost:5000/test/busybox` repository; the `playdate` repository has no
+  /// digest. You can reference this digest using the value:
+  /// `localhost:5000/test/busybox@sha256:cbbf2f9a99b47fc460d...`
+  ///
+  /// See the `docker run` and `docker build` commands for examples of digest
+  /// and tag references on the command line.
+  ///
+  /// Query Parameters:
+  ///
+  /// [all] - Show all images (by default filter out the intermediate image
+  ///     layers). The default is false.
+  /// [filters] - a json encoded value of the filters (a map[string][]string) to
+  ///     process on the images list. Available filters: dangling=true
+  Future<Iterable<ImageInfo>> images(
+      {bool all, Map<String, List> filters}) async {
+    Map<String, String> query = {};
+    if (all != null) query['all'] = all.toString();
+    if (filters != null) query['filters'] = JSON.encode(filters);
+
+    final List response = await _get('/images/json', query: query);
+    return response.map((e) => new ImageInfo.fromJson(e));
+  }
+
+  /// Build an image from a Dockerfile.
+  /// The input stream must be a tar archive compressed with one of the
+  /// following algorithms: identity (no compression), gzip, bzip2, xz.
+  ///
+  /// The archive must include a build instructions file, typically called
+  /// `Dockerfile` at the root of the archive. The [dockerfile] parameter may be
+  /// used to specify a different build instructions file by having its value be
+  /// the path to the alternate build instructions file to use.
+  ///
+  /// The archive may include any number of other files, which will be
+  /// accessible in the build context (See the
+  /// [ADD build command](https://docs.docker.com/reference/builder/#dockerbuilder)).
+  ///
+  /// The build will also be canceled if the client drops the connection by
+  /// quitting or being killed.
+  ///
+  /// Query Parameters:
+  ///
+  /// [dockerfile] Path within the build context to the Dockerfile. This is
+  ///     ignored if [remote] is specified and points to an individual filename.
+  /// [t] repository name (and optionally a tag) to be applied to the resulting
+  ///     image in case of success
+  /// [remote] A Git repository URI or HTTP/HTTPS URI build source. If the URI
+  ///     specifies a filename, the file's contents are placed into a file
+  ///     called `Dockerfile`.
+  /// [q] Suppress verbose build output
+  /// [nocache] Do not use the cache when building the image
+  /// [pull] Attempt to pull the image even if an older image exists locally
+  /// [rm] Remove intermediate containers after a successful build (default
+  /// behavior)
+  /// [forcerm] Always remove intermediate containers (includes rm)
+  /// [memory] Set memory limit for build
+  /// [memswap] Total memory (memory + swap), `-1` to disable swap
+  /// [cpushares] CPU shares (relative weight)
+  /// [cpusetcpus] CPUs in which to allow execution, e.g., `0-3`, `0,1`
+  ///
+  /// Request Headers:
+  ///
+  /// `Content-type` Should be set to `"application/tar"`.
+  /// `X-Registry-Config` base64-encoded ConfigFile objec
+  ///
+  /// Status Codes:
+  /// 200 - no error
+  /// 500 - server error
+  Future<Stream> build(Stream<List<int>> stream, {AuthConfig authConfig,
+      String dockerfile, String t, String remote, bool q, bool noCache,
+      bool pull, bool rm, bool forceRm, int memory, int memSwap,
+      List<int> cpuShares, List<String> cpuSetCpus}) async {
+    assert(stream != null);
+    Map<String, String> query = {};
+
+    final headers = headersTar;
+    if (authConfig != null) {
+      headers['X-Registry-Config'] = CryptoUtils
+          .bytesToBase64(UTF8.encode(JSON.encode(authConfig.toJson())));
+    }
+    return _postStreamReturnStream('/build', stream, query: query);
+  }
+
+  /// Create an image, either by pulling it from the registry or by importing it.
+  /// [fromImage] Name of the image to pull
+  /// [fromSrc] Source to import. The value may be a URL from which the image
+  ///     can be retrieved or - to read the image from the request body.
+  /// [repo] Repository
+  /// [tag] Tag
+  /// [registry] The registry to pull from
+  ///
+  /// Request Headers:
+  /// X-Registry-Auth – base64-encoded AuthConfig object
+  /// Status Codes:
+  /// 200 - no error
+  /// 500 - server error
+  Future<List<CreateImageResponse>> createImage(String fromImage,
+      {AuthConfig authConfig, String fromSrc, String repo, String tag,
+      String registry}) async {
+    assert(fromImage != null && fromImage.isNotEmpty);
+    Map<String, String> query = {};
+    if (fromImage != null) query['fromImage'] = fromImage;
+    if (fromSrc != null) query['fromSrc'] = fromSrc;
+    if (repo != null) query['repo'] = repo;
+    if (tag != null) query['tag'] = tag;
+    if (registry != null) query['registry'] = registry;
+
+    Map<String, String> headers;
+    if (authConfig != null) {
+      headers['X-Registry-Config'] = CryptoUtils
+          .bytesToBase64(UTF8.encode(JSON.encode(authConfig.toJson())));
+    }
+
+    final response = await _postReturnListOfJson('/images/create', query: query, headers: headers);
+    return response.map((e) => new CreateImageResponse.fromJson(e));
+  }
+
+  /// Return low-level information on the [image].
+  /// Status Codes:
+  /// 200 - no error
+  /// 404 - no such image
+  /// 500 - server error
+  Future<ImageInfo> image(Image image) async {
+    assert(
+        image != null && image.name != null && image.name.isNotEmpty);
+    final Map response = await _get('/images/${image.name}/json');
+    print(response);
+    return new ImageInfo.fromJson(response);
+  }
+
+  /// Return the history of the [image].
+  /// Status Codes:
+  /// 200 - no error
+  /// 404 - no such image
+  /// 500 - server error
+  Future<Iterable<ImageHistoryResponse>> history(Image image) async {
+    assert(
+        image != null && image.name != null && image.name.isNotEmpty);
+    final List response = await _get('/images/${image.name}/history');
+    print(response);
+    return response.map((e) => new ImageHistoryResponse.fromJson(e));
+  }
 }
+
+
+
+
+

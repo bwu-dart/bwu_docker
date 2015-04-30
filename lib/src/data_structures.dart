@@ -45,7 +45,7 @@ UnmodifiableListView _toUnmodifiableListView(Iterable list) {
   if (list == null) {
     return null;
   }
-  if(list.length == 0) {
+  if (list.length == 0) {
     return new UnmodifiableListView(const []);
   }
 
@@ -60,6 +60,261 @@ UnmodifiableListView _toUnmodifiableListView(Iterable list) {
   }));
 }
 
+/// The response to an images/(name)/history request.
+class ImageHistoryResponse{
+  String _id;
+  String get id => _id;
+
+  DateTime _created;
+  DateTime get created => _created;
+
+  String _createdBy;
+  String get createdBy => _createdBy;
+
+  ImageHistoryResponse.fromJson(Map json) {
+    _id = json['Id'];
+    _created = _parseDate(json['Created']);
+    _createdBy = json['CreatedBy'];
+    assert(json.keys.length <= 3); // ensure all keys were read
+  }
+}
+
+/// A reference to an image.
+class Image {
+  final String name;
+
+  Image(this.name) {
+    assert(name != null && name.isNotEmpty);
+  }
+}
+
+///// Response to an image response
+//class ImageInfo {
+//  DateTime _created;
+//  DateTime get created => _created;
+//
+//  String _container;
+//  String get container => _container;
+//
+//  ContainerConfig _containerConfig;
+//  ContainerConfig get containerConfig => _containerConfig;
+//
+//  String _id;
+//  String get id => _id;
+//
+//  String _parent;
+//  String get parent => _parent;
+//
+//  int _size;
+//  int get size => _size;
+//
+//  ImageInfo.fromJson(Map json) {
+//    _created = _parseDate(json['created']);
+//    _container = json['container'];
+//    _containerConfig = new ContainerConfig.fromJson(json['containerConfig']);
+//    _id = json['id'];
+//    _parent = json['parent'];
+//    _size = json['size'];
+//    assert(json.keys.length <= 6); // ensure all keys were read
+//  }
+//}
+//
+//class ContainerConfig {
+//  String _hostName;
+//  String get hostName => _hostName;
+//
+//  String _user;
+//  String get user => _user;
+//
+//  bool _attachStdin;
+//  bool get attachStdin => _attachStdin;
+//
+//  bool _attachStdout;
+//  bool get attachStdout => _attachStdout;
+//
+//  bool _attachStderr;
+//  bool get attachStderr => _attachStderr;
+//
+//  PortResponse _portSpecs;
+//  PortResponse get portSpecs => _portSpecs;
+//
+//  bool _tty;
+//  bool get tty => _tty;
+//
+//  bool _openStdin;
+//  bool get openStdin => _openStdin;
+//
+//  bool _stdinOnce;
+//  bool get stdinOnce => _stdinOnce;
+//
+//  UnmodifiableMapView<String,String> _env;
+//  UnmodifiableMapView<String,String> get env => _env;
+//
+//  UnmodifiableListView<String> _cmd;
+//  UnmodifiableListView<String> get cmd => _cmd;
+//
+//  UnmodifiableListView<String> _dns;
+//  UnmodifiableListView<String> get dns => _dns;
+//
+//  String _image;
+//  String get image => _image;
+//
+//  UnmodifiableListView<String> _labels;
+//  UnmodifiableListView<String> get labels => _labels;
+//
+//  Volumes _volumes;
+//  Volumes get volumes => _volumes;
+//
+//  String _volumesFrom;
+//  String get volumesFrom => _volumesFrom;
+//
+//  String _workingDir;
+//  String get workingDir => _workingDir;
+//
+//  ContainerConfig.fromJson(Map json) {
+//    _hostName = json['Hostname'];
+//    _user = json['User'];
+//    _attachStdin = json['AttachStdin'];
+//    _attachStdout = json['AttachStdout'];
+//    _attachStderr = json['AttachStderr'];
+//    _portSpecs = json['PortSpecs'];
+//    _tty = json['Tty'];
+//    _openStdin = json['OpenStdin'];
+//    _stdinOnce = json['StdinOnce'];
+//    _env = _toUnmodifiableMapView(json['Env']);
+//    _cmd = _toUnmodifiableListView(json['Cmd']);
+//    _dns = _toUnmodifiableListView(json['Dns']);
+//    _image = json['Image'];
+//    _labels = _toUnmodifiableListView(json['Labels']);
+//    _volumes = json['Volumes'];
+//    _volumesFrom = json['VolumesFrom'];
+//    _workingDir = json['WorkingDir'];
+//    assert(json.keys.length <= 17); // ensure all keys were read
+//  }
+//
+//}
+
+/// An item of an image create response
+class CreateImageResponse {
+  String _status;
+  String get status => _status;
+
+  UnmodifiableMapView<String,Map> _progressDetail;
+  UnmodifiableMapView<String, Map> get progressDetail => _progressDetail;
+
+  String _id;
+  String get id => _id;
+
+
+  CreateImageResponse.fromJson(Map json) {
+    _status = json['status'];
+    _progressDetail = _toUnmodifiableMapView(json['progressDetail']);
+    _id = json['id'];
+    assert(json.keys.length <= 3); // ensure all keys were read
+  }
+}
+
+///// Item of a response to an images request.
+//class ImageResponse {
+//  UnmodifiableListView<String> _repoTags;
+//  UnmodifiableListView<String> get repoTags => _repoTags;
+//
+//  String _id;
+//  String get id => _id;
+//
+//  String _parentId;
+//  String get parentId => _parentId;
+//
+//  DateTime _created;
+//  DateTime get created => _created;
+//
+//  int _size;
+//  int get size => _size;
+//
+//  int _virtualSize;
+//  int get virtualSize => _virtualSize;
+//
+//  UnmodifiableListView<String> _repoDigest;
+//  UnmodifiableListView<String> get repoDigest => _repoDigest;
+//
+//  ImageResponse.fromJson(Map json) {
+//    _repoTags = _toUnmodifiableListView(json['RepoTags']);
+//    _id = json['Id'];
+//    _parentId = json['ParentId'];
+//    _created = _parseDate(json['Created']);
+//    _size = json['Size'];
+//    _virtualSize = json['VirtualSize'];
+//    _repoDigest = _toUnmodifiableListView(json['RepoDigest']);
+//    assert(json.keys.length <= 7); // ensure all keys were read
+//  }
+//}
+
+class ConfigFile {
+  AuthConfig _auths;
+  AuthConfig get auths => _auths;
+
+  UnmodifiableMapView<String, String> _httpHeaders;
+  UnmodifiableMapView<String, String> get httpHeaders => _httpHeaders;
+
+  String _fileName;
+  String get fileName => _fileName;
+
+  ConfigFile(this._auths, {Map<String, String> httpHeaders}) {
+    assert(auths != null);
+    _httpHeaders = _toUnmodifiableMapView(httpHeaders);
+  }
+
+  Map toJson() {
+    final json = {};
+    json['auths'] = auths.toJson();
+    if (httpHeaders != null) {
+      json['HttpHeaders'] = _httpHeaders;
+    }
+    return json;
+  }
+}
+
+
+class AuthConfig {
+  final String userName;
+  final String password;
+  final String auth;
+  final String email;
+  final String serverAddress;
+  const AuthConfig({this.userName, this.password, this.auth, this.email,
+      this.serverAddress});
+
+  Map toJson() {
+    final json = {};
+    if (userName != null) {
+      json['userName'] = userName;
+    }
+    if (password != null) {
+      json['password;'] = password;
+    }
+    json['auth;'] = auth;
+    json['email;'] = email;
+    if (serverAddress != null) {
+      json['serverAddress'] = serverAddress;
+    }
+
+    return json;
+  }
+}
+
+/// To create proper JSON for a requested path for a copy request.
+class CopyRequestPath {
+  String _path;
+  String get path => _path;
+
+  CopyRequestPath(this._path) {
+    assert(path != null && path.isNotEmpty);
+  }
+
+  Map toJson() {
+    return {'Resource': path};
+  }
+}
 
 /// The response to a wait request.
 class WaitResponse {
@@ -257,8 +512,6 @@ class StatsResponseMemoryStatsStats {
   }
 }
 
-
-
 class StatsResponseCpuUsage {
   UnmodifiableListView<int> _perCpuUsage;
   UnmodifiableListView<int> get perCpuUsage => _perCpuUsage;
@@ -280,7 +533,6 @@ class StatsResponseCpuUsage {
     assert(json.keys.length <= 4); // ensure all keys were read
   }
 }
-
 
 class StatsResponseCpuStats {
   StatsResponseCpuUsage _cupUsage;
@@ -328,14 +580,10 @@ class StatsResponse {
 }
 
 /// The available change kinds for the changes request.
-enum ChangeKind {
-  modify,
-  add,
-  delete,
-}
+enum ChangeKind { modify, add, delete, }
 
 /// The argument for the changes request.
-class ChangesResponse{
+class ChangesResponse {
   final Set<_ChangesPath> _changes = new Set<_ChangesPath>();
   List<_ChangesPath> get changes => new UnmodifiableListView(_changes);
 
@@ -349,7 +597,8 @@ class ChangesResponse{
 
   ChangesResponse.fromJson(List json) {
     json.forEach((Map c) {
-      _add(c['Path'], ChangeKind.values.firstWhere((v) => v.index == c['Kind']));
+      _add(
+          c['Path'], ChangeKind.values.firstWhere((v) => v.index == c['Kind']));
     });
   }
 }
@@ -368,14 +617,12 @@ class _ChangesPath {
   int get hashCode => hash2(path, kind);
 
   @override
-  bool operator==(other) {
-    return(other is _ChangesPath && other.path == path && other.kind == kind);
+  bool operator ==(other) {
+    return (other is _ChangesPath && other.path == path && other.kind == kind);
   }
 
-  Map toJson() =>
-    {'Path': path, 'Kind': kind.index};
+  Map toJson() => {'Path': path, 'Kind': kind.index};
 }
-
 
 /// Response to the top request.
 class TopResponse {
@@ -439,11 +686,11 @@ class RestartPolicy {
       final value = RestartPolicyVariant.values
           .where((v) => v.toString().endsWith(json['Name']));
       print(json);
-      if(value.length != 1) {
+      if (value.length != 1) {
         throw 'Invalid value "${json['Name']}".';
       }
-      _variant = value;
-      if(value == RestartPolicyVariant.onFailure) {
+      _variant = value.first;
+      if (value == RestartPolicyVariant.onFailure) {
         _maximumRetryCount = json['MaximumRetryCount'];
       }
     }
@@ -452,7 +699,7 @@ class RestartPolicy {
   Map toJson() {
     assert(_maximumRetryCount == null ||
         _variant == RestartPolicyVariant.onFailure);
-    if(variant == null) {
+    if (variant == null) {
       return null;
     }
     switch (_variant) {
@@ -579,6 +826,10 @@ class ImageInfo {
   int _virtualSize;
   int get virtualSize => _virtualSize;
 
+  UnmodifiableListView<String> _repoTags;
+  UnmodifiableListView<String> get repoTags => _repoTags;
+
+
   ImageInfo.fromJson(Map json) {
     if (json == null) {
       return;
@@ -593,10 +844,13 @@ class ImageInfo {
     _dockerVersion = json['DockerVersion'];
     _id = json['Id'];
     _os = json['Os'];
+    // depending on the request `Parent` or `ParentId` is set.
     _parent = json['Parent'];
+    _parent = json['ParentId'] != null ? json['ParentId'] : null;
     _size = json['Size'];
     _virtualSize = json['VirtualSize'];
-    assert(json.keys.length <= 13); // ensure all keys were read
+    _repoTags = _toUnmodifiableListView(json['RepoTags']);
+    assert(json.keys.length <= 14); // ensure all keys were read
   }
 }
 
@@ -1026,9 +1280,9 @@ class Config {
     _entryPoint = json['Entrypoint'];
     final e = json['Env'];
     if (e != null) {
-      _env = _toUnmodifiableMapView(
-          new Map<String, String>.fromIterable(e.map((i) => i.split('=')),
-              key: (i) => i[0], value: (i) => i.length == 2 ? i[1] : null));
+      _env = _toUnmodifiableMapView(new Map<String, String>.fromIterable(
+          e.map((i) => i.split('=')),
+          key: (i) => i[0], value: (i) => i.length == 2 ? i[1] : null));
     }
     _exposedPorts = _toUnmodifiableMapView(json['ExposedPorts']);
     _hostName = json['Hostname'];
