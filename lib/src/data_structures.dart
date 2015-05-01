@@ -14,12 +14,39 @@ DateTime _parseDate(dynamic dateValue) {
       return new DateTime(1, 1, 1);
     }
 
-    return dateFormat.parse(
-        dateValue.substring(0, dateValue.length - 7) + 'Z', true);
+    try {
+      return dateFormat.parse(
+          dateValue.substring(0, dateValue.length - 7) + 'Z', true);
+    } catch (_) {
+      print('parsing "${dateValue}" failed.');
+      rethrow;
+    }
   } else if (dateValue is int) {
     return new DateTime.fromMillisecondsSinceEpoch(dateValue * 1000,
         isUtc: true);
   }
+}
+
+bool _parseBool(dynamic boolValue) {
+  if (boolValue == null) {
+    return null;
+  }
+  if (boolValue is bool) {
+    return boolValue;
+  }
+  if (boolValue is int) {
+    return boolValue == 1;
+  }
+  if (boolValue is String) {
+    if (boolValue.toLowerCase() == 'true') {
+      return true;
+    } else if (boolValue.toLowerCase() == 'false') {
+      return false;
+    }
+  }
+
+  throw new FormatException(
+      'Value "${boolValue}" can not be converted to bool.');
 }
 
 UnmodifiableMapView _toUnmodifiableMapView(Map map) {
@@ -60,8 +87,276 @@ UnmodifiableListView _toUnmodifiableListView(Iterable list) {
   }));
 }
 
+/// Error thrown
+class DockerRemoteApiError {
+  final int statusCode;
+  final String reason;
+  final String body;
+
+  DockerRemoteApiError(this.statusCode, this.reason, this.body);
+}
+
+/// Response to the version request.
+class VersionResponse {
+  String _version;
+  String get version => _version;
+
+  String _os;
+  String get os => _os;
+
+  String _kernelVersion;
+  String get kernelVersion => _kernelVersion;
+
+  String _goVersion;
+  String get goVersion => _goVersion;
+
+  String _gitCommit;
+  String get gitCommit => _gitCommit;
+
+  String _architecture;
+  String get architecture => _architecture;
+
+  String _apiVersion;
+  String get apiVersion => _apiVersion;
+
+  VersionResponse.fromJson(Map json) {
+    _version = json['Version'];
+    _os = json['Os'];
+    _kernelVersion = json['KernelVersion'];
+    _goVersion = json['GoVersion'];
+    _gitCommit = json['GitCommit'];
+    _architecture = json['Arch'];
+    _apiVersion = json['ApiVersion'];
+    assert(json.keys.length <= 7); // ensure all keys were read
+  }
+}
+
+/// Response to the info request.
+class InfoResponse {
+  int _containers;
+  int get containers => _containers;
+
+  int _images;
+  int get images => _images;
+
+  String _driver;
+  String get driver => _driver;
+
+  UnmodifiableListView<List<List>> _driverStatus;
+  UnmodifiableListView<List<List>> get driverStatus => _driverStatus;
+
+  String _executionDriver;
+  String get executionDriver => _executionDriver;
+
+  String _kernelVersion;
+  String get kernelVersion => _kernelVersion;
+
+  int _cpuCount;
+  int get cpuCount => _cpuCount;
+
+  int _memTotal;
+  int get memTotal => _memTotal;
+
+  String _name;
+  String get name => _name;
+
+  String _id;
+  String get id => _id;
+
+  bool _debug;
+  bool get debug => _debug;
+
+  int _fdCount;
+  int get fdCount => _fdCount;
+
+  int _goroutinesCount;
+  int get goroutinesCount => _goroutinesCount;
+
+  DateTime _systemTime;
+  DateTime get systemTime => _systemTime;
+
+  int _eventsListenersCount;
+  int get eventsListenersCount => _eventsListenersCount;
+
+  String _initPath;
+  String get initPath => _initPath;
+
+  String _initSha1;
+  String get initSha1 => _initSha1;
+
+  UnmodifiableListView<String> _indexServerAddress;
+  UnmodifiableListView<String> get indexServerAddress => _indexServerAddress;
+
+  bool _memoryLimit;
+  bool get memoryLimit => _memoryLimit;
+
+  bool _swapLimit;
+  bool get swapLimit => _swapLimit;
+
+  bool _ipv4Forwarding;
+  bool get ipv4Forwarding => _ipv4Forwarding;
+
+  UnmodifiableMapView<String, String> _labels;
+  UnmodifiableMapView<String, String> get labels => _labels;
+
+  String _dockerRootDir;
+  String get dockerRootDir => _dockerRootDir;
+
+  String _httpProxy;
+  String get httpProxy => _httpProxy;
+
+  String _httpsProxy;
+  String get httpsProxy => _httpsProxy;
+
+  String _noProxy;
+  String get noProxy => _noProxy;
+
+  String _operatingSystem;
+  String get operatingSystem => _operatingSystem;
+
+  InfoResponse.fromJson(Map json) {
+    _containers = json['Containers'];
+    _images = json['Images'];
+    _driver = json['Driver'];
+    _driverStatus = _toUnmodifiableListView(json['DriverStatus']);
+    _executionDriver = json['ExecutionDriver'];
+    _kernelVersion = json['KernelVersion'];
+    _cpuCount = json['NCPU'];
+    _memTotal = json['MemTotal'];
+    _name = json['Name'];
+    _id = json['ID'];
+    _debug = _parseBool(json['Debug']);
+    _fdCount = json['NFd'];
+    _goroutinesCount = json['NGoroutines'];
+    _systemTime = _parseDate(json['SystemTime']);
+    _eventsListenersCount = json['NEventsListener'];
+    _initPath = json['InitPath'];
+    _initSha1 = json['InitSha1'];
+    _indexServerAddress = json['IndexServerAddress'] is String
+        ? _toUnmodifiableListView([json['IndexServerAddress']])
+        : _toUnmodifiableListView(json['IndexServerAddress']);
+    _memoryLimit = _parseBool(json['MemoryLimit']);
+    _swapLimit = _parseBool(json['SwapLimit']);
+    _ipv4Forwarding = _parseBool(json['IPv4Forwarding']);
+    final l =
+        json['Labels'] != null ? json['labels'].map((l) => l.split('=')) : null;
+    _labels = l == null
+        ? null
+        : _toUnmodifiableMapView(new Map.fromIterable(l,
+            key: (l) => l[0], value: (l) => l.length == 2 ? l[1] : null));
+    _dockerRootDir = json['DockerRootDir'];
+    _httpProxy = json['HttpProxy'];
+    _httpsProxy = json['HttpsProxy'];
+    _noProxy = json['NoProxy'];
+    _operatingSystem = json['OperatingSystem'];
+    assert(json.keys.length <= 27); // ensure all keys were read
+  }
+}
+
+/// Argument for the auth request.
+class AuthRequest {
+  String _userName;
+  String get userName => _userName;
+
+  String _password;
+  String get password => _password;
+
+  String _email;
+  String get email => _email;
+
+  String _serverAddress;
+  String get serverAddress => _serverAddress;
+
+  AuthRequest(
+      this._userName, this._password, this._email, this._serverAddress) {
+    assert(userName.isNotEmpty);
+    assert(password.isNotEmpty);
+    assert(email.isNotEmpty);
+    assert(serverAddress.isNotEmpty);
+  }
+
+  Map toJson() {
+    return {
+      'username': userName,
+      'password': password,
+      'email': email,
+      'serveraddress': serverAddress
+    };
+  }
+}
+
+/// An item of the response to search.
+class SearchResponse {
+  String _description;
+  String get description => _description;
+
+  bool _isOfficial;
+  bool get isOfficial => _isOfficial;
+
+  bool _isAutomated;
+  bool get isAutomated => _isAutomated;
+
+  String _name;
+  String get name => _name;
+
+  int _starCount;
+  int get starCount => _starCount;
+
+  SearchResponse.fromJson(Map json) {
+    _description = json['description'];
+    _isOfficial = json['is_official'];
+    if (json['is_trusted'] != null) {
+      _isAutomated = json['is_trusted'];
+    } else {
+      _isAutomated = json['is_automated'];
+    }
+    _name = json['name'];
+    _starCount = json['star_count'];
+    assert(json.keys.length <= 5); // ensure all keys were read
+  }
+}
+
+/// An item of the response to removeImage.
+class ImageRemoveResponse {
+  String _untagged;
+  String get untagged => _untagged;
+
+  String _deleted;
+  String get deleted => _deleted;
+
+  ImageRemoveResponse.fromJson(Map json) {
+    _untagged = json['Untagged'];
+    _deleted = json['Deleted'];
+    assert(json.keys.length <= 2); // ensure all keys were read
+  }
+}
+
+/// An item of the response to images/(name)/push.
+class ImagePushResponse {
+  String _status;
+  String get status => _status;
+
+  String _progress;
+  String get progress => _progress;
+
+  UnmodifiableMapView _progressDetail;
+  UnmodifiableMapView get progressDetail => _progressDetail;
+
+  String _error;
+  String get error => _error;
+
+  ImagePushResponse.fromJson(Map json) {
+    final json = {};
+    _status = json['status'];
+    _progress = json['progress'];
+    _progressDetail = _toUnmodifiableMapView(json['progressDetail']);
+    _error = json['error'];
+    assert(json.keys.length <= 4); // ensure all keys were read
+  }
+}
+
 /// The response to an images/(name)/history request.
-class ImageHistoryResponse{
+class ImageHistoryResponse {
   String _id;
   String get id => _id;
 
@@ -71,11 +366,19 @@ class ImageHistoryResponse{
   String _createdBy;
   String get createdBy => _createdBy;
 
+  int _size;
+  int get size => _size;
+
+  UnmodifiableListView<String> _tags;
+  UnmodifiableListView<String> get tags => _tags;
+
   ImageHistoryResponse.fromJson(Map json) {
     _id = json['Id'];
     _created = _parseDate(json['Created']);
     _createdBy = json['CreatedBy'];
-    assert(json.keys.length <= 3); // ensure all keys were read
+    _size = json['Size'];
+    _tags = _toUnmodifiableListView(json['Tags']);
+    assert(json.keys.length <= 5); // ensure all keys were read
   }
 }
 
@@ -199,12 +502,11 @@ class CreateImageResponse {
   String _status;
   String get status => _status;
 
-  UnmodifiableMapView<String,Map> _progressDetail;
+  UnmodifiableMapView<String, Map> _progressDetail;
   UnmodifiableMapView<String, Map> get progressDetail => _progressDetail;
 
   String _id;
   String get id => _id;
-
 
   CreateImageResponse.fromJson(Map json) {
     _status = json['status'];
@@ -274,7 +576,16 @@ class ConfigFile {
   }
 }
 
-
+/// Passed as `X-Registry-Auth` header in requests that need authentication to a
+/// registry.
+/// Since API version 1.2, the auth configuration is now handled client side,
+/// so the client has to send the authConfig as a POST in `/images/(name)/push`.
+/// authConfig, set as the `X-Registry-Auth header`, is currently a Base64
+/// encoded (JSON) string with the following structure:
+/// `{"username": "string", "password": "string", "email": "string", "serveraddress" : "string", "auth": ""}`.
+/// Notice that `auth` is to be left empty, `serveraddress` is a domain/ip
+/// without protocol, and that double quotes (instead of single ones) are
+/// required.
 class AuthConfig {
   final String userName;
   final String password;
@@ -829,7 +1140,6 @@ class ImageInfo {
   UnmodifiableListView<String> _repoTags;
   UnmodifiableListView<String> get repoTags => _repoTags;
 
-
   ImageInfo.fromJson(Map json) {
     if (json == null) {
       return;
@@ -1352,6 +1662,17 @@ class PortResponse {
     _publicPort = json['PublicPort'];
     _type = json['Type'];
     assert(json.keys.length <= 4); // ensure all keys were read
+  }
+}
+
+/// The response to an auth request.
+class AuthResponse {
+  String _status;
+  String get status => _status;
+
+  AuthResponse.fromJson(Map json) {
+    _status = json['Status'];
+    assert(json.keys.length <= 1); // ensure all keys were read
   }
 }
 

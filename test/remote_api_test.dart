@@ -23,7 +23,8 @@ void main([List<String> args]) {
       try {
         //print('--- remove --- ${createdResponse.container.id}');
         await connection.kill(createdContainer.container, signal: 'SIGKILL');
-        await connection.remove(createdContainer.container, force: true);
+        await connection.removeContainer(createdContainer.container,
+            force: true);
       } catch (e) {
         print('--- remove --- ${createdContainer.container.id} failed - ${e}');
       }
@@ -168,7 +169,7 @@ void main([List<String> args]) {
               anyElement((c) => c.id == createdContainer.container.id));
 
           await connection.kill(createdContainer.container, signal: 'SIGKILL');
-          await connection.remove(createdContainer.container);
+          await connection.removeContainer(createdContainer.container);
           createdContainer = null; // prevent remove again in tearDown
 
           // exercise
@@ -573,7 +574,7 @@ void main([List<String> args]) {
           await connection.stop(createdContainer.container);
 
           // exercise
-          await connection.remove(createdContainer.container);
+          await connection.removeContainer(createdContainer.container);
 
           // verification
           expect(connection.container(createdContainer.container), throws);
@@ -605,8 +606,7 @@ void main([List<String> args]) {
       test('all: true', () async {
         // set up
 //        String containerId = createdContainer.container.id;
-        final Iterable<ImageInfo> images =
-            await connection.images(all: true);
+        final Iterable<ImageInfo> images = await connection.images(all: true);
         expect(images, isNotEmpty);
         expect(images.first.id, isNotEmpty);
         // TODO(zoechi) complete test
@@ -653,8 +653,131 @@ void main([List<String> args]) {
         final Iterable<ImageHistoryResponse> imageHistoryResponse =
             await connection.history(new Image(imageNameAndVersion));
         expect(imageHistoryResponse.length, greaterThan(3));
+        expect(imageHistoryResponse, everyElement(
+            (e) => e.created.millisecondsSinceEpoch >
+                new DateTime(1, 1, 1).millisecondsSinceEpoch));
+        expect(imageHistoryResponse,
+            anyElement((e) => e.createdBy != null && e.createdBy.isNotEmpty));
+        expect(imageHistoryResponse,
+            anyElement((e) => e.tags != null && e.tags.isNotEmpty));
+        expect(imageHistoryResponse,
+            anyElement((e) => e.size != null && e.size > 0));
       });
     });
 
+    group('push', () {
+      test('simple', () async {
+        final Iterable<ImagePushResponse> imagePushResponse =
+            await connection.push(new Image(imageName));
+        expect(imagePushResponse.length, greaterThan(3));
+        expect(imagePushResponse, everyElement(
+            (e) => e.created.millisecondsSinceEpoch >
+                new DateTime(1, 1, 1).millisecondsSinceEpoch));
+        expect(imagePushResponse,
+            anyElement((e) => e.createdBy != null && e.createdBy.isNotEmpty));
+        expect(imagePushResponse,
+            anyElement((e) => e.tags != null && e.tags.isNotEmpty));
+        expect(
+            imagePushResponse, anyElement((e) => e.size != null && e.size > 0));
+      }, skip: 'complete test when `commit` is implemented');
+    });
+
+    group('tag', () {
+      test('simple', () async {
+        final SimpleResponse imageTagResponse = await connection.tag(
+            new Image(imageNameAndVersion), 'SomeRepo', 'SomeTag');
+        expect(imageTagResponse, isNotNull);
+      });
+
+      tearDown(() async {
+        try {
+          await connection.removeImage(new Image('SomeRepo:SomeTag'));
+        } catch (_) {}
+      });
+    });
+
+    group('removeImage', () {
+      test('simple', () async {
+        final SimpleResponse imageTagResponse = await connection.tag(
+            new Image(imageNameAndVersion), imageName, 'removeImage');
+        expect(imageTagResponse, isNotNull);
+
+        final Iterable<ImageRemoveResponse> imageRemoveResponse =
+            await connection.removeImage(new Image('${imageName}:removeImage'));
+        expect(imageRemoveResponse, isNotNull);
+        expect(imageRemoveResponse,
+            anyElement((e) => e.untagged == '${imageName}:removeImage'));
+      });
+    });
+
+    group('search', () {
+      test('simple', () async {
+        final Iterable<SearchResponse> searchResponse =
+            await connection.search('sshd');
+        expect(searchResponse, isNotNull);
+        expect(searchResponse, anyElement((e) => e.description ==
+            'Dockerized SSH service, built on top of official Ubuntu images.'));
+        expect(searchResponse,
+            anyElement((e) => e.name != null && e.name.isNotEmpty));
+        expect(searchResponse, anyElement((e) => e.isOfficial != null));
+        expect(searchResponse, anyElement((e) => e.isAutomated != null));
+        expect(searchResponse,
+            anyElement((e) => e.starCount != null && e.starCount > 0));
+      });
+    });
+
+    group('auth', () {
+      test('simple', () async {
+//        Succeeds with real password
+//        final AuthResponse authResponse = await connection.auth(
+//            new AuthRequest('zoechi', 'xxxxx', 'guenter@gzoechbauer.com',
+//                'https://index.docker.io/v1/'));
+//        expect(authResponse, isNotNull);
+//        expect(authResponse.status, 'Login Succeeded');
+
+        expect(connection.auth(new AuthRequest('zoechi', 'xxxxx',
+                'guenter@gzoechbauer.com', 'https://index.docker.io/v1/')),
+            throwsA((e) => e is DockerRemoteApiError &&
+                e.body == 'Wrong login/password, please try again\n'));
+      });
+    });
+
+    group('info', () {
+      test('simple', () async {
+        final InfoResponse infoResponse = await connection.info();
+        expect(infoResponse, isNotNull);
+        expect(infoResponse.containers, greaterThan(0));
+        expect(infoResponse.debug, isNotNull);
+        expect(infoResponse.driver, isNotEmpty);
+        expect(infoResponse.driverStatus, isNotEmpty);
+        expect(infoResponse.eventsListenersCount, isNotNull);
+        expect(infoResponse.executionDriver, isNotNull);
+        expect(infoResponse.fdCount, greaterThan(0));
+        expect(infoResponse.goroutinesCount, greaterThan(0));
+        expect(infoResponse.images, greaterThan(0));
+        expect(infoResponse.indexServerAddress.length, greaterThan(0));
+        expect(infoResponse.initPath, isNotEmpty);
+        expect(infoResponse.initSha1, isNotEmpty);
+        expect(infoResponse.ipv4Forwarding, isNotNull);
+        expect(infoResponse.kernelVersion, isNotEmpty);
+        expect(infoResponse.memoryLimit, isNotNull);
+        expect(infoResponse.operatingSystem, isNotEmpty);
+        expect(infoResponse.swapLimit, isNotNull);
+      });
+    });
+
+    group('version', () {
+      test('simple', () async {
+        final VersionResponse versionResponse = await connection.version();
+        expect(versionResponse, isNotNull);
+        expect(versionResponse.apiVersion, isNotEmpty);
+        expect(versionResponse.architecture, isNotEmpty);
+        expect(versionResponse.gitCommit, isNotEmpty);
+        expect(versionResponse.goVersion, isNotEmpty);
+        expect(versionResponse.kernelVersion, isNotEmpty);
+        expect(versionResponse.os, isNotEmpty);
+        expect(versionResponse.version, isNotEmpty);
+      });
+    });
   });
 }

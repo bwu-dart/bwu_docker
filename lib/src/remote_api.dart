@@ -17,7 +17,7 @@ class DockerConnection {
   }
 
   /// Send a POST request to the Docker service.
-  Future<Map> _post(String path,
+  Future<dynamic> _post(String path,
       {Map json, Map query, Map<String, String> headers}) async {
     String data;
     if (json != null) {
@@ -33,7 +33,7 @@ class DockerConnection {
     final http.Response response = await client.post(url,
         headers: headers != null ? headers : headersJson, body: data);
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
+      throw new DockerRemoteApiError(response.statusCode, response.reasonPhrase, response.body);
     }
     if (response.body != null && response.body.isNotEmpty) {
       return JSON.decode(response.body);
@@ -60,10 +60,11 @@ class DockerConnection {
     final http.Response response = await client.post(url,
         headers: headers != null ? headers : headersJson, body: data);
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
+      throw new DockerRemoteApiError(response.statusCode, response.reasonPhrase, response.body);
     }
     if (response.body != null && response.body.isNotEmpty) {
-      return JSON.decode('[${response.body.replaceAll(new RegExp(r'\}\s*\{', multiLine: true), '},\n{')}]');
+      return JSON.decode(
+          '[${response.body.replaceAll(new RegExp(r'\}\s*\{', multiLine: true), '},\n{')}]');
     }
     return null;
   }
@@ -83,13 +84,13 @@ class DockerConnection {
         queryParameters: query);
     final request = new http.Request('POST', url)
       ..headers.addAll(headers != null ? headers : headersJson);
-    if(data != null) {
+    if (data != null) {
       request.body = data;
     }
     final http.BaseResponse response =
         await request.send().then(http.Response.fromStream);
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
+      throw new DockerRemoteApiError(response.statusCode, response.reasonPhrase, null);
     }
     return (response as http.StreamedResponse).stream;
   }
@@ -110,7 +111,7 @@ class DockerConnection {
     final http.BaseResponse response =
         await request.send().then(http.Response.fromStream);
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
+      throw new DockerRemoteApiError(response.statusCode, response.reasonPhrase, null);
     }
     return (response as http.StreamedResponse).stream;
   }
@@ -124,7 +125,7 @@ class DockerConnection {
         queryParameters: query);
     final http.Response response = await client.get(url, headers: headersJson);
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
+      throw new DockerRemoteApiError(response.statusCode, response.reasonPhrase, response.body);
     }
 
     if (response.body != null && response.body.isNotEmpty) {
@@ -146,7 +147,7 @@ class DockerConnection {
     request.headers.addAll(headersJson);
     final http.BaseResponse response = await request.send();
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
+      throw new DockerRemoteApiError(response.statusCode, response.reasonPhrase, null);
     }
     return (response as http.StreamedResponse).stream;
   }
@@ -161,7 +162,7 @@ class DockerConnection {
     final http.Response response =
         await client.delete(url, headers: headersJson);
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw 'ERROR: ${response.statusCode} - ${response.reasonPhrase}';
+      throw new DockerRemoteApiError(response.statusCode, response.reasonPhrase, response.body);
     }
 
     if (response.body != null && response.body.isNotEmpty) {
@@ -196,6 +197,7 @@ class DockerConnection {
     if (filters != null) query['filters'] = JSON.encode(filters);
 
     final List response = await _get('/containers/json', query: query);
+    //print(response);
     return response.map((e) => new Container.fromJson(e));
   }
 
@@ -576,7 +578,7 @@ class DockerConnection {
   /// 404 – no such container
   /// 500 – server error
   /// It seems the container must be stopped before it can be removed.
-  Future<SimpleResponse> remove(Container container,
+  Future<SimpleResponse> removeContainer(Container container,
       {bool removeVolumes, bool force}) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
@@ -661,20 +663,20 @@ class DockerConnection {
   ///     specifies a filename, the file's contents are placed into a file
   ///     called `Dockerfile`.
   /// [q] Suppress verbose build output
-  /// [nocache] Do not use the cache when building the image
+  /// [noCache] Do not use the cache when building the image
   /// [pull] Attempt to pull the image even if an older image exists locally
   /// [rm] Remove intermediate containers after a successful build (default
   /// behavior)
-  /// [forcerm] Always remove intermediate containers (includes rm)
+  /// [forceRm] Always remove intermediate containers (includes rm)
   /// [memory] Set memory limit for build
-  /// [memswap] Total memory (memory + swap), `-1` to disable swap
-  /// [cpushares] CPU shares (relative weight)
-  /// [cpusetcpus] CPUs in which to allow execution, e.g., `0-3`, `0,1`
+  /// [memSwap] Total memory (memory + swap), `-1` to disable swap
+  /// [cpuShares] CPU shares (relative weight)
+  /// [cpuSetCpus] CPUs in which to allow execution, e.g., `0-3`, `0,1`
   ///
   /// Request Headers:
   ///
   /// `Content-type` Should be set to `"application/tar"`.
-  /// `X-Registry-Config` base64-encoded ConfigFile objec
+  /// `X-Registry-Config` base64-encoded ConfigFile object.
   ///
   /// Status Codes:
   /// 200 - no error
@@ -724,7 +726,8 @@ class DockerConnection {
           .bytesToBase64(UTF8.encode(JSON.encode(authConfig.toJson())));
     }
 
-    final response = await _postReturnListOfJson('/images/create', query: query, headers: headers);
+    final response = await _postReturnListOfJson('/images/create',
+        query: query, headers: headers);
     return response.map((e) => new CreateImageResponse.fromJson(e));
   }
 
@@ -734,8 +737,7 @@ class DockerConnection {
   /// 404 - no such image
   /// 500 - server error
   Future<ImageInfo> image(Image image) async {
-    assert(
-        image != null && image.name != null && image.name.isNotEmpty);
+    assert(image != null && image.name != null && image.name.isNotEmpty);
     final Map response = await _get('/images/${image.name}/json');
     print(response);
     return new ImageInfo.fromJson(response);
@@ -747,15 +749,139 @@ class DockerConnection {
   /// 404 - no such image
   /// 500 - server error
   Future<Iterable<ImageHistoryResponse>> history(Image image) async {
-    assert(
-        image != null && image.name != null && image.name.isNotEmpty);
+    assert(image != null && image.name != null && image.name.isNotEmpty);
     final List response = await _get('/images/${image.name}/history');
     print(response);
     return response.map((e) => new ImageHistoryResponse.fromJson(e));
   }
+
+  /// Push the image name on the registry.
+  /// If you wish to push an image on to a private registry, that image must
+  /// already have been tagged into a repository which references that registry
+  /// host name and port.  This repository name should then be used in the URL.
+  /// This mirrors the flow of the CLI.
+  /// [tag] The tag to associate with the image on the registry, optional.
+  /// [registry] The registry to push to, like `registry.acme.com:5000`
+  /// [AuthConfig] Passed as `X-Registry-Auth` request header.
+  /// Status Codes:
+  /// 200 - no error
+  /// 404 - no such image
+  /// 500 - server error
+  Future<Iterable<ImagePushResponse>> push(Image image,
+      {AuthConfig authConfig, String tag, String registry}) async {
+    assert(image != null && image.name != null && image.name.isNotEmpty);
+    Map<String, String> query = {};
+    if (tag != null) query['tag'] = tag;
+
+    Map<String, String> headers;
+    if (authConfig != null) {
+      headers['X-Registry-Config'] = CryptoUtils
+          .bytesToBase64(UTF8.encode(JSON.encode(authConfig.toJson())));
+    }
+
+    String reg = '';
+    if (registry != null) {
+      reg = registry;
+      if (reg.endsWith('/')) {
+        reg = reg.substring(0, reg.length - 1);
+      }
+      if (!reg.startsWith('/')) {
+        reg = '/${reg}';
+      }
+    }
+
+    final response = await _postReturnListOfJson('/images${reg}/${image.name}/push',
+        query: query, headers: headers);
+    return response.map((e) => new ImagePushResponse.fromJson(e));
+  }
+
+  /// Tag the [image] into a repository.
+  /// [repo] The repository to tag in
+  /// [force] default false
+  /// [tag] The new tag name.
+  /// Status Codes:
+  /// 201 - no error
+  /// 400 - bad parameter
+  /// 404 - no such image
+  /// 409 - conflict
+  /// 500 - server error
+  Future<SimpleResponse> tag(Image image, String repo, String tag, {bool force}) async {
+    assert(image != null && image.name != null && image.name.isNotEmpty);
+    assert(tag != null && tag.isNotEmpty);
+    assert(repo != null && repo.isNotEmpty);
+
+    Map<String, String> query = {};
+    if (tag != null) query['tag'] = tag;
+    if (repo != null) query['repo'] = repo;
+    if (force != null) query['force'] = force.toString();
+
+    final Map response = await _post('/images/${image.name}/tag', query: query);
+    return new SimpleResponse.fromJson(response);
+  }
+
+  /// Remove the image name from the filesystem.
+  /// [force] default false
+  /// [noprune] default false
+  /// Status Codes:
+  ///
+  /// 200 - no error
+  /// 404 - no such image
+  /// 409 - conflict
+  /// 500 - server error
+  Future<Iterable<ImageRemoveResponse>> removeImage(Image image, {bool force, bool noPrune}) async {
+    assert(image != null && image.name != null && image.name.isNotEmpty);
+
+    Map<String, String> query = {};
+    if (force != null) query['force'] = force.toString();
+    if (noPrune != null) query['noprune'] = noPrune.toString();
+
+    final List response = await _delete('/images/${image.name}', query: query);
+    return response.map((e) => new ImageRemoveResponse.fromJson(e));
+  }
+
+  /// Search for an image on [Docker Hub](https://hub.docker.com/).
+  /// Note: The response keys have changed from API v1.6 to reflect the JSON
+  /// sent by the registry server to the docker daemon's request.
+  /// [term] Term to search.
+  /// Status Codes:
+  /// 200 - no error
+  /// 500 - server error
+  Future<Iterable<SearchResponse>> search(String term) async {
+    assert(term != null);
+
+    Map<String, String> query = {'term': term};
+
+    final List response = await _get('/images/search', query: query);
+    return response.map((e) => new SearchResponse.fromJson(e));
+  }
+
+  /// Get the default username and email.
+  /// Status Codes:
+  /// 200 - no error
+  /// 204 - no error
+  /// 500 - server error
+  Future<AuthResponse> auth(AuthRequest auth) async {
+    assert(auth != null);
+
+    final Map response = await _post('/auth', json: auth.toJson());
+    return new AuthResponse.fromJson(response);
+  }
+
+  /// Get system-wide information.
+  /// Status Codes:
+  /// 200 - no error
+  /// 500 - server error
+  Future<InfoResponse> info() async {
+
+    final Map response = await _get('/info');
+    return new InfoResponse.fromJson(response);
+  }
+
+  Future<VersionResponse> version() async {
+
+    final Map response = await _get('/version');
+    return new VersionResponse.fromJson(response);
+  }
 }
-
-
-
 
 
