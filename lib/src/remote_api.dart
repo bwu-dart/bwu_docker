@@ -33,7 +33,8 @@ class DockerConnection {
     final http.Response response = await client.post(url,
         headers: headers != null ? headers : headersJson, body: data);
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new DockerRemoteApiError(response.statusCode, response.reasonPhrase, response.body);
+      throw new DockerRemoteApiError(
+          response.statusCode, response.reasonPhrase, response.body);
     }
     if (response.body != null && response.body.isNotEmpty) {
       return JSON.decode(response.body);
@@ -60,7 +61,8 @@ class DockerConnection {
     final http.Response response = await client.post(url,
         headers: headers != null ? headers : headersJson, body: data);
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new DockerRemoteApiError(response.statusCode, response.reasonPhrase, response.body);
+      throw new DockerRemoteApiError(
+          response.statusCode, response.reasonPhrase, response.body);
     }
     if (response.body != null && response.body.isNotEmpty) {
       return JSON.decode(
@@ -90,7 +92,8 @@ class DockerConnection {
     final http.BaseResponse response =
         await request.send().then(http.Response.fromStream);
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new DockerRemoteApiError(response.statusCode, response.reasonPhrase, null);
+      throw new DockerRemoteApiError(
+          response.statusCode, response.reasonPhrase, null);
     }
     return (response as http.StreamedResponse).stream;
   }
@@ -111,7 +114,8 @@ class DockerConnection {
     final http.BaseResponse response =
         await request.send().then(http.Response.fromStream);
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new DockerRemoteApiError(response.statusCode, response.reasonPhrase, null);
+      throw new DockerRemoteApiError(
+          response.statusCode, response.reasonPhrase, null);
     }
     return (response as http.StreamedResponse).stream;
   }
@@ -125,13 +129,30 @@ class DockerConnection {
         queryParameters: query);
     final http.Response response = await client.get(url, headers: headersJson);
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new DockerRemoteApiError(response.statusCode, response.reasonPhrase, response.body);
+      throw new DockerRemoteApiError(
+          response.statusCode, response.reasonPhrase, response.body);
     }
 
     if (response.body != null && response.body.isNotEmpty) {
       return JSON.decode(response.body);
     }
     return null;
+  }
+
+  Future<String> _getString(String path, {Map<String, String> query}) async {
+    final url = new Uri(
+        scheme: 'http',
+        host: host,
+        port: port,
+        path: path,
+        queryParameters: query);
+    final http.Response response = await client.get(url, headers: headersJson);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw new DockerRemoteApiError(
+          response.statusCode, response.reasonPhrase, response.body);
+    }
+
+    return response.body;
   }
 
   /// Get request expecting a streamed response.
@@ -147,7 +168,8 @@ class DockerConnection {
     request.headers.addAll(headersJson);
     final http.BaseResponse response = await request.send();
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new DockerRemoteApiError(response.statusCode, response.reasonPhrase, null);
+      throw new DockerRemoteApiError(
+          response.statusCode, response.reasonPhrase, null);
     }
     return (response as http.StreamedResponse).stream;
   }
@@ -162,7 +184,8 @@ class DockerConnection {
     final http.Response response =
         await client.delete(url, headers: headersJson);
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new DockerRemoteApiError(response.statusCode, response.reasonPhrase, response.body);
+      throw new DockerRemoteApiError(
+          response.statusCode, response.reasonPhrase, response.body);
     }
 
     if (response.body != null && response.body.isNotEmpty) {
@@ -790,8 +813,8 @@ class DockerConnection {
       }
     }
 
-    final response = await _postReturnListOfJson('/images${reg}/${image.name}/push',
-        query: query, headers: headers);
+    final response = await _postReturnListOfJson(
+        '/images${reg}/${image.name}/push', query: query, headers: headers);
     return response.map((e) => new ImagePushResponse.fromJson(e));
   }
 
@@ -805,7 +828,8 @@ class DockerConnection {
   /// 404 - no such image
   /// 409 - conflict
   /// 500 - server error
-  Future<SimpleResponse> tag(Image image, String repo, String tag, {bool force}) async {
+  Future<SimpleResponse> tag(Image image, String repo, String tag,
+      {bool force}) async {
     assert(image != null && image.name != null && image.name.isNotEmpty);
     assert(tag != null && tag.isNotEmpty);
     assert(repo != null && repo.isNotEmpty);
@@ -828,7 +852,8 @@ class DockerConnection {
   /// 404 - no such image
   /// 409 - conflict
   /// 500 - server error
-  Future<Iterable<ImageRemoveResponse>> removeImage(Image image, {bool force, bool noPrune}) async {
+  Future<Iterable<ImageRemoveResponse>> removeImage(Image image,
+      {bool force, bool noPrune}) async {
     assert(image != null && image.name != null && image.name.isNotEmpty);
 
     Map<String, String> query = {};
@@ -872,16 +897,55 @@ class DockerConnection {
   /// 200 - no error
   /// 500 - server error
   Future<InfoResponse> info() async {
-
     final Map response = await _get('/info');
     return new InfoResponse.fromJson(response);
   }
 
+  /// Show Docker version information.
+  /// Status Codes:
+  /// 200 - no error
+  /// 500 - server error
   Future<VersionResponse> version() async {
-
     final Map response = await _get('/version');
     return new VersionResponse.fromJson(response);
   }
+
+  /// Ping the Docker server.
+  /// Status Codes:
+  /// 200 - no error
+  /// 500 - server error
+  Future<SimpleResponse> ping() async {
+    final String response = await _getString('/_ping');
+    if (response == 'OK') {
+      return new SimpleResponse.fromJson(null);
+    }
+    throw new DockerRemoteApiError(500, 'ping failed', response);
+  }
+
+  /// Create a new image from a container's changes.
+  /// [config] The container's configuration
+  /// [container] Source container
+  /// [repo] Repository
+  /// [tag] Tag
+  /// [comment] Commit message
+  /// [author] Author (e.g., "John Hannibal Smith <hannibal@a-team.com>")
+  /// Status Codes:
+  /// 201 – no error
+  /// 404 – no such container
+  /// 500 – server error
+  Future<CommitResponse> commit(CommitRequest config, Container container,
+      {String repo, String tag, String comment, String author}) async {
+    assert(config != null);
+    assert(config != null);
+    Map<String, String> query = {};
+    if (container != null) query['container'] = container.id;
+    if (repo != null) query['repo'] = repo;
+    if (tag != null) query['tag'] = tag;
+    if (comment != null) query['comment'] = comment;
+    if (author != null) query['author'] = author;
+
+    final response =
+        await _post('/commit', query: query, json: config.toJson());
+    return new CommitResponse.fromJson(response);
+  }
 }
-
-

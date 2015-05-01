@@ -96,6 +96,90 @@ class DockerRemoteApiError {
   DockerRemoteApiError(this.statusCode, this.reason, this.body);
 }
 
+
+/// Response to a commit request.
+class CommitResponse {
+  String _id;
+  String get id => _id;
+
+  UnmodifiableListView<String> _warnings;
+  UnmodifiableListView<String> get warnings => _warnings;
+
+  CommitResponse.fromJson(Map json) {
+    _id = json['Id'];;
+    _warnings = _toUnmodifiableListView(json['Warnings']);
+    assert(json.keys.length <= 2); // ensure all keys were read
+  }
+}
+
+/// Commit request
+class CommitRequest {
+  final String hostName;
+  final String domainName;
+  final String user;
+  final bool attachStdin;
+  final bool attachStdout;
+  final bool attachStderr;
+  List<PortArgument> _portSpecs;
+  List<PortArgument> get portSpecs => _portSpecs;
+  final bool tty;
+  final bool openStdin;
+  final bool stdinOnce;
+  UnmodifiableMapView<String,String> _env;
+  UnmodifiableMapView<String,String> get env => _env;
+
+  UnmodifiableListView<String> _cmd;
+  UnmodifiableListView<String> get cmd => _cmd;
+
+  final Volumes volumes;
+  final String workingDir;
+  final bool networkingDisabled;
+
+  UnmodifiableMapView<String,Map> _name;
+  UnmodifiableMapView<String,Map> get name => _name;
+
+  CommitRequest({this.hostName, this.domainName, this.user,
+    this.attachStdin,
+    this.attachStdout,
+    this.attachStderr,
+    List<PortArgument> portSpecs,
+    this.tty,
+    this.openStdin,
+    this.stdinOnce,
+    Map<String,String> env,
+    List<String> cmd,
+    this.volumes,
+    this.workingDir,
+    this.networkingDisabled,
+    Map<String,Map> exposedPorts}) {
+
+    _portSpecs = _toUnmodifiableListView(portSpecs);
+    _env = _toUnmodifiableMapView(env);
+    _name = _toUnmodifiableMapView(exposedPorts);
+  }
+
+  Map toJson() {
+    final json = {};
+    json['Hostname'] = hostName;
+    json['Domainname'] = domainName;
+    json['User'] = user;
+    json['AttachStdin'] = attachStdin;
+    json['AttachStdout'] = attachStdout;
+    json['AttachStderr'] = attachStderr;
+    json['PortSpecs'] = portSpecs;
+    json['Tty'] = tty;
+    json['OpenStdin'] = openStdin;
+    json['StdinOnce'] = stdinOnce;
+    json['Env'] = env;
+    json['Cmd'] = cmd;
+    json['Volumes'] = volumes.toJson();
+    json['WorkingDir'] = workingDir;
+    json['NetworkDisabled'] = networkingDisabled;
+    json['ExposedPorts'] = name;
+    return json;
+  }
+}
+
 /// Response to the version request.
 class VersionResponse {
   String _version;
@@ -1474,16 +1558,31 @@ class State {
 }
 
 class Volumes {
+  Map<String, Map> _volumes = {};
+  UnmodifiableMapView<String, Map> get volumes => _toUnmodifiableMapView(_volumes);
+
   Volumes();
+
   Volumes.fromJson(Map json) {
     if (json == null) {
       return;
     }
-    assert(json.keys.length <= 0); // ensure all keys were read
+    json.keys.forEach((k) => add(k, json[k]));
+    print(json);
+    //assert(json.keys.length <= 0); // ensure all keys were read
   }
 
   Map toJson() {
-    return null;
+    if(_volumes.isEmpty) {
+      return null;
+    } else {
+      return volumes;
+    }
+  }
+
+  // TODO(zoechi) better name for other when I figured out what it is
+  void add(String path, Map other) {
+    _volumes[path] = other;
   }
 }
 
@@ -1570,8 +1669,8 @@ class Config {
   String _user;
   String get user => _user;
 
-  List<String> _volumes;
-  List<String> get volumes => _volumes;
+  Volumes _volumes;
+  Volumes get volumes => _volumes;
 
   String _workingDir;
   String get workingDir => _workingDir;
@@ -1606,7 +1705,7 @@ class Config {
     _stdinOnce = json['StdinOnce'];
     _tty = json['Tty'];
     _user = json['User'];
-    _volumes = _toUnmodifiableListView(json['Volumes']);
+    _volumes = new Volumes.fromJson(json['Volumes']);
     _workingDir = json['WorkingDir'];
     assert(json.keys.length <= 23); // ensure all keys were read
   }

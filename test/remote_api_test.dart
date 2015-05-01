@@ -136,6 +136,39 @@ void main([List<String> args]) {
               anyElement((c) => c.id == createdContainer.container.id));
         });
       });
+
+      group('commit', () {
+        test('simple', () async {
+          // set up
+          createdContainer = await connection.createContainer(
+              new CreateContainerRequest()..image = imageNameAndVersion);
+
+          // exercise
+          final SimpleResponse startedContainer =
+              await connection.start(createdContainer.container);
+
+          // verification
+          expect(startedContainer, isNotNull);
+          final CommitResponse commitResponse = await connection.commit(
+              new CommitRequest(
+                  attachStdout: true,
+                  cmd: ['date'],
+                  volumes: new Volumes()..add('/tmp', {}),
+                  exposedPorts: {'22/tcp': {}}), createdContainer.container,
+              tag: 'commitTest', comment: 'remove', author: 'someAuthor');
+
+          expect(commitResponse.id, isNotEmpty);
+
+          final ImageInfo committedContainer =
+              await connection.image(new Image(commitResponse.id));
+
+          expect(committedContainer.author, 'someAuthor');
+          expect(committedContainer.config.exposedPorts.keys,
+              anyElement('22/tcp'));
+
+          await connection.removeImage(new Image(commitResponse.id));
+        });
+      });
     });
 
     // with container started in setUp
@@ -777,6 +810,13 @@ void main([List<String> args]) {
         expect(versionResponse.kernelVersion, isNotEmpty);
         expect(versionResponse.os, isNotEmpty);
         expect(versionResponse.version, isNotEmpty);
+      });
+    });
+
+    group('ping', () {
+      test('simple', () async {
+        final SimpleResponse pingResponse = await connection.ping();
+        expect(pingResponse, isNotNull);
       });
     });
   });
