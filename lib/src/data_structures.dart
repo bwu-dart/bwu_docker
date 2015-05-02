@@ -6,7 +6,7 @@ import 'package:quiver/core.dart' show hash2;
 
 final containerNameRegex = new RegExp(r'^/?[a-zA-Z0-9_-]+$');
 
-final dateFormat = new DateFormat('yyyy-MM-ddTHH:mm:ss.SSSSSSSSSZ');
+//final dateFormat = new DateFormat('yyyy-MM-ddTHH:mm:ss.SSSSSSSSSZ');
 
 DateTime _parseDate(dynamic dateValue) {
   if (dateValue is String) {
@@ -15,8 +15,17 @@ DateTime _parseDate(dynamic dateValue) {
     }
 
     try {
-      return dateFormat.parse(
-          dateValue.substring(0, dateValue.length - 7) + 'Z', true);
+//      return dateFormat.parse(
+//          dateValue.substring(0, dateValue.length - 7) + 'Z', true);
+      final years = int.parse((dateValue as String).substring(0, 4));
+      final months = int.parse(dateValue.substring(5, 7));
+      final days = int.parse(dateValue.substring(8, 10));
+      final hours = int.parse(dateValue.substring(11, 13));
+      final minutes = int.parse(dateValue.substring(14, 16));
+      final seconds = int.parse(dateValue.substring(17, 19));
+      final milliseconds = int.parse(dateValue.substring(20, 23));
+      return new DateTime.utc(
+          years, months, days, hours, minutes, seconds, milliseconds);
     } catch (_) {
       print('parsing "${dateValue}" failed.');
       rethrow;
@@ -94,8 +103,156 @@ class DockerRemoteApiError {
   final String body;
 
   DockerRemoteApiError(this.statusCode, this.reason, this.body);
+
+  @override
+  String toString() =>
+      '${super.toString()} - StatusCode: ${statusCode}, Reason: ${reason}, Body: ${body}';
 }
 
+/// Base class for all kinds of Docker events
+abstract class DockerEventBase {
+  const DockerEventBase();
+}
+
+/// Container related Docker events
+class ContainerEvent extends DockerEventBase {
+  static const create = const ContainerEvent._(1, 'create');
+  static const destroy = const ContainerEvent._(2, 'destroy');
+  static const die = const ContainerEvent._(3, 'die');
+  static const execCreate = const ContainerEvent._(4, 'exec_create');
+  static const execStart = const ContainerEvent._(5, 'exec_start');
+  static const export = const ContainerEvent._(6, 'export');
+  static const kill = const ContainerEvent._(7, 'kill');
+  static const outOfMemory = const ContainerEvent._(7, 'oom');
+  static const pause = const ContainerEvent._(8, 'pause');
+  static const restart = const ContainerEvent._(9, 'restart');
+  static const start = const ContainerEvent._(10, 'start');
+  static const stop = const ContainerEvent._(11, 'stop');
+  static const unpause = const ContainerEvent._(11, 'unpause');
+
+  static const values = const [
+    create,
+    destroy,
+    die,
+    execCreate,
+    execStart,
+    export,
+    kill,
+    outOfMemory,
+    pause,
+    restart,
+    start,
+    stop,
+    unpause
+  ];
+
+  final int value;
+  final String _asString;
+  const ContainerEvent._(this.value, this._asString) : super();
+
+  @override
+  String toString() => _asString;
+}
+
+/// Image related Docker events
+class ImageEvent extends DockerEventBase {
+  static const untag = const ImageEvent._(101, 'untag');
+  static const delete = const ImageEvent._(102, 'delete');
+
+  static const values = const [untag, delete];
+
+  final int value;
+  final String _asString;
+  const ImageEvent._(this.value, this._asString) : super();
+}
+
+/// All Docker events in one enum
+class DockerEvent {
+  static const containerCreate = ContainerEvent.create;
+  static const containerDestroy = ContainerEvent.destroy;
+  static const containerDie = ContainerEvent.die;
+  static const containerExecCreate = ContainerEvent.execCreate;
+  static const containerExecStart = ContainerEvent.execStart;
+  static const containerExport = ContainerEvent.export;
+  static const containerKill = ContainerEvent.kill;
+  static const containerOutOfMemory = ContainerEvent.outOfMemory;
+  static const containerPause = ContainerEvent.pause;
+  static const containerRestart = ContainerEvent.restart;
+  static const containerStart = ContainerEvent.start;
+  static const containerStop = ContainerEvent.stop;
+  static const containerUnpause = ContainerEvent.unpause;
+
+  static const imageUntag = ImageEvent.untag;
+  static const imageDelete = ImageEvent.delete;
+
+  static const values = const [
+    containerCreate,
+    containerDestroy,
+    containerDie,
+    containerExecCreate,
+    containerExecStart,
+    containerExport,
+    containerKill,
+    containerOutOfMemory,
+    containerPause,
+    containerRestart,
+    containerStart,
+    containerStop,
+    containerUnpause,
+    imageUntag,
+    imageDelete,
+  ];
+
+  final DockerEvent value;
+  const DockerEvent(this.value);
+  @override toString() => value.toString();
+}
+
+/// An item of the response to the events request.
+class EventsResponse {
+  DockerEvent _status;
+  DockerEvent get status => _status;
+
+  String _id;
+  String get id => _id;
+
+  String _from;
+  String get from => _from;
+
+  DateTime _time;
+  DateTime get time => _time;
+
+  EventsResponse.fromJson(Map json) {
+    if (json['status'] != null) {
+      _status =
+          DockerEvent.values.firstWhere((e) => e.toString() == json['status']);
+    }
+    _id = json['id'];
+    _from = json['from'];
+    _time = _parseDate(json['time']);
+  }
+}
+
+/// The filter argument to the events request.
+class EventFilter {
+  final List<DockerEventBase> events = [];
+  final List<Image> images = [];
+  final List<Container> containers = [];
+
+  Map toJson() {
+    final json = {};
+    if (events.isNotEmpty) {
+      json['event'] = events.map((e) => e.toString()).toList();
+    }
+    if (images.isNotEmpty) {
+      json['image'] = images.map((e) => e.toString).toList();
+    }
+    if (containers.isNotEmpty) {
+      json['container'] = events.map((e) => e.toString).toList();
+    }
+    return json;
+  }
+}
 
 /// Response to a commit request.
 class CommitResponse {
@@ -106,7 +263,8 @@ class CommitResponse {
   UnmodifiableListView<String> get warnings => _warnings;
 
   CommitResponse.fromJson(Map json) {
-    _id = json['Id'];;
+    _id = json['Id'];
+    ;
     _warnings = _toUnmodifiableListView(json['Warnings']);
     assert(json.keys.length <= 2); // ensure all keys were read
   }
@@ -125,8 +283,8 @@ class CommitRequest {
   final bool tty;
   final bool openStdin;
   final bool stdinOnce;
-  UnmodifiableMapView<String,String> _env;
-  UnmodifiableMapView<String,String> get env => _env;
+  UnmodifiableMapView<String, String> _env;
+  UnmodifiableMapView<String, String> get env => _env;
 
   UnmodifiableListView<String> _cmd;
   UnmodifiableListView<String> get cmd => _cmd;
@@ -135,24 +293,14 @@ class CommitRequest {
   final String workingDir;
   final bool networkingDisabled;
 
-  UnmodifiableMapView<String,Map> _name;
-  UnmodifiableMapView<String,Map> get name => _name;
+  UnmodifiableMapView<String, Map> _name;
+  UnmodifiableMapView<String, Map> get name => _name;
 
-  CommitRequest({this.hostName, this.domainName, this.user,
-    this.attachStdin,
-    this.attachStdout,
-    this.attachStderr,
-    List<PortArgument> portSpecs,
-    this.tty,
-    this.openStdin,
-    this.stdinOnce,
-    Map<String,String> env,
-    List<String> cmd,
-    this.volumes,
-    this.workingDir,
-    this.networkingDisabled,
-    Map<String,Map> exposedPorts}) {
-
+  CommitRequest({this.hostName, this.domainName, this.user, this.attachStdin,
+      this.attachStdout, this.attachStderr, List<PortArgument> portSpecs,
+      this.tty, this.openStdin, this.stdinOnce, Map<String, String> env,
+      List<String> cmd, this.volumes, this.workingDir, this.networkingDisabled,
+      Map<String, Map> exposedPorts}) {
     _portSpecs = _toUnmodifiableListView(portSpecs);
     _env = _toUnmodifiableMapView(env);
     _name = _toUnmodifiableMapView(exposedPorts);
@@ -1559,7 +1707,8 @@ class State {
 
 class Volumes {
   Map<String, Map> _volumes = {};
-  UnmodifiableMapView<String, Map> get volumes => _toUnmodifiableMapView(_volumes);
+  UnmodifiableMapView<String, Map> get volumes =>
+      _toUnmodifiableMapView(_volumes);
 
   Volumes();
 
@@ -1573,7 +1722,7 @@ class Volumes {
   }
 
   Map toJson() {
-    if(_volumes.isEmpty) {
+    if (_volumes.isEmpty) {
       return null;
     } else {
       return volumes;

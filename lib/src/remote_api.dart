@@ -6,91 +6,116 @@ import 'dart:async' show Future, Stream, ByteStream;
 import 'package:http/http.dart' as http;
 import 'data_structures.dart';
 
-class DockerConnection {
-  final Map headersJson = {'Content-Type': 'application/json'};
-  final Map headersTar = {'Content-Type': 'application/tar'};
+typedef String ResponsePreprocessor(String s);
+
+class RequestType {
+  static const post = const RequestType('POST');
+  static const get = const RequestType('GET');
+  static const delete = const RequestType('DELETE');
+
+  final String value;
+
+  const RequestType(this.value);
+
+  @override
+  String toString() => value;
+}
+
+class ServerReference {
+  final String scheme;
   final String host;
   final int port;
   http.Client client;
-  DockerConnection(this.host, this.port) {
-    client = new http.Client();
-  }
-
-  /// Send a POST request to the Docker service.
-  Future<dynamic> _post(String path,
-      {Map json, Map query, Map<String, String> headers}) async {
-    String data;
-    if (json != null) {
-      data = JSON.encode(json);
-    }
-    final url = new Uri(
-        scheme: 'http',
+  ServerReference(this.host, this.port, this.client, {this.scheme: 'http'});
+  Uri buildUri(String path, Map<String, String> query) {
+    return new Uri(
+        scheme: scheme,
         host: host,
         port: port,
         path: path,
         queryParameters: query);
+  }
+}
 
-    final http.Response response = await client.post(url,
-        headers: headers != null ? headers : headersJson, body: data);
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new DockerRemoteApiError(
-          response.statusCode, response.reasonPhrase, response.body);
-    }
-    if (response.body != null && response.body.isNotEmpty) {
-      return JSON.decode(response.body);
-    }
-    return null;
+class DockerConnection {
+  final Map headersJson = {'Content-Type': 'application/json'};
+  final Map headersTar = {'Content-Type': 'application/tar'};
+
+  ServerReference _serverReference;
+  ServerReference get serverReference => _serverReference;
+
+  DockerConnection(String host, int port, {String scheme: 'http'}) {
+    _serverReference =
+        new ServerReference(host, port, new http.Client(), scheme: scheme);
   }
 
-  /// Send a POST request to the Docker service.
-  /// This is to support the weird response content of some concatenated JSON
-  /// parts. With some postprocessing valid parsable JSON is created.
-  Future<Iterable<Map>> _postReturnListOfJson(String path,
-      {Map json, Map query, Map<String, String> headers}) async {
-    String data;
-    if (json != null) {
-      data = JSON.encode(json);
-    }
-    final url = new Uri(
-        scheme: 'http',
-        host: host,
-        port: port,
-        path: path,
-        queryParameters: query);
+  String jsonifyConcatenatedJson(String s) {
+    return '[${s.replaceAll(new RegExp(r'\}\s*\{', multiLine: true), '},\n{')}]';
+  }
 
-    final http.Response response = await client.post(url,
-        headers: headers != null ? headers : headersJson, body: data);
-    if (response.statusCode < 200 || response.statusCode >= 300) {
+  Future<dynamic> _request(RequestType requestType, String path, {Map body,
+      Map query, Map<String, String> headers, Function,
+      ResponsePreprocessor preprocessor}) async {
+    assert(requestType != null);
+    assert(requestType == RequestType.post || body == null);
+    String data;
+    if (body != null) {
+      data = JSON.encode(body);
+    }
+    Map<String, String> _headers = headers != null ? headers : headersJson;
+
+    final url = serverReference.buildUri(path, query);
+
+    http.Response response;
+    switch (requestType) {
+      case RequestType.post:
+        response = await serverReference.client.post(url,
+            headers: _headers, body: data);
+        break;
+      case RequestType.get:
+        response = await serverReference.client.get(url, headers: _headers);
+        break;
+      case RequestType.delete:
+        response = await serverReference.client.delete(url, headers: _headers);
+        break;
+      default:
+        throw '"${requestType}" not implemented.';
+    }
+
+    if ((response.statusCode < 200 || response.statusCode >= 300) &&
+        response.statusCode != 304) {
       throw new DockerRemoteApiError(
           response.statusCode, response.reasonPhrase, response.body);
     }
     if (response.body != null && response.body.isNotEmpty) {
-      return JSON.decode(
-          '[${response.body.replaceAll(new RegExp(r'\}\s*\{', multiLine: true), '},\n{')}]');
+      var data = response.body;
+      if (preprocessor != null) {
+        data = preprocessor(response.body);
+      }
+      return JSON.decode(data);
     }
     return null;
   }
 
   /// Post request expecting a streamed response.
-  Future<Stream> _postReturnStream(String path, {Map json,
+  Future<Stream> _requestStream(RequestType requestType, String path, {Map body,
       Map<String, String> query, Map<String, String> headers}) async {
+    assert(requestType != null);
+    assert(requestType == RequestType.post || body == null);
+
     String data;
-    if (json != null) {
-      data = JSON.encode(json);
+    if (body != null) {
+      data = JSON.encode(body);
     }
-    final url = new Uri(
-        scheme: 'http',
-        host: host,
-        port: port,
-        path: path,
-        queryParameters: query);
-    final request = new http.Request('POST', url)
+    final url = serverReference.buildUri(path, query);
+
+    final request = new http.Request(requestType.toString(), url)
       ..headers.addAll(headers != null ? headers : headersJson);
     if (data != null) {
       request.body = data;
     }
     final http.BaseResponse response =
-        await request.send().then(http.Response.fromStream);
+        await request.send(); // .then(http.Response.fromStream);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw new DockerRemoteApiError(
           response.statusCode, response.reasonPhrase, null);
@@ -99,15 +124,12 @@ class DockerConnection {
   }
 
   /// Send a POST request to the Docker service.
-  Future<Stream> _postStreamReturnStream(String path, Stream<List<int>> stream,
+  Future<Stream> _streamRequestStream(String path, Stream<List<int>> stream,
       {Map<String, String> query}) async {
     assert(stream != null);
-    final url = new Uri(
-        scheme: 'http',
-        host: host,
-        port: port,
-        path: path,
-        queryParameters: query);
+
+    final url = serverReference.buildUri(path, query);
+
     final request = new http.StreamedRequest('POST', url)
       ..headers.addAll(headersTar);
     stream.listen(request.sink.add);
@@ -118,80 +140,6 @@ class DockerConnection {
           response.statusCode, response.reasonPhrase, null);
     }
     return (response as http.StreamedResponse).stream;
-  }
-
-  Future<dynamic> _get(String path, {Map<String, String> query}) async {
-    final url = new Uri(
-        scheme: 'http',
-        host: host,
-        port: port,
-        path: path,
-        queryParameters: query);
-    final http.Response response = await client.get(url, headers: headersJson);
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new DockerRemoteApiError(
-          response.statusCode, response.reasonPhrase, response.body);
-    }
-
-    if (response.body != null && response.body.isNotEmpty) {
-      return JSON.decode(response.body);
-    }
-    return null;
-  }
-
-  Future<String> _getString(String path, {Map<String, String> query}) async {
-    final url = new Uri(
-        scheme: 'http',
-        host: host,
-        port: port,
-        path: path,
-        queryParameters: query);
-    final http.Response response = await client.get(url, headers: headersJson);
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new DockerRemoteApiError(
-          response.statusCode, response.reasonPhrase, response.body);
-    }
-
-    return response.body;
-  }
-
-  /// Get request expecting a streamed response.
-  Future<http.ByteStream> _getReturnStream(String path,
-      {Map<String, String> query}) async {
-    final url = new Uri(
-        scheme: 'http',
-        host: host,
-        port: port,
-        path: path,
-        queryParameters: query);
-    final request = new http.Request('GET', url);
-    request.headers.addAll(headersJson);
-    final http.BaseResponse response = await request.send();
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new DockerRemoteApiError(
-          response.statusCode, response.reasonPhrase, null);
-    }
-    return (response as http.StreamedResponse).stream;
-  }
-
-  Future<dynamic> _delete(String path, {Map<String, String> query}) async {
-    final url = new Uri(
-        scheme: 'http',
-        host: host,
-        port: port,
-        path: path,
-        queryParameters: query);
-    final http.Response response =
-        await client.delete(url, headers: headersJson);
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new DockerRemoteApiError(
-          response.statusCode, response.reasonPhrase, response.body);
-    }
-
-    if (response.body != null && response.body.isNotEmpty) {
-      return JSON.decode(response.body);
-    }
-    return null;
   }
 
   /// Request the list of containers from the Docker service.
@@ -219,7 +167,8 @@ class DockerConnection {
     if (size != null) query['size'] = size.toString();
     if (filters != null) query['filters'] = JSON.encode(filters);
 
-    final List response = await _get('/containers/json', query: query);
+    final List response =
+        await _request(RequestType.get, '/containers/json', query: query);
     //print(response);
     return response.map((e) => new Container.fromJson(e));
   }
@@ -238,8 +187,8 @@ class DockerConnection {
       assert(containerNameRegex.hasMatch(name));
       query = {'name': name};
     }
-    final Map response =
-        await _post('/containers/create', json: request.toJson(), query: query);
+    final Map response = await _request(RequestType.post, '/containers/create',
+        body: request.toJson(), query: query);
     return new CreateResponse.fromJson(response);
   }
 
@@ -252,7 +201,8 @@ class DockerConnection {
   Future<ContainerInfo> container(Container container) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
-    final Map response = await _get('/containers/${container.id}/json');
+    final Map response =
+        await _request(RequestType.get, '/containers/${container.id}/json');
     print(response);
     return new ContainerInfo.fromJson(response);
   }
@@ -271,8 +221,8 @@ class DockerConnection {
       query = {'ps_args': psArgs};
     }
 
-    final Map response =
-        await _get('/containers/${container.id}/top', query: query);
+    final Map response = await _request(
+        RequestType.get, '/containers/${container.id}/top', query: query);
     return new TopResponse.fromJson(response);
   }
 
@@ -307,7 +257,8 @@ class DockerConnection {
       query['tail'] = tail.toString();
     }
 
-    return _getReturnStream('/containers/${container.id}/logs', query: query);
+    return _requestStream(RequestType.get, '/containers/${container.id}/logs',
+        query: query);
   }
 
   /// Inspect changes on [container]'s filesystem
@@ -318,7 +269,8 @@ class DockerConnection {
   Future<ChangesResponse> changes(Container container) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
-    final List response = await _get('/containers/${container.id}/changes');
+    final List response =
+        await _request(RequestType.get, '/containers/${container.id}/changes');
     return new ChangesResponse.fromJson(response);
   }
 
@@ -331,7 +283,8 @@ class DockerConnection {
   Future<http.ByteStream> export(Container container) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
-    return _getReturnStream('/containers/${container.id}/export');
+    return _requestStream(
+        RequestType.get, '/containers/${container.id}/export');
   }
 
   /// This endpoint returns a live stream of a [container]'s resource usage
@@ -347,7 +300,8 @@ class DockerConnection {
   Future<StatsResponse> stats(Container container) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
-    final Map response = await _get('/containers/${container.id}/stats');
+    final Map response =
+        await _request(RequestType.get, '/containers/${container.id}/stats');
     return new StatsResponse.fromJson(response);
   }
 
@@ -365,8 +319,8 @@ class DockerConnection {
     assert(height != null && height > 0);
     assert(width != null && width > 0);
     final query = {'h': height.toString(), 'w': width.toString()};
-    final Map response =
-        await _post('/containers/${container.id}/resize', query: query);
+    final Map response = await _request(
+        RequestType.post, '/containers/${container.id}/resize', query: query);
     return new SimpleResponse.fromJson(response);
   }
 
@@ -379,7 +333,8 @@ class DockerConnection {
   Future<SimpleResponse> start(Container container) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
-    final Map response = await _post('/containers/${container.id}/start');
+    final Map response =
+        await _request(RequestType.post, '/containers/${container.id}/start');
     return new SimpleResponse.fromJson(response);
   }
 
@@ -395,8 +350,8 @@ class DockerConnection {
         container != null && container.id != null && container.id.isNotEmpty);
     assert(timeout == null || timeout > 0);
     final query = {'t': timeout.toString()};
-    final Map response =
-        await _post('/containers/${container.id}/stop', query: query);
+    final Map response = await _request(
+        RequestType.post, '/containers/${container.id}/stop', query: query);
     return new SimpleResponse.fromJson(response);
   }
 
@@ -411,8 +366,8 @@ class DockerConnection {
         container != null && container.id != null && container.id.isNotEmpty);
     assert(timeout == null || timeout > 0);
     final query = {'t': timeout.toString()};
-    final Map response =
-        await _post('/containers/${container.id}/restart', query: query);
+    final Map response = await _request(
+        RequestType.post, '/containers/${container.id}/restart', query: query);
     return new SimpleResponse.fromJson(response);
   }
 
@@ -431,8 +386,8 @@ class DockerConnection {
         (signal is String && signal.isNotEmpty) ||
         (signal is int));
     final query = {'signal': signal.toString()};
-    final Map response =
-        await _post('/containers/${container.id}/kill', query: query);
+    final Map response = await _request(
+        RequestType.post, '/containers/${container.id}/kill', query: query);
     return new SimpleResponse.fromJson(response);
   }
 
@@ -448,8 +403,8 @@ class DockerConnection {
         container != null && container.id != null && container.id.isNotEmpty);
     assert(name != null);
     final query = {'name': name.toString()};
-    final Map response =
-        await _post('/containers/${container.id}/rename', query: query);
+    final Map response = await _request(
+        RequestType.post, '/containers/${container.id}/rename', query: query);
     return new SimpleResponse.fromJson(response);
   }
 
@@ -461,7 +416,8 @@ class DockerConnection {
   Future<SimpleResponse> pause(Container container) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
-    final Map response = await _post('/containers/${container.id}/pause');
+    final Map response =
+        await _request(RequestType.post, '/containers/${container.id}/pause');
     return new SimpleResponse.fromJson(response);
   }
 
@@ -473,7 +429,8 @@ class DockerConnection {
   Future<SimpleResponse> unpause(Container container) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
-    final Map response = await _post('/containers/${container.id}/unpause');
+    final Map response =
+        await _request(RequestType.post, '/containers/${container.id}/unpause');
     return new SimpleResponse.fromJson(response);
   }
 
@@ -546,7 +503,8 @@ class DockerConnection {
     if (stdout != null) query['stdout'] = stdout.toString();
     if (stderr != null) query['stderr'] = stderr.toString();
 
-    return _getReturnStream('/containers/${container.id}/attach', query: query);
+    return _requestStream(RequestType.get, '/containers/${container.id}/attach',
+        query: query);
   }
 
   /// Attach to the [container] via websocket
@@ -586,7 +544,8 @@ class DockerConnection {
   Future<WaitResponse> wait(Container container) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
-    final Map response = await _post('/containers/${container.id}/wait');
+    final Map response =
+        await _request(RequestType.post, '/containers/${container.id}/wait');
     return new WaitResponse.fromJson(response);
   }
 
@@ -609,7 +568,8 @@ class DockerConnection {
     if (removeVolumes != null) query['v'] = removeVolumes.toString();
     if (force != null) query['force'] = force.toString();
 
-    final Map response = await _delete('/containers/${container.id}');
+    final Map response =
+        await _request(RequestType.delete, '/containers/${container.id}');
     return new SimpleResponse.fromJson(response);
   }
 
@@ -626,7 +586,8 @@ class DockerConnection {
         container != null && container.id != null && container.id.isNotEmpty);
     final json = new CopyRequestPath(resource).toJson();
 
-    return _postReturnStream('/containers/${container.id}/copy', json: json);
+    return _requestStream(RequestType.post, '/containers/${container.id}/copy',
+        body: json);
   }
 
   /// List images.
@@ -656,7 +617,8 @@ class DockerConnection {
     if (all != null) query['all'] = all.toString();
     if (filters != null) query['filters'] = JSON.encode(filters);
 
-    final List response = await _get('/images/json', query: query);
+    final List response =
+        await _request(RequestType.get, '/images/json', query: query);
     return response.map((e) => new ImageInfo.fromJson(e));
   }
 
@@ -716,7 +678,7 @@ class DockerConnection {
       headers['X-Registry-Config'] = CryptoUtils
           .bytesToBase64(UTF8.encode(JSON.encode(authConfig.toJson())));
     }
-    return _postStreamReturnStream('/build', stream, query: query);
+    return _streamRequestStream('/build', stream, query: query);
   }
 
   /// Create an image, either by pulling it from the registry or by importing it.
@@ -732,7 +694,7 @@ class DockerConnection {
   /// Status Codes:
   /// 200 - no error
   /// 500 - server error
-  Future<List<CreateImageResponse>> createImage(String fromImage,
+  Future<Iterable<CreateImageResponse>> createImage(String fromImage,
       {AuthConfig authConfig, String fromSrc, String repo, String tag,
       String registry}) async {
     assert(fromImage != null && fromImage.isNotEmpty);
@@ -749,8 +711,8 @@ class DockerConnection {
           .bytesToBase64(UTF8.encode(JSON.encode(authConfig.toJson())));
     }
 
-    final response = await _postReturnListOfJson('/images/create',
-        query: query, headers: headers);
+    final response = await _request(RequestType.post, '/images/create',
+        query: query, headers: headers, preprocessor: jsonifyConcatenatedJson);
     return response.map((e) => new CreateImageResponse.fromJson(e));
   }
 
@@ -761,7 +723,8 @@ class DockerConnection {
   /// 500 - server error
   Future<ImageInfo> image(Image image) async {
     assert(image != null && image.name != null && image.name.isNotEmpty);
-    final Map response = await _get('/images/${image.name}/json');
+    final Map response =
+        await _request(RequestType.get, '/images/${image.name}/json');
     print(response);
     return new ImageInfo.fromJson(response);
   }
@@ -773,7 +736,8 @@ class DockerConnection {
   /// 500 - server error
   Future<Iterable<ImageHistoryResponse>> history(Image image) async {
     assert(image != null && image.name != null && image.name.isNotEmpty);
-    final List response = await _get('/images/${image.name}/history');
+    final List response =
+        await _request(RequestType.get, '/images/${image.name}/history');
     print(response);
     return response.map((e) => new ImageHistoryResponse.fromJson(e));
   }
@@ -813,8 +777,9 @@ class DockerConnection {
       }
     }
 
-    final response = await _postReturnListOfJson(
-        '/images${reg}/${image.name}/push', query: query, headers: headers);
+    final response = await _request(
+        RequestType.post, '/images${reg}/${image.name}/push',
+        query: query, headers: headers, preprocessor: jsonifyConcatenatedJson);
     return response.map((e) => new ImagePushResponse.fromJson(e));
   }
 
@@ -839,7 +804,8 @@ class DockerConnection {
     if (repo != null) query['repo'] = repo;
     if (force != null) query['force'] = force.toString();
 
-    final Map response = await _post('/images/${image.name}/tag', query: query);
+    final Map response = await _request(
+        RequestType.post, '/images/${image.name}/tag', query: query);
     return new SimpleResponse.fromJson(response);
   }
 
@@ -860,7 +826,8 @@ class DockerConnection {
     if (force != null) query['force'] = force.toString();
     if (noPrune != null) query['noprune'] = noPrune.toString();
 
-    final List response = await _delete('/images/${image.name}', query: query);
+    final List response = await _request(
+        RequestType.delete, '/images/${image.name}', query: query);
     return response.map((e) => new ImageRemoveResponse.fromJson(e));
   }
 
@@ -876,7 +843,8 @@ class DockerConnection {
 
     Map<String, String> query = {'term': term};
 
-    final List response = await _get('/images/search', query: query);
+    final List response =
+        await _request(RequestType.get, '/images/search', query: query);
     return response.map((e) => new SearchResponse.fromJson(e));
   }
 
@@ -888,7 +856,8 @@ class DockerConnection {
   Future<AuthResponse> auth(AuthRequest auth) async {
     assert(auth != null);
 
-    final Map response = await _post('/auth', json: auth.toJson());
+    final Map response =
+        await _request(RequestType.post, '/auth', body: auth.toJson());
     return new AuthResponse.fromJson(response);
   }
 
@@ -897,7 +866,7 @@ class DockerConnection {
   /// 200 - no error
   /// 500 - server error
   Future<InfoResponse> info() async {
-    final Map response = await _get('/info');
+    final Map response = await _request(RequestType.get, '/info');
     return new InfoResponse.fromJson(response);
   }
 
@@ -906,7 +875,7 @@ class DockerConnection {
   /// 200 - no error
   /// 500 - server error
   Future<VersionResponse> version() async {
-    final Map response = await _get('/version');
+    final Map response = await _request(RequestType.get, '/version');
     return new VersionResponse.fromJson(response);
   }
 
@@ -915,11 +884,12 @@ class DockerConnection {
   /// 200 - no error
   /// 500 - server error
   Future<SimpleResponse> ping() async {
-    final String response = await _getString('/_ping');
-    if (response == 'OK') {
+    final Map response = await _request(RequestType.get, '/_ping',
+        preprocessor: (s) => '{"response": "${s}"}');
+    if (response['response'] == 'OK') {
       return new SimpleResponse.fromJson(null);
     }
-    throw new DockerRemoteApiError(500, 'ping failed', response);
+    throw new DockerRemoteApiError(500, 'ping failed', response['response']);
   }
 
   /// Create a new image from a container's changes.
@@ -944,8 +914,46 @@ class DockerConnection {
     if (comment != null) query['comment'] = comment;
     if (author != null) query['author'] = author;
 
-    final response =
-        await _post('/commit', query: query, json: config.toJson());
+    final response = await _request(RequestType.post, '/commit',
+        query: query, body: config.toJson());
     return new CommitResponse.fromJson(response);
+  }
+
+  /// Get container events from docker, either in real time via streaming, or
+  /// via polling (using since).
+  /// Docker containers will report the following events:
+  ///     create, destroy, die, exec_create, exec_start, export, kill, oom,
+  ///     pause, restart, start, stop, unpause
+  ///   and Docker images will report:
+  ///      untag, delete
+  ///
+  /// [since] Timestamp used for polling
+  /// [until] Timestamp used for polling
+  /// [filters] A json encoded value of the filters (a map[string][]string) to
+  ///     process on the event list. Available filters:
+  ///         event=<string> - event to filter
+  ///         image=<string> - image to filter
+  ///         container=<string> - container to filter
+  /// Status Codes:
+  /// 200 - no error
+  /// 500 - server error
+  Future<Iterable<EventsResponse>> events(
+      {DateTime since, DateTime until, EventFilter filters}) async {
+    Map<String, String> query = {};
+    if (since != null) query['since'] =
+        (since.toUtc().millisecondsSinceEpoch ~/ 1000).toString();
+    if (until != null) query['until'] =
+        (until.toUtc().millisecondsSinceEpoch ~/ 1000).toString();
+    if (filters != null) query['filters'] = JSON.encode(filters.toJson());
+
+    final response = await _requestStream(RequestType.get, '/events',
+        query: query /*, preprocessor: jsonifyConcatenatedJson*/);
+    if (response != null) {
+      response.listen((e) {
+        print('xxx: $e');
+      });
+      //return response.map((e) => new EventsResponse.fromJson(e));
+    }
+    return [];
   }
 }

@@ -31,9 +31,21 @@ void main([List<String> args]) {
     }
   };
 
-  setUp(() {
+  setUp(() async {
     connection = new DockerConnection('localhost', 2375);
+    var imageResponse;
+    try {
+      imageResponse = await connection.image(new Image(imageNameAndVersion));
+    } on DockerRemoteApiError {
+      final createResponse = await connection.createImage(imageNameAndVersion);
+      for (var e in createResponse) {
+        print('${e.status} - ${e.progressDetail}');
+      }
+    }
+    print(imageResponse);
   });
+
+  test('dummy', () {}, timeout: const Timeout(const Duration(seconds: 300)));
 
   group('containers', () {
     tearDown(() async {
@@ -158,6 +170,7 @@ void main([List<String> args]) {
               tag: 'commitTest', comment: 'remove', author: 'someAuthor');
 
           expect(commitResponse.id, isNotEmpty);
+          print(commitResponse.id);
 
           final ImageInfo committedContainer =
               await connection.image(new Image(commitResponse.id));
@@ -819,5 +832,29 @@ void main([List<String> args]) {
         expect(pingResponse, isNotNull);
       });
     });
+  });
+
+  group('events', () {
+    test('create', () async {
+      final createdContainer = await connection.createContainer(
+          new CreateContainerRequest()..image = imageNameAndVersion);
+      final eventReceived = expectAsync(() {});
+      connection
+          .events() //until : new DateTime.now(), filters: new EventFilter()..events.addAll(DockerEvent.values))
+          .then((response) {
+        //expect(response.first.status, DockerEvent.containerStart);
+        //eventReceived();
+      });
+
+      await new Future.delayed(const Duration(milliseconds: 500));
+
+      for (int i = 0; i < 10; i++) {
+        print(i);
+        await connection.start(createdContainer.container);
+        await new Future.delayed(const Duration(milliseconds: 3500));
+        await connection.stop(createdContainer.container);
+        await new Future.delayed(const Duration(milliseconds: 1500));
+      }
+    }, timeout: const Timeout(const Duration(seconds: 120)));
   });
 }
