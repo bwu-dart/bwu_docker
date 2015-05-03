@@ -109,6 +109,80 @@ class DockerRemoteApiError {
       '${super.toString()} - StatusCode: ${statusCode}, Reason: ${reason}, Body: ${body}';
 }
 
+/// The response to the inspectExec command
+class ExecInfo {
+  String _id;
+  String get id => _id;
+
+  bool _running;
+  bool get running => _running;
+
+  int _exitCode;
+  int get exitCode => _exitCode;
+
+  ProcessConfig _processConfig;
+  ProcessConfig get processConfig => _processConfig;
+
+  bool _openStdin;
+  bool get openStdin => _openStdin;
+
+  bool _openStderr;
+  bool get openStderr => _openStderr;
+
+  bool _openStdout;
+  bool get openStdout => _openStdout;
+
+  ContainerInfo _container;
+  ContainerInfo get container => _container;
+
+  ExecInfo.fromJson(Map json) {
+    _id = json['Id'];
+    _running = json['Running'];
+    assert(json.keys.length <= 1); // ensure all keys were read
+  }
+}
+
+class ProcessConfig {
+  bool _privileged;
+  bool get privileged => _privileged;
+
+  String _user;
+  String get user => _user;
+
+  bool _tty;
+  bool get tty => _tty;
+
+  String _entrypoint;
+  String get entrypoint => _entrypoint;
+
+  UnmodifiableListView<String> _arguments;
+  UnmodifiableListView<String> get arguments => _arguments;
+
+
+  ProcessConfig.fromJson(Map json) {
+    _privileged = json['privileged'];
+    _user = json['user'];
+    _tty = json['tty'];
+    _entrypoint = json['entrypoint'];
+    _arguments = json['arguments'];
+    assert(json.keys.length <= 5); // ensure all keys were read
+  }
+}
+
+
+
+/// The response to the exec command
+class Exec {
+  String _id;
+  String get id => _id;
+
+  Exec.fromJson(Map json) {
+    _id = json['Id'];
+    assert(json.keys.length <= 1); // ensure all keys were read
+  }
+}
+
+
 /// Base class for all kinds of Docker events
 abstract class DockerEventBase {
   const DockerEventBase();
@@ -230,6 +304,7 @@ class EventsResponse {
     _id = json['id'];
     _from = json['from'];
     _time = _parseDate(json['time']);
+    assert(json.keys.length <= 4); // ensure all keys were read
   }
 }
 
@@ -264,7 +339,6 @@ class CommitResponse {
 
   CommitResponse.fromJson(Map json) {
     _id = json['Id'];
-    ;
     _warnings = _toUnmodifiableListView(json['Warnings']);
     assert(json.keys.length <= 2); // ensure all keys were read
   }
@@ -328,10 +402,107 @@ class CommitRequest {
   }
 }
 
+
+class Version {
+  final int major;
+  final int minor;
+  final int patch;
+
+  Version(this.major, this.minor, this.patch) {
+    assert(major != null);
+    assert(minor != null);
+  }
+
+  factory Version.fromString(String version) {
+    assert(version != null && version.isNotEmpty);
+    final parts = version.split('.');
+    int major = 0;
+    int minor = 0;
+    int patch;
+
+    if(parts.length < 2) {
+      throw 'Unsupported version string format "${version}".';
+    }
+
+    if(parts.length >= 1) {
+      major = int.parse(parts[0]);
+      assert(major >= 0);
+    }
+    if(parts.length >= 2) {
+      minor = int.parse(parts[1]);
+      assert(minor >= 0);
+    }
+    if(parts.length >= 3) {
+      patch = int.parse(parts[2]);
+      assert(patch >= 0);
+    }
+    if(parts.length >= 4) {
+      throw 'Unsupported version string format "${version}".';
+    }
+    return new Version(major, minor, patch);
+  }
+
+  @override
+  bool operator ==(other) {
+    if(other is! Version) {
+      return false;
+    }
+    final o = other as Version;
+    return o.major == major && o.minor == minor && ((o.patch == null && patch == null) || (o.patch == patch));
+  }
+
+  @override
+  int get hashCode => toString().hashCode;
+
+  @override
+  String toString() => '${major}.${minor}${patch != null ? '.${patch}' : ''}';
+
+  @override
+  bool operator <(Version other) {
+    assert(other != null);
+    if(major < other.major) {
+      return true;
+    } else if(major > other.major) {
+      return false;
+    }
+    if(minor < other.minor) {
+      return true;
+    } else if(minor > other.minor) {
+      return false;
+    }
+    if(patch == null && other.patch == null) {
+      return false;
+    }
+    if(patch == null || other.patch == null) {
+      throw 'Only version with an equal number of parts can be compared.';
+    }
+    if(patch < other.patch) {
+      return true;
+    }
+    return false;
+  }
+
+  @override
+  bool operator >(Version other) {
+    return other != this && !(this < other);
+  }
+
+  @override
+  bool operator >=(Version other) {
+    return this == other || this > other;
+  }
+
+  @override
+  bool operator <=(Version other) {
+    return this == other || this < other;
+  }
+
+}
+
 /// Response to the version request.
 class VersionResponse {
-  String _version;
-  String get version => _version;
+  Version _version;
+  Version get version => _version;
 
   String _os;
   String get os => _os;
@@ -348,17 +519,17 @@ class VersionResponse {
   String _architecture;
   String get architecture => _architecture;
 
-  String _apiVersion;
-  String get apiVersion => _apiVersion;
+  Version _apiVersion;
+  Version get apiVersion => _apiVersion;
 
   VersionResponse.fromJson(Map json) {
-    _version = json['Version'];
+    _version = new Version.fromString(json['Version']);
     _os = json['Os'];
     _kernelVersion = json['KernelVersion'];
     _goVersion = json['GoVersion'];
     _gitCommit = json['GitCommit'];
     _architecture = json['Arch'];
-    _apiVersion = json['ApiVersion'];
+    _apiVersion = new Version.fromString(json['ApiVersion']);
     assert(json.keys.length <= 7); // ensure all keys were read
   }
 }

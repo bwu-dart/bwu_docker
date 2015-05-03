@@ -1,5 +1,6 @@
 library bwu_docker.src.remote_api.dart;
 
+import 'dart:async' show Future, Stream, Completer;
 import 'dart:convert' show JSON, UTF8;
 import 'package:crypto/crypto.dart' show CryptoUtils;
 import 'dart:async' show Future, Stream, ByteStream;
@@ -124,7 +125,8 @@ class DockerConnection {
   }
 
   /// Send a POST request to the Docker service.
-  Future<Stream> _streamRequestStream(String path, Stream<List<int>> stream,
+  Future<http.ByteStream> _streamRequestStream(
+      String path, Stream<List<int>> stream,
       {Map<String, String> query}) async {
     assert(stream != null);
 
@@ -955,4 +957,134 @@ class DockerConnection {
       }
     }
   }
+
+  /// Get a tarball containing all images and metadata for the repository
+  /// specified by [image.name].
+  /// If [image.name] is a specific name and tag (e.g. `ubuntu:latest`), then
+  /// only that image (and its parents) are returned. If [image.name] is an
+  /// image ID, similarly only tha image (and its parents) are returned, but
+  /// with the exclusion of the 'repositories' file in the tarball, as there
+  /// were no image names referenced.
+  /// See the [image tarball format](https://docs.docker.com/reference/api/docker_remote_api_v1.18/#image-tarball-format)
+  /// for more details.
+  /// Status Codes:
+  /// 200 - no error
+  /// 500 - server error
+  Future<http.ByteStream> get(Image image) async {
+    assert(image != null && image.name != null && image.name.isNotEmpty);
+    return _requestStream(RequestType.get, '/images/${image.name}/get');
+  }
+
+  /// Get a tarball containing all images and metadata for one or more
+  /// repositories.
+  /// For each value of the names parameter: if it is a specific name and tag
+  /// (e.g. ubuntu:latest), then only that image (and its parents) are returned;
+  /// if it is an image ID, similarly only that image (and its parents) are
+  /// returned and there would be no names referenced in the 'repositories'
+  /// file for this image ID.
+  /// See the [image tarball format](https://docs.docker.com/reference/api/docker_remote_api_v1.18/#image-tarball-format)
+  /// Status Codes:
+  /// 200 - no error
+  /// 500 - server error
+  Future<http.ByteStream> getAll() async {
+    return _requestStream(RequestType.get, '/images/get');
+  }
+
+  /// Load a set of images and tags into the docker repository.
+  /// See the [image tarball format](https://docs.docker.com/reference/api/docker_remote_api_v1.18/#image-tarball-format)
+  /// Status Codes:
+  /// 200 - no error
+  /// 500 - server error
+  Future<SimpleResponse> load(Stream<List<int>> stream) async {
+    final http.ByteStream response =
+        await _streamRequestStream('/images/load', stream);
+    List<int> buf = <int>[];
+    final completer = new Completer<SimpleResponse>();
+    response.listen(buf.addAll, onDone: () {
+      final result = new SimpleResponse.fromJson(JSON.decode(UTF8.decode(buf)));
+      completer.complete(result);
+    });
+    return completer.future;
+  }
+
+  /// Sets up an exec instance in a running [container]
+  /// [attachStdin] Attaches to stdin of the exec command.
+  /// [attachStdout] Attaches to stdout of the exec command.
+  /// [attachStderr] Attaches to stderr of the exec command.
+  /// [tty] Allocate a pseudo-TTY
+  /// [cmd] Command to run specified as a string or an array of strings.
+  /// Status Codes:
+  /// 201 - no error
+  /// 404 - no such container
+  Future<Exec> execCreate(Container container, {bool attachStdin, bool attachStdout,
+      bool attachStderr, bool tty, List<String> cmd}) async {
+    assert(
+        container != null && container.id != null && container.id.isNotEmpty);
+
+    Map body = {};
+    if (attachStdin != null) body['AttachStdin'] = attachStdin;
+    if (attachStdout != null) body['AttachStdout'] = attachStdout;
+    if (attachStderr != null) body['AttachStderr'] = attachStderr;
+    if (tty != null) body['Tty'] = tty;
+    if (cmd != null) body['cmd'] = cmd;
+
+    final response = await _request(
+        RequestType.post, '/containers/${container.id}/exec', body: body);
+    return new Exec.fromJson(response);
+  }
+
+  /// Starts a previously set up [exec] instance. If [detach] is [:true:], this
+  /// API returns after starting the exec command. Otherwise, this API sets up
+  /// an interactive session with the exec command.
+  /// [detach] Detach from the exec command
+  /// [tty] Allocate a pseudo-TTY
+  /// Status Codes:
+  /// 201 - no error
+  /// 404 - no such exec instance
+  /// Stream details: Similar to the stream behavior of
+  /// `POST /container/(id)/attach` API
+  Future<Exec> execStart(Exec exec, {bool detach, bool tty}) async {
+    assert(exec != null && exec.id != null && exec.id.isNotEmpty);
+
+    Map body = {};
+    if (detach != null) body['Detach'] = detach;
+    if (tty != null) body['Tty'] = tty;
+
+    final response =
+        await _request(RequestType.post, '/exec/${exec.id}/start', body: body);
+    return new Exec.fromJson(response);
+  }
+
+  /// Resizes the tty session used by [exec]. This API is valid only if tty was
+  /// specified as part of creating and starting the exec command.
+  /// [h] Height of tty session
+  /// [w] Width
+  /// Status Codes:
+  /// 201 - no error
+  /// 404 - no such exec instance
+  Future<Exec> execResize(Exec exec, int height, int width) async {
+    assert(exec != null && exec.id != null && exec.id.isNotEmpty);
+
+    Map body = {};
+    if (height != null) body['h'] = height;
+    if (width != null) body['width'] = width;
+
+    final response =
+        await _request(RequestType.post, '/exec/${exec.id}/resize', body: body);
+    return new Exec.fromJson(response);
+  }
+
+  /// Return low-level information about the [exec].
+  /// Status Codes:
+  /// 200 – no error
+  /// 404 – no such exec instance
+  /// 500 - server error
+  Future<ExecInfo> execInspect(Exec exec) async {
+     assert(
+         exec != null && exec.id != null && exec.id.isNotEmpty);
+
+     final response = await _request(
+         RequestType.get, '/exec/${exec.id}/json');
+     return new ExecInfo.fromJson(response);
+   }
 }
