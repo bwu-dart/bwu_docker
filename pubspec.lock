@@ -36,7 +36,7 @@ packages:
   code_transformers:
     description: code_transformers
     source: hosted
-    version: "0.2.8"
+    version: "0.2.9"
   collection:
     description: collection
     source: hosted
@@ -80,7 +80,7 @@ packages:
   initialize:
     description: initialize
     source: hosted
-    version: "0.6.0+5"
+    version: "0.6.1"
   intl:
     description: intl
     source: hosted
@@ -92,7 +92,7 @@ packages:
   matcher:
     description: matcher
     source: hosted
-    version: "0.12.0-alpha.0"
+    version: "0.12.0"
   mime:
     description: mime
     source: hosted
@@ -100,7 +100,7 @@ packages:
   observe:
     description: observe
     source: hosted
-    version: "0.13.0+2"
+    version: "0.13.1"
   path:
     description: path
     source: hosted
@@ -112,7 +112,7 @@ packages:
   polymer:
     description: polymer
     source: hosted
-    version: "0.16.2"
+    version: "0.16.3+1"
   polymer_expressions:
     description: polymer_expressions
     source: hosted
@@ -152,11 +152,11 @@ packages:
   smoke:
     description: smoke
     source: hosted
-    version: "0.3.2"
+    version: "0.3.3"
   source_maps:
     description: source_maps
     source: hosted
-    version: "0.10.0+2"
+    version: "0.10.1"
   source_span:
     description: source_span
     source: hosted
@@ -176,10 +176,10 @@ packages:
   test:
     description:
       ref: null
-      resolved-ref: e15b4f802452082ffafcac495c16c6d3afbc7b8e
+      resolved-ref: "153353811df1128b59f9dec1a7ba62cf1b157620"
       url: "git@github.com:dart-lang/test.git"
     source: git
-    version: "0.12.0-rc.1"
+    version: "0.12.0"
   utf:
     description: utf
     source: hosted
@@ -191,11 +191,11 @@ packages:
   web_components:
     description: web_components
     source: hosted
-    version: "0.11.3+1"
+    version: "0.11.4"
   webdriver:
     description: webdriver
     source: hosted
-    version: "0.10.0-pre.3"
+    version: "0.10.0-pre.7"
   when:
     description: when
     source: hosted

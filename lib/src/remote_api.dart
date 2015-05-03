@@ -203,7 +203,7 @@ class DockerConnection {
         container != null && container.id != null && container.id.isNotEmpty);
     final Map response =
         await _request(RequestType.get, '/containers/${container.id}/json');
-    print(response);
+//    print(response);
     return new ContainerInfo.fromJson(response);
   }
 
@@ -725,7 +725,7 @@ class DockerConnection {
     assert(image != null && image.name != null && image.name.isNotEmpty);
     final Map response =
         await _request(RequestType.get, '/images/${image.name}/json');
-    print(response);
+//    print(response);
     return new ImageInfo.fromJson(response);
   }
 
@@ -738,7 +738,7 @@ class DockerConnection {
     assert(image != null && image.name != null && image.name.isNotEmpty);
     final List response =
         await _request(RequestType.get, '/images/${image.name}/history');
-    print(response);
+//    print(response);
     return response.map((e) => new ImageHistoryResponse.fromJson(e));
   }
 
@@ -937,8 +937,8 @@ class DockerConnection {
   /// Status Codes:
   /// 200 - no error
   /// 500 - server error
-  Future<Iterable<EventsResponse>> events(
-      {DateTime since, DateTime until, EventFilter filters}) async {
+  Stream<EventsResponse> events(
+      {DateTime since, DateTime until, EventsFilter filters}) async* {
     Map<String, String> query = {};
     if (since != null) query['since'] =
         (since.toUtc().millisecondsSinceEpoch ~/ 1000).toString();
@@ -946,14 +946,13 @@ class DockerConnection {
         (until.toUtc().millisecondsSinceEpoch ~/ 1000).toString();
     if (filters != null) query['filters'] = JSON.encode(filters.toJson());
 
-    final response = await _requestStream(RequestType.get, '/events',
-        query: query /*, preprocessor: jsonifyConcatenatedJson*/);
+    final response =
+        await _requestStream(RequestType.get, '/events', query: query);
     if (response != null) {
-      response.listen((e) {
-        print('xxx: $e');
-      });
-      //return response.map((e) => new EventsResponse.fromJson(e));
+      await for (var e in response) {
+//        print(UTF8.decode(e));
+        yield new EventsResponse.fromJson(JSON.decode(UTF8.decode(e)));
+      }
     }
-    return [];
   }
 }

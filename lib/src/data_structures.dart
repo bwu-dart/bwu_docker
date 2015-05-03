@@ -210,8 +210,8 @@ class DockerEvent {
 
 /// An item of the response to the events request.
 class EventsResponse {
-  DockerEvent _status;
-  DockerEvent get status => _status;
+  DockerEventBase _status;
+  DockerEventBase get status => _status;
 
   String _id;
   String get id => _id;
@@ -234,7 +234,7 @@ class EventsResponse {
 }
 
 /// The filter argument to the events request.
-class EventFilter {
+class EventsFilter {
   final List<DockerEventBase> events = [];
   final List<Image> images = [];
   final List<Container> containers = [];
@@ -245,10 +245,10 @@ class EventFilter {
       json['event'] = events.map((e) => e.toString()).toList();
     }
     if (images.isNotEmpty) {
-      json['image'] = images.map((e) => e.toString).toList();
+      json['image'] = images.map((e) => e.name).toList();
     }
     if (containers.isNotEmpty) {
-      json['container'] = events.map((e) => e.toString).toList();
+      json['container'] = containers.map((e) => e.id).toList();
     }
     return json;
   }
@@ -1228,7 +1228,7 @@ class RestartPolicy {
     if (json['Name'] != null && json['Name'].isNotEmpty) {
       final value = RestartPolicyVariant.values
           .where((v) => v.toString().endsWith(json['Name']));
-      print(json);
+//      print(json);
       if (value.length != 1) {
         throw 'Invalid value "${json['Name']}".';
       }
@@ -1717,7 +1717,7 @@ class Volumes {
       return;
     }
     json.keys.forEach((k) => add(k, json[k]));
-    print(json);
+//    print(json);
     //assert(json.keys.length <= 0); // ensure all keys were read
   }
 

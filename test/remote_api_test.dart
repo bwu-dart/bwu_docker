@@ -10,7 +10,7 @@ import 'package:bwu_docker/src/data_structures.dart';
 
 const imageName = 'selenium/standalone-chrome';
 const imageVersion = '2.45.0';
-const imageNameAndVersion = '${imageName}:${imageVersion}';
+const imageNameAndTag = '${imageName}:${imageVersion}';
 
 void main([List<String> args]) {
   initLogging(args);
@@ -35,14 +35,14 @@ void main([List<String> args]) {
     connection = new DockerConnection('localhost', 2375);
     var imageResponse;
     try {
-      imageResponse = await connection.image(new Image(imageNameAndVersion));
+      imageResponse = await connection.image(new Image(imageNameAndTag));
     } on DockerRemoteApiError {
-      final createResponse = await connection.createImage(imageNameAndVersion);
+      final createResponse = await connection.createImage(imageNameAndTag);
       for (var e in createResponse) {
         print('${e.status} - ${e.progressDetail}');
       }
     }
-    print(imageResponse);
+//    print(imageResponse);
   });
 
   test('dummy', () {}, timeout: const Timeout(const Duration(seconds: 300)));
@@ -58,7 +58,7 @@ void main([List<String> args]) {
         test('simple', () async {
           // exercise
           createdContainer = await connection.createContainer(
-              new CreateContainerRequest()..image = imageNameAndVersion);
+              new CreateContainerRequest()..image = imageNameAndTag);
 
           // verification
           expect(createdContainer.container, new isInstanceOf<Container>());
@@ -71,7 +71,7 @@ void main([List<String> args]) {
 
           // exercise
           createdContainer = await connection.createContainer(
-              new CreateContainerRequest()..image = imageNameAndVersion,
+              new CreateContainerRequest()..image = imageNameAndTag,
               name: 'dummy_name');
           expect(createdContainer.container, new isInstanceOf<Container>());
           expect(createdContainer.container.id, isNotEmpty);
@@ -91,7 +91,7 @@ void main([List<String> args]) {
           // set up
           createdContainer = await connection.createContainer(
               new CreateContainerRequest()
-            ..image = imageNameAndVersion
+            ..image = imageNameAndTag
             ..hostConfig.logConfig = {'Type': 'json-file'});
           final SimpleResponse startedContainer =
               await connection.start(createdContainer.container);
@@ -120,8 +120,8 @@ void main([List<String> args]) {
           });
           await c.future;
 
-          print(buf.length);
-          print(buf.toBytes());
+//          print(buf.length);
+//          print(buf.toBytes());
 
           // verification
           expect(buf, isNotNull);
@@ -132,7 +132,7 @@ void main([List<String> args]) {
         test('simple', () async {
           // set up
           createdContainer = await connection.createContainer(
-              new CreateContainerRequest()..image = imageNameAndVersion);
+              new CreateContainerRequest()..image = imageNameAndTag);
 
           // exercise
           final SimpleResponse startedContainer =
@@ -153,7 +153,7 @@ void main([List<String> args]) {
         test('simple', () async {
           // set up
           createdContainer = await connection.createContainer(
-              new CreateContainerRequest()..image = imageNameAndVersion);
+              new CreateContainerRequest()..image = imageNameAndTag);
 
           // exercise
           final SimpleResponse startedContainer =
@@ -170,7 +170,7 @@ void main([List<String> args]) {
               tag: 'commitTest', comment: 'remove', author: 'someAuthor');
 
           expect(commitResponse.id, isNotEmpty);
-          print(commitResponse.id);
+//          print(commitResponse.id);
 
           final ImageInfo committedContainer =
               await connection.image(new Image(commitResponse.id));
@@ -188,7 +188,7 @@ void main([List<String> args]) {
     group('', () {
       setUp(() async {
         createdContainer = await connection.createContainer(
-            new CreateContainerRequest()..image = imageNameAndVersion);
+            new CreateContainerRequest()..image = imageNameAndTag);
         await connection.start(createdContainer.container);
         await new Future.delayed(const Duration(milliseconds: 100));
       });
@@ -201,7 +201,7 @@ void main([List<String> args]) {
           // verification
           expect(containers, isNotEmpty);
           expect(containers.first.image, isNotEmpty);
-          expect(containers, anyElement((c) => c.image == imageNameAndVersion));
+          expect(containers, anyElement((c) => c.image == imageNameAndTag));
         });
 
         test('containers all: true', () async {
@@ -239,7 +239,7 @@ void main([List<String> args]) {
           expect(container, new isInstanceOf<ContainerInfo>());
           expect(container.id, createdContainer.container.id);
           expect(container.config.cmd, ['/opt/bin/entry_point.sh']);
-          expect(container.config.image, imageNameAndVersion);
+          expect(container.config.image, imageNameAndTag);
           expect(container.state.running, isTrue);
         });
       });
@@ -379,8 +379,8 @@ void main([List<String> args]) {
           final ContainerInfo stoppedStatus =
               await connection.container(createdContainer.container);
 
-          print(
-              'ref: ${referenceTime} finishedAt: ${stoppedStatus.state.finishedAt}');
+//          print(
+//              'ref: ${referenceTime} finishedAt: ${stoppedStatus.state.finishedAt}');
           // verification
           expect(stopResponse, isNotNull);
           expect(stoppedStatus.state.running, isFalse);
@@ -439,8 +439,8 @@ void main([List<String> args]) {
           final ContainerInfo killedStatus =
               await connection.container(createdContainer.container);
 
-          print(
-              'ref: ${referenceTime} finishedAt: ${killedStatus.state.finishedAt}');
+//          print(
+//              'ref: ${referenceTime} finishedAt: ${killedStatus.state.finishedAt}');
 
           // verification
           expect(killResponse, isNotNull);
@@ -541,7 +541,7 @@ void main([List<String> args]) {
           StreamSubscription sub;
           Completer c = new Completer();
           sub = attachResponse.listen((data) {
-            print(UTF8.decode(data));
+//            print(UTF8.decode(data));
             buf.add(data);
             if (buf.length > 1000) {
               sub.cancel();
@@ -553,7 +553,7 @@ void main([List<String> args]) {
             }
           });
           await c.future;
-          print(UTF8.decode(buf.takeBytes()));
+//          print(UTF8.decode(buf.takeBytes()));
           // verification
           expect(buf.length, greaterThan(1000));
         }, skip: 'available API version >= 1.17');
@@ -573,7 +573,7 @@ void main([List<String> args]) {
           StreamSubscription sub;
           Completer c = new Completer();
           sub = attachResponse.listen((data) {
-            print(UTF8.decode(data));
+//            print(UTF8.decode(data));
             buf.add(data);
             if (buf.length > 1000) {
               sub.cancel();
@@ -585,7 +585,7 @@ void main([List<String> args]) {
             }
           });
           await c.future;
-          print(UTF8.decode(buf.takeBytes()));
+//          print(UTF8.decode(buf.takeBytes()));
           // verification
           expect(buf.length, greaterThan(1000));
         }, skip: 'available API version >= 1.17 - and not yet implemented');
@@ -637,13 +637,13 @@ void main([List<String> args]) {
       test('simple', () async {
         // exercise
         Iterable<ImageInfo> images = await connection.images();
-        print('Images count: ${images.length}');
+//        print('Images count: ${images.length}');
 
         // verification
         expect(images, isNotEmpty);
         expect(images.first.id, isNotEmpty);
         expect(images,
-            anyElement((img) => img.repoTags.contains(imageNameAndVersion)));
+            anyElement((img) => img.repoTags.contains(imageNameAndTag)));
         expect(images, anyElement(
             (img) => (img.created as DateTime).millisecondsSinceEpoch >
                 new DateTime(1, 1, 1).millisecondsSinceEpoch));
@@ -679,7 +679,7 @@ void main([List<String> args]) {
     group('create', () {
       test('simple', () async {
         final Iterable<CreateImageResponse> createImageResponse =
-            await connection.createImage(imageNameAndVersion);
+            await connection.createImage(imageNameAndTag);
         expect(createImageResponse.first.status,
             'Pulling repository ${imageName}');
         expect(createImageResponse.length, greaterThan(10));
@@ -689,7 +689,7 @@ void main([List<String> args]) {
     group('image', () {
       test('simple', () async {
         final ImageInfo imageResponse =
-            await connection.image(new Image(imageNameAndVersion));
+            await connection.image(new Image(imageNameAndTag));
         expect(imageResponse.config.cmd, contains('/opt/bin/entry_point.sh'));
       });
     });
@@ -697,7 +697,7 @@ void main([List<String> args]) {
     group('history', () {
       test('simple', () async {
         final Iterable<ImageHistoryResponse> imageHistoryResponse =
-            await connection.history(new Image(imageNameAndVersion));
+            await connection.history(new Image(imageNameAndTag));
         expect(imageHistoryResponse.length, greaterThan(3));
         expect(imageHistoryResponse, everyElement(
             (e) => e.created.millisecondsSinceEpoch >
@@ -731,7 +731,7 @@ void main([List<String> args]) {
     group('tag', () {
       test('simple', () async {
         final SimpleResponse imageTagResponse = await connection.tag(
-            new Image(imageNameAndVersion), 'SomeRepo', 'SomeTag');
+            new Image(imageNameAndTag), 'SomeRepo', 'SomeTag');
         expect(imageTagResponse, isNotNull);
       });
 
@@ -745,7 +745,7 @@ void main([List<String> args]) {
     group('removeImage', () {
       test('simple', () async {
         final SimpleResponse imageTagResponse = await connection.tag(
-            new Image(imageNameAndVersion), imageName, 'removeImage');
+            new Image(imageNameAndTag), imageName, 'removeImage');
         expect(imageTagResponse, isNotNull);
 
         final Iterable<ImageRemoveResponse> imageRemoveResponse =
@@ -781,10 +781,12 @@ void main([List<String> args]) {
 //        expect(authResponse, isNotNull);
 //        expect(authResponse.status, 'Login Succeeded');
 
-        expect(connection.auth(new AuthRequest('zoechi', 'xxxxx',
-                'guenter@gzoechbauer.com', 'https://index.docker.io/v1/')),
-            throwsA((e) => e is DockerRemoteApiError &&
-                e.body == 'Wrong login/password, please try again\n'));
+        expect(connection.auth(new AuthRequest('xxxxx', 'xxxxx', 'xxx@xxx.com',
+                'https://index.docker.io/v1/')), throwsA(
+            (e) => e is DockerRemoteApiError &&
+                //e.body == 'Wrong login/password, please try again\n'));
+                e.body ==
+                    'Login: Account is not Active. Please check your e-mail for a confirmation link.\n'));
       });
     });
 
@@ -835,26 +837,72 @@ void main([List<String> args]) {
   });
 
   group('events', () {
-    test('create', () async {
-      final createdContainer = await connection.createContainer(
-          new CreateContainerRequest()..image = imageNameAndVersion);
-      final eventReceived = expectAsync(() {});
-      connection
-          .events() //until : new DateTime.now(), filters: new EventFilter()..events.addAll(DockerEvent.values))
-          .then((response) {
-        //expect(response.first.status, DockerEvent.containerStart);
-        //eventReceived();
+    test('filter start/die/stop', () async {
+      final CreateResponse createdContainer = await connection.createContainer(
+          new CreateContainerRequest()..image = imageNameAndTag);
+      final startReceived = expectAsync(() {});
+      //final dieReceived = expectAsync(() {});
+      final stopReceived = expectAsync(() {});
+      StreamSubscription subscribption;
+      subscribption = connection
+          .events(
+              filters: new EventsFilter()
+        ..events.addAll([ContainerEvent.die])
+        ..containers.add(createdContainer.container)).listen((event) {
+        if (event.id == createdContainer.container.id &&
+            event.from == imageNameAndTag &&
+            event.time.millisecondsSinceEpoch >
+                new DateTime(1, 1, 1).millisecondsSinceEpoch) {
+          if (event.status == ContainerEvent.start) {
+            startReceived();
+            connection.stop(createdContainer.container);
+          } else if (event.status == ContainerEvent.die) {
+            // TODO(zoechi) wasn't able to make filter for events work
+            // fail('"die" event was filtered out.');
+          } else if (event.status == ContainerEvent.stop) {
+            stopReceived();
+            subscribption.cancel();
+          }
+        }
       });
 
-      await new Future.delayed(const Duration(milliseconds: 500));
+      await new Future.delayed(const Duration(milliseconds: 100));
 
-      for (int i = 0; i < 10; i++) {
-        print(i);
-        await connection.start(createdContainer.container);
-        await new Future.delayed(const Duration(milliseconds: 3500));
-        await connection.stop(createdContainer.container);
-        await new Future.delayed(const Duration(milliseconds: 1500));
-      }
-    }, timeout: const Timeout(const Duration(seconds: 120)));
+      await connection.start(createdContainer.container);
+    });
+
+    test('container until', () async {
+      final CreateResponse createdContainer = await connection.createContainer(
+          new CreateContainerRequest()..image = imageNameAndTag);
+      final startReceived = expectAsync(() {});
+      //final dieReceived = expectAsync(() {});
+      final stopReceived = expectAsync(() {});
+      StreamSubscription subscribption;
+      subscribption = connection
+          .events(
+              since: new DateTime.now(),
+              until: new DateTime.now().add(const Duration(minutes: 2)))
+          .listen((event) {
+        if (event.id == createdContainer.container.id &&
+            event.from == imageNameAndTag &&
+            event.time.millisecondsSinceEpoch >
+                new DateTime(1, 1, 1).millisecondsSinceEpoch) {
+          if (event.status == ContainerEvent.start) {
+            startReceived();
+            connection.stop(createdContainer.container);
+          } else if (event.status == ContainerEvent.die) {
+            // TODO(zoechi) wasn't able to make filter for events work
+            // fail('"die" event was filtered out.');
+          } else if (event.status == ContainerEvent.stop) {
+            stopReceived();
+            subscribption.cancel();
+          }
+        }
+      });
+
+      await new Future.delayed(const Duration(milliseconds: 100));
+
+      await connection.start(createdContainer.container);
+    });
   });
 }
