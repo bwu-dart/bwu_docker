@@ -1,4 +1,4 @@
-library bwu_utils.tool.grind;
+library bwu_docker.tool.grind;
 
 import 'package:grinder/grinder.dart';
 

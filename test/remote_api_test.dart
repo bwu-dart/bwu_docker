@@ -2,15 +2,27 @@
 library bwu_docker.test.docker;
 
 import 'dart:io' show BytesBuilder;
+import 'dart:convert' show JSON, UTF8;
 import 'dart:async' show Completer, Future, Stream, StreamSubscription;
-//import 'package:bwu_utils_dev/testing_server.dart';
 import 'package:test/test.dart';
 import 'package:bwu_docker/src/remote_api.dart';
 import 'package:bwu_docker/src/data_structures.dart';
 
 const imageName = 'selenium/standalone-chrome';
-const imageVersion = '2.45.0';
-const imageNameAndTag = '${imageName}:${imageVersion}';
+const imageTag = '2.45.0';
+const entryPoint = '/opt/bin/entry_point.sh';
+ const runningProcess = '/bin/bash ${entryPoint}';
+ const dockerPort = 2375;
+
+// Docker-in-Docker to allow to test with different Docker version
+// docker run --privileged -d -p 1234:1234 -e PORT=1234 jpetazzo/dind
+//const imageName = 'busybox';
+//const imageTag = 'buildroot-2014.02';
+//const entryPoint = '/bin/sh';
+//const runningProcess = '/bin/sh';
+//const dockerPort = 1234;
+
+const imageNameAndTag = '${imageName}:${imageTag}';
 
 void main([List<String> args]) {
   //initLogging(args);
@@ -33,15 +45,18 @@ void main([List<String> args]) {
   };
 
   final checkMinVersion = (Version supportedVersion) {
-    if(dockerVersion.apiVersion < supportedVersion) {
-      print('Test skipped because this command is not supported in versions below ${supportedVersion}.');
+    if (dockerVersion.apiVersion < supportedVersion) {
+      print(
+          'Test skipped because this command is not supported in versions below ${supportedVersion}.');
       return false;
     }
     return true;
   };
 
   setUp(() async {
-    connection = new DockerConnection('localhost', 2375);
+    connection = new DockerConnection('localhost', dockerPort);
+    await connection.init();
+    assert(connection.dockerVersion != null);
     try {
       await connection.image(new Image(imageNameAndTag));
     } on DockerRemoteApiError {
@@ -76,7 +91,7 @@ void main([List<String> args]) {
 
         test('with name', () async {
           final supportedVersion = new Version.fromString('1.17');
-          if(!checkMinVersion(supportedVersion)) {
+          if (!checkMinVersion(supportedVersion)) {
             return;
           }
 
@@ -89,10 +104,12 @@ void main([List<String> args]) {
               name: 'dummy_name');
           expect(createdContainer.container, new isInstanceOf<Container>());
           expect(createdContainer.container.id, isNotEmpty);
+//          print(createdContainer.container.id);
 
-          final Iterable<Container> containers =
-              await connection.containers(filters: {'name': [containerName]});
+          final Iterable<Container> containers = await connection.containers(
+              filters: {'name': [containerName]}, all: true);
 
+//          print(containers);
           // verification
           expect(containers.length, greaterThan(0));
           expect(
@@ -160,7 +177,7 @@ void main([List<String> args]) {
 
           expect(containers,
               anyElement((c) => c.id == createdContainer.container.id));
-        });
+        }, timeout: const Timeout(const Duration(seconds: 100)));
       });
 
       group('commit', () {
@@ -202,7 +219,10 @@ void main([List<String> args]) {
     group('', () {
       setUp(() async {
         createdContainer = await connection.createContainer(
-            new CreateContainerRequest()..image = imageNameAndTag);
+            new CreateContainerRequest()
+          ..image = imageNameAndTag
+          ..openStdin = true
+          ..tty = true);
         await connection.start(createdContainer.container);
         await new Future.delayed(const Duration(milliseconds: 100));
       });
@@ -248,11 +268,13 @@ void main([List<String> args]) {
           // exercise
           final ContainerInfo container =
               await connection.container(createdContainer.container);
+          await connection.start(createdContainer.container);
+          await new Future.delayed(const Duration(milliseconds: 500));
 
           // verification
           expect(container, new isInstanceOf<ContainerInfo>());
           expect(container.id, createdContainer.container.id);
-          expect(container.config.cmd, ['/opt/bin/entry_point.sh']);
+          expect(container.config.cmd, [entryPoint]);
           expect(container.config.image, imageNameAndTag);
           expect(container.state.running, isTrue);
         });
@@ -277,8 +299,8 @@ void main([List<String> args]) {
           ];
           expect(topResponse.titles, orderedEquals(titles));
           expect(topResponse.processes.length, greaterThan(0));
-          expect(topResponse.processes, anyElement((e) =>
-              e.any((i) => i.contains('/bin/bash /opt/bin/entry_point.sh'))));
+          expect(topResponse.processes,
+              anyElement((e) => e.any((i) => i.contains(runningProcess))));
         });
 
         test('with ps_args', () async {
@@ -302,17 +324,31 @@ void main([List<String> args]) {
           ];
           expect(topResponse.titles, orderedEquals(titles));
           expect(topResponse.processes.length, greaterThan(0));
-          expect(topResponse.processes, anyElement((e) =>
-              e.any((i) => i.contains('/bin/bash /opt/bin/entry_point.sh'))));
+          expect(topResponse.processes,
+              anyElement((e) => e.any((i) => i.contains(runningProcess))));
         });
       });
 
       group('changes', () {
         test('simple', () async {
+          final Exec createdExec = await connection.execCreate(
+              createdContainer.container,
+              attachStdin: true, tty: true,
+              //cmd: ['/bin/sh -c "echo sometext > /tmp/somefile.txt"', '/bin/sh -c ls -la']);
+              cmd: ['echo hallo']);
+          final startResponse = await connection.execStart(createdExec);
+
+          await for(var x in startResponse.stdout) {
+            print('x: ${UTF8.decode(x)}');
+          }
+          await new Future.delayed(const Duration(
+              milliseconds: 500)); // TODO(zoechi) check if necessary
+
+          print('4');
           // exercise
           final ChangesResponse changesResponse =
               await connection.changes(createdContainer.container);
-
+          print('changes: ${changesResponse.changes}');
           // verification
           // TODO(zoechi) provoke some changes and check the result
           expect(changesResponse.changes.length, greaterThan(0));
@@ -353,15 +389,22 @@ void main([List<String> args]) {
       group('stats', () {
         test('simple', () async {
           final supportedVersion = new Version.fromString('1.17');
-          if(!checkMinVersion(supportedVersion)) {
+          if (!checkMinVersion(supportedVersion)) {
             return;
           }
 
           // exercise
-          await connection.stats(createdContainer.container);
+          final Stream<StatsResponse> stream =
+              connection.stats(createdContainer.container);
+          final StatsResponse item = await stream.first;
 
           // verification
-          // TODO(zoechi)
+          expect(item.read, isNotNull);
+          expect(item.read.millisecondsSinceEpoch,
+              greaterThan(new DateTime(1, 1, 1).millisecondsSinceEpoch));
+          expect(item.network.rxBytes, greaterThan(0));
+          expect(item.cpuStats.cupUsage.totalUsage, greaterThan(0));
+          expect(item.memoryStats.limit, greaterThan(0));
         });
       });
 
@@ -464,7 +507,7 @@ void main([List<String> args]) {
           // verification
           expect(killResponse, isNotNull);
           expect(killedStatus.state.running, isFalse);
-          expect(killedStatus.state.exitCode, -1);
+          expect(killedStatus.state.exitCode, isNot(0));
           // TODO(zoechi) flaky, do a different check to verify if kill worked properly
           //expect(killedStatus.state.finishedAt.millisecondsSinceEpoch,
           //    greaterThan(referenceTime.millisecondsSinceEpoch));
@@ -476,7 +519,7 @@ void main([List<String> args]) {
       group('rename', () {
         test('simple', () async {
           final supportedVersion = new Version.fromString('1.17');
-          if(!checkMinVersion(supportedVersion)) {
+          if (!checkMinVersion(supportedVersion)) {
             return;
           }
 
@@ -494,7 +537,9 @@ void main([List<String> args]) {
 
           // verification
           expect(renameResponse, isNotNull);
-          expect(renamedStatus.name, 'SomeOtherName');
+          // 1.15 'SomeOtherName
+          // 1.18 '/SomeOtherName
+          expect(renamedStatus.name, endsWith('SomeOtherName'));
         });
       });
 
@@ -554,7 +599,7 @@ void main([List<String> args]) {
       group('attach', () {
         test('simple', () async {
           final supportedVersion = new Version.fromString('1.17');
-          if(!checkMinVersion(supportedVersion)) {
+          if (!checkMinVersion(supportedVersion)) {
             return;
           }
 
@@ -586,12 +631,12 @@ void main([List<String> args]) {
           // verification
           expect(buf.length, greaterThan(1000));
         });
-      });
+      }, skip: 'not yet implemented');
 
       group('attachWs', () {
         test('simple', () async {
           final supportedVersion = new Version.fromString('1.17');
-          if(!checkMinVersion(supportedVersion)) {
+          if (!checkMinVersion(supportedVersion)) {
             return;
           }
 
@@ -623,7 +668,7 @@ void main([List<String> args]) {
           // verification
           expect(buf.length, greaterThan(1000));
         });
-      });
+      }, skip: 'not yet implemented');
 
       group('wait', () {
         test('simple', () async {
@@ -698,7 +743,7 @@ void main([List<String> args]) {
 
         // exercise
         //final Iterable<ImageInfo> updatedImages =
-            await connection.images(all: true);
+        await connection.images(all: true);
 
         // verification
 //        expect(updatedImages, isNot(anyElement((c) => c.id == containerId)));
@@ -714,9 +759,13 @@ void main([List<String> args]) {
       test('simple', () async {
         final Iterable<CreateImageResponse> createImageResponse =
             await connection.createImage(imageNameAndTag);
-        expect(createImageResponse.first.status,
-            'Pulling repository ${imageName}');
-        expect(createImageResponse.length, greaterThan(10));
+        if (connection.apiVersion <= ApiVersion.v1_15) {
+          expect(createImageResponse.first.status,
+              'Pulling repository ${imageName}');
+        } else {
+          expect(createImageResponse.first.status, 'Pulling from ${imageName}');
+        }
+        expect(createImageResponse.length, greaterThan(5));
       });
     });
 
@@ -724,7 +773,7 @@ void main([List<String> args]) {
       test('simple', () async {
         final ImageInfo imageResponse =
             await connection.image(new Image(imageNameAndTag));
-        expect(imageResponse.config.cmd, contains('/opt/bin/entry_point.sh'));
+        expect(imageResponse.config.cmd, contains(entryPoint));
       });
     });
 
@@ -732,7 +781,7 @@ void main([List<String> args]) {
       test('simple', () async {
         final Iterable<ImageHistoryResponse> imageHistoryResponse =
             await connection.history(new Image(imageNameAndTag));
-        expect(imageHistoryResponse.length, greaterThan(3));
+        expect(imageHistoryResponse.length, greaterThan(2));
         expect(imageHistoryResponse, everyElement(
             (e) => e.created.millisecondsSinceEpoch >
                 new DateTime(1, 1, 1).millisecondsSinceEpoch));
@@ -927,11 +976,13 @@ void main([List<String> args]) {
     }, skip: 'test not yet working');
 
     // TODO(zoechi) implement test for load()
+  });
 
-    group('exec', () {
+  group('exec', () {
+    group('execCreate', () {
       test('simple', () async {
         final supportedVersion = new Version.fromString('1.17');
-        if(!checkMinVersion(supportedVersion)) {
+        if (!checkMinVersion(supportedVersion)) {
           return;
         }
 
@@ -939,9 +990,17 @@ void main([List<String> args]) {
             new CreateContainerRequest()..image = imageNameAndTag);
         await connection.start(createdContainer.container);
         //await new Future.delayed(const Duration(milliseconds: 500));
-        final Exec execResponse =
-            await connection.execCreate(createdContainer.container, attachStdin: true);
+        final Exec execResponse = await connection.execCreate(
+            createdContainer.container,
+            attachStdin: true,
+            cmd: ['echo sometext > ~/somefile.txt', 'ls -la']);
         print(execResponse.id);
+        final startResponse = await connection.execStart(execResponse);
+        expect(startResponse, isNotNull);
+        print('startResponse: ${startResponse}');
+        await for (var v in startResponse) {
+          print('startResonse: ${v}');
+        }
       });
     });
 
@@ -957,8 +1016,8 @@ void main([List<String> args]) {
       final startReceived = expectAsync(() {});
       //final dieReceived = expectAsync(() {});
       final stopReceived = expectAsync(() {});
-      StreamSubscription subscribption;
-      subscribption = connection.events(filters: new EventsFilter()
+      StreamSubscription subscription;
+      subscription = connection.events(filters: new EventsFilter()
         ..events.addAll([ContainerEvent.die])
         ..containers.add(createdContainer.container)).listen((event) {
         if (event.id == createdContainer.container.id &&
@@ -973,7 +1032,7 @@ void main([List<String> args]) {
             // fail('"die" event was filtered out.');
           } else if (event.status == ContainerEvent.stop) {
             stopReceived();
-            subscribption.cancel();
+            subscription.cancel();
           }
         }
       });
@@ -1053,63 +1112,107 @@ void main([List<String> args]) {
     });
 
     test('equals', () {
-      expect(new Version.fromString('1.1.1') == new Version.fromString('1.1.1'), true);
-      expect(new Version.fromString('1.2.3') == new Version.fromString('1.2.3'), true);
-      expect(new Version.fromString('3.2.1') == new Version.fromString('3.2.1'), true);
-      expect(new Version.fromString('0.1.2') == new Version.fromString('0.1.2'), true);
-      expect(new Version.fromString('0.0.1') == new Version.fromString('0.0.1'), true);
-      expect(new Version.fromString('0.0.0') == new Version.fromString('0.0.0'), true);
-      expect(new Version.fromString('10.20.30') == new Version.fromString('10.20.30'), true);
-      expect(new Version.fromString('1.1') == new Version.fromString('1.1'), true);
-      expect(new Version.fromString('1.2') == new Version.fromString('1.2'), true);
-      expect(new Version.fromString('2.1') == new Version.fromString('2.1'), true);
-      expect(new Version.fromString('0.1') == new Version.fromString('0.1'), true);
-      expect(new Version.fromString('0.0') == new Version.fromString('0.0'), true);
+      expect(new Version.fromString('1.1.1') == new Version.fromString('1.1.1'),
+          true);
+      expect(new Version.fromString('1.2.3') == new Version.fromString('1.2.3'),
+          true);
+      expect(new Version.fromString('3.2.1') == new Version.fromString('3.2.1'),
+          true);
+      expect(new Version.fromString('0.1.2') == new Version.fromString('0.1.2'),
+          true);
+      expect(new Version.fromString('0.0.1') == new Version.fromString('0.0.1'),
+          true);
+      expect(new Version.fromString('0.0.0') == new Version.fromString('0.0.0'),
+          true);
+      expect(new Version.fromString('10.20.30') ==
+          new Version.fromString('10.20.30'), true);
+      expect(
+          new Version.fromString('1.1') == new Version.fromString('1.1'), true);
+      expect(
+          new Version.fromString('1.2') == new Version.fromString('1.2'), true);
+      expect(
+          new Version.fromString('2.1') == new Version.fromString('2.1'), true);
+      expect(
+          new Version.fromString('0.1') == new Version.fromString('0.1'), true);
+      expect(
+          new Version.fromString('0.0') == new Version.fromString('0.0'), true);
 
-      expect(new Version.fromString('1.2.3') == new Version.fromString('0.0.0'), false);
-      expect(new Version.fromString('0.0.0') == new Version.fromString('1.2.3'), false);
-      expect(new Version.fromString('1.2') == new Version.fromString('0.0'), false);
-      expect(new Version.fromString('0.0.0') == new Version.fromString('0.0'), false);
+      expect(new Version.fromString('1.2.3') == new Version.fromString('0.0.0'),
+          false);
+      expect(new Version.fromString('0.0.0') == new Version.fromString('1.2.3'),
+          false);
+      expect(new Version.fromString('1.2') == new Version.fromString('0.0'),
+          false);
+      expect(new Version.fromString('0.0.0') == new Version.fromString('0.0'),
+          false);
     });
 
     test('greater than', () {
-      expect(new Version.fromString('0.0.1') > new Version.fromString('0.0.0'), true);
-      expect(new Version.fromString('0.1.0') > new Version.fromString('0.0.1'), true);
-      expect(new Version.fromString('1.0.0') > new Version.fromString('0.0.1'), true);
-      expect(new Version.fromString('10.0.0') > new Version.fromString('9.0.0'), true);
-      expect(new Version.fromString('0.10.0') > new Version.fromString('0.9.0'), true);
-      expect(new Version.fromString('10.0') > new Version.fromString('9.0'), true);
-      expect(new Version.fromString('0.10') > new Version.fromString('0.9'), true);
+      expect(new Version.fromString('0.0.1') > new Version.fromString('0.0.0'),
+          true);
+      expect(new Version.fromString('0.1.0') > new Version.fromString('0.0.1'),
+          true);
+      expect(new Version.fromString('1.0.0') > new Version.fromString('0.0.1'),
+          true);
+      expect(new Version.fromString('10.0.0') > new Version.fromString('9.0.0'),
+          true);
+      expect(new Version.fromString('0.10.0') > new Version.fromString('0.9.0'),
+          true);
+      expect(
+          new Version.fromString('10.0') > new Version.fromString('9.0'), true);
+      expect(
+          new Version.fromString('0.10') > new Version.fromString('0.9'), true);
 
-      expect(new Version.fromString('0.0.0') > new Version.fromString('0.0.1'), false);
-      expect(new Version.fromString('0.0.1') > new Version.fromString('0.1.0'), false);
-      expect(new Version.fromString('0.0.1') > new Version.fromString('1.0.0'), false);
-      expect(new Version.fromString('9.0.0') > new Version.fromString('10.0.0'), false);
-      expect(new Version.fromString('0.9.0') > new Version.fromString('0.10.0'), false);
-      expect(new Version.fromString('0.0.9') > new Version.fromString('0.0.10'), false);
-      expect(new Version.fromString('9.0') > new Version.fromString('10.0'), false);
-      expect(new Version.fromString('0.9') > new Version.fromString('0.10'), false);
-
+      expect(new Version.fromString('0.0.0') > new Version.fromString('0.0.1'),
+          false);
+      expect(new Version.fromString('0.0.1') > new Version.fromString('0.1.0'),
+          false);
+      expect(new Version.fromString('0.0.1') > new Version.fromString('1.0.0'),
+          false);
+      expect(new Version.fromString('9.0.0') > new Version.fromString('10.0.0'),
+          false);
+      expect(new Version.fromString('0.9.0') > new Version.fromString('0.10.0'),
+          false);
+      expect(new Version.fromString('0.0.9') > new Version.fromString('0.0.10'),
+          false);
+      expect(new Version.fromString('9.0') > new Version.fromString('10.0'),
+          false);
+      expect(new Version.fromString('0.9') > new Version.fromString('0.10'),
+          false);
     });
 
     test('less than', () {
-      expect(new Version.fromString('0.0.0') < new Version.fromString('0.0.1'), true);
-      expect(new Version.fromString('0.0.1') < new Version.fromString('0.1.0'), true);
-      expect(new Version.fromString('0.0.1') < new Version.fromString('1.0.0'), true);
-      expect(new Version.fromString('9.0.0') < new Version.fromString('10.0.0'), true);
-      expect(new Version.fromString('0.9.0') < new Version.fromString('0.10.0'), true);
-      expect(new Version.fromString('0.0.9') < new Version.fromString('0.0.10'), true);
-      expect(new Version.fromString('9.0') < new Version.fromString('10.0'), true);
-      expect(new Version.fromString('0.9') < new Version.fromString('0.10'), true);
+      expect(new Version.fromString('0.0.0') < new Version.fromString('0.0.1'),
+          true);
+      expect(new Version.fromString('0.0.1') < new Version.fromString('0.1.0'),
+          true);
+      expect(new Version.fromString('0.0.1') < new Version.fromString('1.0.0'),
+          true);
+      expect(new Version.fromString('9.0.0') < new Version.fromString('10.0.0'),
+          true);
+      expect(new Version.fromString('0.9.0') < new Version.fromString('0.10.0'),
+          true);
+      expect(new Version.fromString('0.0.9') < new Version.fromString('0.0.10'),
+          true);
+      expect(
+          new Version.fromString('9.0') < new Version.fromString('10.0'), true);
+      expect(
+          new Version.fromString('0.9') < new Version.fromString('0.10'), true);
 
-      expect(new Version.fromString('0.0.1') > new Version.fromString('0.0.0'), true);
-      expect(new Version.fromString('0.1.0') > new Version.fromString('0.0.1'), true);
-      expect(new Version.fromString('1.0.0') > new Version.fromString('0.0.1'), true);
-      expect(new Version.fromString('10.0.0') > new Version.fromString('9.0.0'), true);
-      expect(new Version.fromString('0.10.0') > new Version.fromString('0.9.0'), true);
-      expect(new Version.fromString('10.0') > new Version.fromString('9.0'), true);
-      expect(new Version.fromString('0.10') > new Version.fromString('0.9'), true);
-
+      expect(new Version.fromString('0.0.1') > new Version.fromString('0.0.0'),
+          true);
+      expect(new Version.fromString('0.1.0') > new Version.fromString('0.0.1'),
+          true);
+      expect(new Version.fromString('1.0.0') > new Version.fromString('0.0.1'),
+          true);
+      expect(new Version.fromString('10.0.0') > new Version.fromString('9.0.0'),
+          true);
+      expect(new Version.fromString('0.10.0') > new Version.fromString('0.9.0'),
+          true);
+      expect(
+          new Version.fromString('10.0') > new Version.fromString('9.0'), true);
+      expect(
+          new Version.fromString('0.10') > new Version.fromString('0.9'), true);
     });
   });
 }

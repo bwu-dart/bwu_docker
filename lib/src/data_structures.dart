@@ -1,22 +1,61 @@
 library bwu_docker.src.data_structures;
 
 import 'dart:collection';
-import 'package:intl/intl.dart';
-import 'package:quiver/core.dart' show hash2;
+import 'package:quiver/core.dart';
 
 final containerNameRegex = new RegExp(r'^/?[a-zA-Z0-9_-]+$');
 
-//final dateFormat = new DateFormat('yyyy-MM-ddTHH:mm:ss.SSSSSSSSSZ');
+/// Enum of API versions currently considered for API differences.
+class ApiVersion {
+  static final v1_15 = new Version(1, 15, null);
+  static final v1_17 = new Version(1, 17, null);
+  static final v1_18 = new Version(1, 18, null);
+
+  final ApiVersion value;
+
+  ApiVersion(this.value);
+}
+
+/// Ensure all provided JSON keys are actually supported.
+void _checkSurplusItems(Version apiVersion, Map<Version, List<String>> expected,
+    Iterable<String> actual) {
+  assert(expected != null);
+  assert(actual != null);
+  if (apiVersion == null || expected.isEmpty) {
+    return;
+  }
+  List<String> expectedForVersion = expected[apiVersion];
+  if (expectedForVersion == null) {
+    if (expected.length == 1) {
+      expectedForVersion = expected.values.first;
+    } else {
+      var ascSortedKeys = expected.keys.toList()..sort();
+      expectedForVersion =
+          expected[ascSortedKeys..lastWhere((k) => k < apiVersion)];
+      if (expectedForVersion == null) {
+        expectedForVersion = expected[ascSortedKeys.first];
+      }
+    }
+  }
+  assert(actual.every((k) {
+    if (!expectedForVersion.contains(k)) {
+      print('Unsupported key: "${k}"');
+      return false;
+    }
+    return true;
+  }));
+}
 
 DateTime _parseDate(dynamic dateValue) {
+  if (dateValue == null) {
+    return null;
+  }
   if (dateValue is String) {
     if (dateValue == '0001-01-01T00:00:00Z') {
       return new DateTime(1, 1, 1);
     }
 
     try {
-//      return dateFormat.parse(
-//          dateValue.substring(0, dateValue.length - 7) + 'Z', true);
       final years = int.parse((dateValue as String).substring(0, 4));
       final months = int.parse(dateValue.substring(5, 7));
       final days = int.parse(dateValue.substring(8, 10));
@@ -34,6 +73,7 @@ DateTime _parseDate(dynamic dateValue) {
     return new DateTime.fromMillisecondsSinceEpoch(dateValue * 1000,
         isUtc: true);
   }
+  throw 'Unsupported type "${dateValue.runtimeType}" passed.';
 }
 
 bool _parseBool(dynamic boolValue) {
@@ -56,6 +96,18 @@ bool _parseBool(dynamic boolValue) {
 
   throw new FormatException(
       'Value "${boolValue}" can not be converted to bool.');
+}
+
+Map<String, String> _parseLabels(Map<String, List<String>> json) {
+  if (json == null) {
+    return null;
+  }
+  final l =
+      json['Labels'] != null ? json['Labels'].map((l) => l.split('=')) : null;
+  return l == null
+      ? null
+      : _toUnmodifiableMapView(new Map.fromIterable(l,
+          key: (l) => l[0], value: (l) => l.length == 2 ? l[1] : null));
 }
 
 UnmodifiableMapView _toUnmodifiableMapView(Map map) {
@@ -135,10 +187,10 @@ class ExecInfo {
   ContainerInfo _container;
   ContainerInfo get container => _container;
 
-  ExecInfo.fromJson(Map json) {
+  ExecInfo.fromJson(Map json, Version apiVersion) {
     _id = json['Id'];
     _running = json['Running'];
-    assert(json.keys.length <= 1); // ensure all keys were read
+    _checkSurplusItems(apiVersion, {ApiVersion.v1_15: const ['Id']}, json.keys);
   }
 }
 
@@ -158,30 +210,36 @@ class ProcessConfig {
   UnmodifiableListView<String> _arguments;
   UnmodifiableListView<String> get arguments => _arguments;
 
-
-  ProcessConfig.fromJson(Map json) {
+  ProcessConfig.fromJson(Map json, Version apiVersion) {
     _privileged = json['privileged'];
     _user = json['user'];
     _tty = json['tty'];
     _entrypoint = json['entrypoint'];
     _arguments = json['arguments'];
-    assert(json.keys.length <= 5); // ensure all keys were read
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const [
+        'privileged',
+        'user' 'tty',
+        'entrypoint',
+        'arguments'
+      ]
+    }, json.keys);
   }
 }
-
-
 
 /// The response to the exec command
 class Exec {
   String _id;
   String get id => _id;
 
-  Exec.fromJson(Map json) {
+  Exec.fromJson(Map json, Version apiVersion) {
+    if (json == null) {
+      return;
+    }
     _id = json['Id'];
-    assert(json.keys.length <= 1); // ensure all keys were read
+    _checkSurplusItems(apiVersion, {ApiVersion.v1_15: const ['Id']}, json.keys);
   }
 }
-
 
 /// Base class for all kinds of Docker events
 abstract class DockerEventBase {
@@ -296,7 +354,7 @@ class EventsResponse {
   DateTime _time;
   DateTime get time => _time;
 
-  EventsResponse.fromJson(Map json) {
+  EventsResponse.fromJson(Map json, Version apiVersion) {
     if (json['status'] != null) {
       _status =
           DockerEvent.values.firstWhere((e) => e.toString() == json['status']);
@@ -304,7 +362,9 @@ class EventsResponse {
     _id = json['id'];
     _from = json['from'];
     _time = _parseDate(json['time']);
-    assert(json.keys.length <= 4); // ensure all keys were read
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const ['status', 'id', 'from', 'time']
+    }, json.keys);
   }
 }
 
@@ -337,10 +397,11 @@ class CommitResponse {
   UnmodifiableListView<String> _warnings;
   UnmodifiableListView<String> get warnings => _warnings;
 
-  CommitResponse.fromJson(Map json) {
+  CommitResponse.fromJson(Map json, Version apiVersion) {
     _id = json['Id'];
     _warnings = _toUnmodifiableListView(json['Warnings']);
-    assert(json.keys.length <= 2); // ensure all keys were read
+    _checkSurplusItems(
+        apiVersion, {ApiVersion.v1_15: const ['Id', 'Warnings']}, json.keys);
   }
 }
 
@@ -402,8 +463,7 @@ class CommitRequest {
   }
 }
 
-
-class Version {
+class Version implements Comparable {
   final int major;
   final int minor;
   final int patch;
@@ -420,23 +480,23 @@ class Version {
     int minor = 0;
     int patch;
 
-    if(parts.length < 2) {
+    if (parts.length < 2) {
       throw 'Unsupported version string format "${version}".';
     }
 
-    if(parts.length >= 1) {
+    if (parts.length >= 1) {
       major = int.parse(parts[0]);
       assert(major >= 0);
     }
-    if(parts.length >= 2) {
+    if (parts.length >= 2) {
       minor = int.parse(parts[1]);
       assert(minor >= 0);
     }
-    if(parts.length >= 3) {
+    if (parts.length >= 3) {
       patch = int.parse(parts[2]);
       assert(patch >= 0);
     }
-    if(parts.length >= 4) {
+    if (parts.length >= 4) {
       throw 'Unsupported version string format "${version}".';
     }
     return new Version(major, minor, patch);
@@ -444,11 +504,13 @@ class Version {
 
   @override
   bool operator ==(other) {
-    if(other is! Version) {
+    if (other is! Version) {
       return false;
     }
     final o = other as Version;
-    return o.major == major && o.minor == minor && ((o.patch == null && patch == null) || (o.patch == patch));
+    return o.major == major &&
+        o.minor == minor &&
+        ((o.patch == null && patch == null) || (o.patch == patch));
   }
 
   @override
@@ -457,46 +519,54 @@ class Version {
   @override
   String toString() => '${major}.${minor}${patch != null ? '.${patch}' : ''}';
 
-  @override
   bool operator <(Version other) {
     assert(other != null);
-    if(major < other.major) {
+    if (major < other.major) {
       return true;
-    } else if(major > other.major) {
+    } else if (major > other.major) {
       return false;
     }
-    if(minor < other.minor) {
+    if (minor < other.minor) {
       return true;
-    } else if(minor > other.minor) {
+    } else if (minor > other.minor) {
       return false;
     }
-    if(patch == null && other.patch == null) {
+    if (patch == null && other.patch == null) {
       return false;
     }
-    if(patch == null || other.patch == null) {
+    if (patch == null || other.patch == null) {
       throw 'Only version with an equal number of parts can be compared.';
     }
-    if(patch < other.patch) {
+    if (patch < other.patch) {
       return true;
     }
     return false;
   }
 
-  @override
   bool operator >(Version other) {
     return other != this && !(this < other);
   }
 
-  @override
   bool operator >=(Version other) {
     return this == other || this > other;
   }
 
-  @override
   bool operator <=(Version other) {
     return this == other || this < other;
   }
 
+  @override
+  int compareTo(Version other) {
+    if (this < other) {
+      return -1;
+    } else if (this == other) {
+      return 0;
+    }
+    return 1;
+  }
+
+  @override
+  static int compare(Comparable a, Comparable b) => a.compareTo(b);
 }
 
 /// Response to the version request.
@@ -522,7 +592,7 @@ class VersionResponse {
   Version _apiVersion;
   Version get apiVersion => _apiVersion;
 
-  VersionResponse.fromJson(Map json) {
+  VersionResponse.fromJson(Map json, Version apiVersion) {
     _version = new Version.fromString(json['Version']);
     _os = json['Os'];
     _kernelVersion = json['KernelVersion'];
@@ -530,7 +600,17 @@ class VersionResponse {
     _gitCommit = json['GitCommit'];
     _architecture = json['Arch'];
     _apiVersion = new Version.fromString(json['ApiVersion']);
-    assert(json.keys.length <= 7); // ensure all keys were read
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const [
+        'Version',
+        'Os',
+        'KernelVersion',
+        'GoVersion',
+        'GitCommit',
+        'Arch',
+        'ApiVersion'
+      ]
+    }, json.keys);
   }
 }
 
@@ -617,7 +697,10 @@ class InfoResponse {
   String _operatingSystem;
   String get operatingSystem => _operatingSystem;
 
-  InfoResponse.fromJson(Map json) {
+  RegistryConfigs _registryConfigs;
+  RegistryConfigs get registryConfigs => _registryConfigs;
+
+  InfoResponse.fromJson(Map json, Version apiVersion) {
     _containers = json['Containers'];
     _images = json['Images'];
     _driver = json['Driver'];
@@ -641,18 +724,95 @@ class InfoResponse {
     _memoryLimit = _parseBool(json['MemoryLimit']);
     _swapLimit = _parseBool(json['SwapLimit']);
     _ipv4Forwarding = _parseBool(json['IPv4Forwarding']);
-    final l =
-        json['Labels'] != null ? json['labels'].map((l) => l.split('=')) : null;
-    _labels = l == null
-        ? null
-        : _toUnmodifiableMapView(new Map.fromIterable(l,
-            key: (l) => l[0], value: (l) => l.length == 2 ? l[1] : null));
+    _labels = _parseLabels(json['Labels']);
     _dockerRootDir = json['DockerRootDir'];
     _httpProxy = json['HttpProxy'];
     _httpsProxy = json['HttpsProxy'];
     _noProxy = json['NoProxy'];
     _operatingSystem = json['OperatingSystem'];
-    assert(json.keys.length <= 27); // ensure all keys were read
+    _registryConfigs =
+        new RegistryConfigs.fromJson(json['RegistryConfigs'], apiVersion);
+
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const [
+        'Containers',
+        'Debug',
+        'DockerRootDir',
+        'Driver',
+        'DriverStatus',
+        'ExecutionDriver',
+        'HttpProxy',
+        'HttpsProxy',
+        'ID',
+        'Images',
+        'IndexServerAddress',
+        'InitPath',
+        'InitSha1',
+        'IPv4Forwarding',
+        'KernelVersion',
+        'Labels',
+        'MemoryLimit',
+        'MemTotal',
+        'NCPU',
+        'Name',
+        'NEventsListener',
+        'NFd',
+        'NGoroutines',
+        'OperatingSystem',
+        'SwapLimit',
+        'SystemTime'
+      ],
+      ApiVersion.v1_18: const [
+        'Containers',
+        'Debug',
+        'DockerRootDir',
+        'Driver',
+        'DriverStatus',
+        'ExecutionDriver',
+        'HttpProxy',
+        'HttpsProxy',
+        'ID',
+        'Images',
+        'IndexServerAddress',
+        'InitPath',
+        'InitSha1',
+        'IPv4Forwarding',
+        'KernelVersion',
+        'Labels',
+        'MemoryLimit',
+        'MemTotal',
+        'NCPU',
+        'Name',
+        'NEventsListener',
+        'NFd',
+        'NGoroutines',
+        'OperatingSystem',
+        'RegistryConfig',
+        'SwapLimit',
+        'SystemTime'
+      ]
+    }, json.keys);
+  }
+}
+
+class RegistryConfigs {
+  UnmodifiableMapView _indexConfigs;
+  UnmodifiableMapView get indexConfigs => _indexConfigs;
+
+  UnmodifiableListView<String> _insecureRegistryCidrs;
+  UnmodifiableListView<String> get insecureRegistryCidrs =>
+      _insecureRegistryCidrs;
+
+  RegistryConfigs.fromJson(Map json, Version apiVersion) {
+    if (json == null) {
+      return;
+    }
+
+    _indexConfigs = _toUnmodifiableMapView(json['IndexConfigs']);
+    _indexConfigs = _toUnmodifiableListView(json['InsecureRegistryCIDRs']);
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_18: const ['IndexConfigs', 'InsecureRegistryCIDRs']
+    }, json.keys);
   }
 }
 
@@ -705,7 +865,7 @@ class SearchResponse {
   int _starCount;
   int get starCount => _starCount;
 
-  SearchResponse.fromJson(Map json) {
+  SearchResponse.fromJson(Map json, Version apiVersion) {
     _description = json['description'];
     _isOfficial = json['is_official'];
     if (json['is_trusted'] != null) {
@@ -715,7 +875,16 @@ class SearchResponse {
     }
     _name = json['name'];
     _starCount = json['star_count'];
-    assert(json.keys.length <= 5); // ensure all keys were read
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const [
+        'description',
+        'is_official',
+        'is_trusted',
+        'is_automated',
+        'name',
+        'star_count'
+      ]
+    }, json.keys);
   }
 }
 
@@ -727,10 +896,12 @@ class ImageRemoveResponse {
   String _deleted;
   String get deleted => _deleted;
 
-  ImageRemoveResponse.fromJson(Map json) {
+  ImageRemoveResponse.fromJson(Map json, Version apiVersion) {
     _untagged = json['Untagged'];
     _deleted = json['Deleted'];
-    assert(json.keys.length <= 2); // ensure all keys were read
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const ['Untagged', 'Deleted']
+    }, json.keys);
   }
 }
 
@@ -748,13 +919,15 @@ class ImagePushResponse {
   String _error;
   String get error => _error;
 
-  ImagePushResponse.fromJson(Map json) {
+  ImagePushResponse.fromJson(Map json, Version apiVersion) {
     final json = {};
     _status = json['status'];
     _progress = json['progress'];
     _progressDetail = _toUnmodifiableMapView(json['progressDetail']);
     _error = json['error'];
-    assert(json.keys.length <= 4); // ensure all keys were read
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const ['status', 'progress', 'progressDetail', 'error']
+    }, json.keys);
   }
 }
 
@@ -775,13 +948,15 @@ class ImageHistoryResponse {
   UnmodifiableListView<String> _tags;
   UnmodifiableListView<String> get tags => _tags;
 
-  ImageHistoryResponse.fromJson(Map json) {
+  ImageHistoryResponse.fromJson(Map json, Version apiVersion) {
     _id = json['Id'];
     _created = _parseDate(json['Created']);
     _createdBy = json['CreatedBy'];
     _size = json['Size'];
     _tags = _toUnmodifiableListView(json['Tags']);
-    assert(json.keys.length <= 5); // ensure all keys were read
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const ['Id', 'Created', 'CreatedBy', 'Size', 'Tags']
+    }, json.keys);
   }
 }
 
@@ -794,112 +969,6 @@ class Image {
   }
 }
 
-///// Response to an image response
-//class ImageInfo {
-//  DateTime _created;
-//  DateTime get created => _created;
-//
-//  String _container;
-//  String get container => _container;
-//
-//  ContainerConfig _containerConfig;
-//  ContainerConfig get containerConfig => _containerConfig;
-//
-//  String _id;
-//  String get id => _id;
-//
-//  String _parent;
-//  String get parent => _parent;
-//
-//  int _size;
-//  int get size => _size;
-//
-//  ImageInfo.fromJson(Map json) {
-//    _created = _parseDate(json['created']);
-//    _container = json['container'];
-//    _containerConfig = new ContainerConfig.fromJson(json['containerConfig']);
-//    _id = json['id'];
-//    _parent = json['parent'];
-//    _size = json['size'];
-//    assert(json.keys.length <= 6); // ensure all keys were read
-//  }
-//}
-//
-//class ContainerConfig {
-//  String _hostName;
-//  String get hostName => _hostName;
-//
-//  String _user;
-//  String get user => _user;
-//
-//  bool _attachStdin;
-//  bool get attachStdin => _attachStdin;
-//
-//  bool _attachStdout;
-//  bool get attachStdout => _attachStdout;
-//
-//  bool _attachStderr;
-//  bool get attachStderr => _attachStderr;
-//
-//  PortResponse _portSpecs;
-//  PortResponse get portSpecs => _portSpecs;
-//
-//  bool _tty;
-//  bool get tty => _tty;
-//
-//  bool _openStdin;
-//  bool get openStdin => _openStdin;
-//
-//  bool _stdinOnce;
-//  bool get stdinOnce => _stdinOnce;
-//
-//  UnmodifiableMapView<String,String> _env;
-//  UnmodifiableMapView<String,String> get env => _env;
-//
-//  UnmodifiableListView<String> _cmd;
-//  UnmodifiableListView<String> get cmd => _cmd;
-//
-//  UnmodifiableListView<String> _dns;
-//  UnmodifiableListView<String> get dns => _dns;
-//
-//  String _image;
-//  String get image => _image;
-//
-//  UnmodifiableListView<String> _labels;
-//  UnmodifiableListView<String> get labels => _labels;
-//
-//  Volumes _volumes;
-//  Volumes get volumes => _volumes;
-//
-//  String _volumesFrom;
-//  String get volumesFrom => _volumesFrom;
-//
-//  String _workingDir;
-//  String get workingDir => _workingDir;
-//
-//  ContainerConfig.fromJson(Map json) {
-//    _hostName = json['Hostname'];
-//    _user = json['User'];
-//    _attachStdin = json['AttachStdin'];
-//    _attachStdout = json['AttachStdout'];
-//    _attachStderr = json['AttachStderr'];
-//    _portSpecs = json['PortSpecs'];
-//    _tty = json['Tty'];
-//    _openStdin = json['OpenStdin'];
-//    _stdinOnce = json['StdinOnce'];
-//    _env = _toUnmodifiableMapView(json['Env']);
-//    _cmd = _toUnmodifiableListView(json['Cmd']);
-//    _dns = _toUnmodifiableListView(json['Dns']);
-//    _image = json['Image'];
-//    _labels = _toUnmodifiableListView(json['Labels']);
-//    _volumes = json['Volumes'];
-//    _volumesFrom = json['VolumesFrom'];
-//    _workingDir = json['WorkingDir'];
-//    assert(json.keys.length <= 17); // ensure all keys were read
-//  }
-//
-//}
-
 /// An item of an image create response
 class CreateImageResponse {
   String _status;
@@ -911,48 +980,19 @@ class CreateImageResponse {
   String _id;
   String get id => _id;
 
-  CreateImageResponse.fromJson(Map json) {
+  String _progress;
+  String get progress => _progress;
+
+  CreateImageResponse.fromJson(Map json, Version apiVersion) {
     _status = json['status'];
     _progressDetail = _toUnmodifiableMapView(json['progressDetail']);
     _id = json['id'];
-    assert(json.keys.length <= 3); // ensure all keys were read
+    _progress = json['progress'];
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const ['status', 'progressDetail', 'id', 'progress'],
+    }, json.keys);
   }
 }
-
-///// Item of a response to an images request.
-//class ImageResponse {
-//  UnmodifiableListView<String> _repoTags;
-//  UnmodifiableListView<String> get repoTags => _repoTags;
-//
-//  String _id;
-//  String get id => _id;
-//
-//  String _parentId;
-//  String get parentId => _parentId;
-//
-//  DateTime _created;
-//  DateTime get created => _created;
-//
-//  int _size;
-//  int get size => _size;
-//
-//  int _virtualSize;
-//  int get virtualSize => _virtualSize;
-//
-//  UnmodifiableListView<String> _repoDigest;
-//  UnmodifiableListView<String> get repoDigest => _repoDigest;
-//
-//  ImageResponse.fromJson(Map json) {
-//    _repoTags = _toUnmodifiableListView(json['RepoTags']);
-//    _id = json['Id'];
-//    _parentId = json['ParentId'];
-//    _created = _parseDate(json['Created']);
-//    _size = json['Size'];
-//    _virtualSize = json['VirtualSize'];
-//    _repoDigest = _toUnmodifiableListView(json['RepoDigest']);
-//    assert(json.keys.length <= 7); // ensure all keys were read
-//  }
-//}
 
 class ConfigFile {
   AuthConfig _auths;
@@ -1035,7 +1075,7 @@ class WaitResponse {
   int _statusCode;
   int get statusCode => _statusCode;
 
-  WaitResponse.fromJson(Map json) {
+  WaitResponse.fromJson(Map json, Version apiVersion) {
     _statusCode = json['StatusCode'];
   }
 }
@@ -1065,7 +1105,7 @@ class StatsResponseNetwork {
   int _txBytes;
   int get txBytes => _txBytes;
 
-  StatsResponseNetwork.fromJson(Map json) {
+  StatsResponseNetwork.fromJson(Map json, Version apiVersion) {
     _rxDropped = json['rx_dropped'];
     _rxBytes = json['rx_bytes'];
     _rxErrors = json['rx_errors'];
@@ -1074,7 +1114,18 @@ class StatsResponseNetwork {
     _rxPackets = json['rx_packets'];
     _txErrors = json['tx_errors'];
     _txBytes = json['tx_bytes'];
-    assert(json.keys.length <= 8); // ensure all keys were read
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const [
+        'rx_dropped',
+        'rx_bytes',
+        'rx_errors',
+        'tx_packets',
+        'tx_dropped',
+        'rx_packets',
+        'tx_errors',
+        'tx_bytes'
+      ]
+    }, json.keys);
   }
 }
 
@@ -1094,13 +1145,22 @@ class StatsResponseMemoryStats {
   int _limit;
   int get limit => _limit;
 
-  StatsResponseMemoryStats.fromJson(Map json) {
-    _stats = new StatsResponseMemoryStatsStats.fromJson(json['name']);
+  StatsResponseMemoryStats.fromJson(Map json, Version apiVersion) {
+    _stats =
+        new StatsResponseMemoryStatsStats.fromJson(json['stats'], apiVersion);
     _maxUsage = json['max_usage'];
     _usage = json['usage'];
     _failCount = json['failcnt'];
     _limit = json['limit'];
-    assert(json.keys.length <= 5); // ensure all keys were read
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const [
+        'stats',
+        'max_usage',
+        'usage',
+        'failcnt',
+        'limit'
+      ]
+    }, json.keys);
   }
 }
 
@@ -1192,7 +1252,10 @@ class StatsResponseMemoryStatsStats {
   int _totalPgpgIn;
   int get totalPgpgIn => _totalPgpgIn;
 
-  StatsResponseMemoryStatsStats.fromJson(Map json) {
+  StatsResponseMemoryStatsStats.fromJson(Map json, Version apiVersion) {
+    if (json == null) {
+      return;
+    }
     _totalPgmajFault = json['total_pgmajfault'];
     _cache = json['cache'];
     _mappedFile = json['mapped_file'];
@@ -1222,7 +1285,39 @@ class StatsResponseMemoryStatsStats {
     _pgFault = json['pgfault'];
     _inactiveFile = json['inactive_file'];
     _totalPgpgIn = json['total_pgpgin'];
-    assert(json.keys.length <= 29); // ensure all keys were read
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const [
+        'total_pgmajfault',
+        'cache',
+        'mapped_file',
+        'total_inactive_file',
+        'pgpgout',
+        'rss',
+        'total_mapped_file',
+        'writeback',
+        'unevictable',
+        'pgpgin',
+        'total_unevictable',
+        'pgmajfault',
+        'total_rss',
+        'total_rss_huge',
+        'total_writeback',
+        'total_inactive_anon',
+        'rss_huge',
+        'hierarchical_memory_limit',
+        'total_pgfault',
+        'total_active_file',
+        'active_anon',
+        'total_active_anon',
+        'total_pgpgout',
+        'total_cache',
+        'inactive_anon',
+        'active_file',
+        'pgfault',
+        'inactive_file',
+        'total_pgpgin'
+      ]
+    }, json.keys);
   }
 }
 
@@ -1239,12 +1334,20 @@ class StatsResponseCpuUsage {
   int _usageInKernelMode;
   int get usageInKernelMode => _usageInKernelMode;
 
-  StatsResponseCpuUsage.fromJson(Map json) {
+  StatsResponseCpuUsage.fromJson(Map json, Version apiVersion) {
     _perCpuUsage = _toUnmodifiableListView(json['percpu_usage']);
     _usageInUserMode = json['usage_in_usermode'];
     _totalUsage = json['total_usage'];
     _usageInKernelMode = json['usage_in_kernelmode'];
-    assert(json.keys.length <= 4); // ensure all keys were read
+
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_17: const [
+        'percpu_usage',
+        'usage_in_usermode',
+        'total_usage',
+        'usage_in_kernelmode',
+      ]
+    }, json.keys);
   }
 }
 
@@ -1255,14 +1358,43 @@ class StatsResponseCpuStats {
   int _systemCpuUsage;
   int get systemCpuUsage => _systemCpuUsage;
 
-  UnmodifiableListView _throttlingData;
-  UnmodifiableListView get throttlingData => _throttlingData;
+  ThrottlingData _throttlingData;
+  ThrottlingData get throttlingData => _throttlingData;
 
-  StatsResponseCpuStats.fromJson(Map json) {
-    _cupUsage = new StatsResponseCpuUsage.fromJson(json['cpu_usage']);
+  StatsResponseCpuStats.fromJson(Map json, Version apiVersion) {
+    _cupUsage =
+        new StatsResponseCpuUsage.fromJson(json['cpu_usage'], apiVersion);
     _systemCpuUsage = json['system_cpu_usage'];
-    _throttlingData = _toUnmodifiableListView(json['throttling_data']);
-    assert(json.keys.length <= 3); // ensure all keys were read
+    _throttlingData =
+        new ThrottlingData.fromJson(json['throttling_data'], apiVersion);
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const [
+        'cpu_usage',
+        'system_cpu_usage',
+        'throttling_data'
+      ]
+    }, json.keys);
+  }
+}
+
+class ThrottlingData {
+  int _periods;
+  int get periods => _periods;
+
+  int _throttledPeriods;
+  int get throttledPeriods => _throttledPeriods;
+
+  int _throttledTime;
+  int get throttledTime => _throttledTime;
+
+  ThrottlingData.fromJson(Map json, Version apiVersion) {
+    _periods = json['periods'];
+    _throttledPeriods = json['throttled_periods'];
+    _throttledTime = json['throttled_time'];
+
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const ['periods', 'throttled_periods', 'throttled_time']
+    }, json.keys);
   }
 }
 
@@ -1277,19 +1409,83 @@ class StatsResponse {
   StatsResponseMemoryStats _memoryStats;
   StatsResponseMemoryStats get memoryStats => _memoryStats;
 
-  Map _blkIoStats;
-  Map get blkIoStats => _blkIoStats;
+  BlkIoStats _blkIoStats;
+  BlkIoStats get blkIoStats => _blkIoStats;
 
   StatsResponseCpuStats _cpuStats;
   StatsResponseCpuStats get cpuStats => _cpuStats;
 
-  StatsResponse.fromJson(Map json) {
+  StatsResponse.fromJson(Map json, Version apiVersion) {
     _read = _parseDate(json['read']);
-    _network = new StatsResponseNetwork.fromJson(json['network']);
-    _memoryStats = new StatsResponseMemoryStats.fromJson(json['memory_stats']);
-    _blkIoStats = _toUnmodifiableMapView(json['blkio_stats']);
-    _cpuStats = new StatsResponseCpuStats.fromJson(json['cpu_stats']);
-    assert(json.keys.length <= 5); // ensure all keys were read
+    _network = new StatsResponseNetwork.fromJson(json['network'], apiVersion);
+    _memoryStats =
+        new StatsResponseMemoryStats.fromJson(json['memory_stats'], apiVersion);
+    _blkIoStats = new BlkIoStats.fromJson(json['blkio_stats'], apiVersion);
+    _cpuStats =
+        new StatsResponseCpuStats.fromJson(json['cpu_stats'], apiVersion);
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const [
+        'read',
+        'network',
+        'memory_stats',
+        'blkio_stats',
+        'cpu_stats'
+      ]
+    }, json.keys);
+  }
+}
+
+class BlkIoStats {
+  UnmodifiableListView<int> _ioServiceBytesRecursive;
+  UnmodifiableListView<int> get ioServiceBytesRecursive => _ioServiceBytesRecursive;
+
+  UnmodifiableListView<int> _ioServicedRecursive;
+  UnmodifiableListView<int> get ioServicedRecursive => _ioServicedRecursive;
+
+  UnmodifiableListView<int> _ioQueueRecursive;
+  UnmodifiableListView<int> get ioQueueRecursive => _ioQueueRecursive;
+
+  UnmodifiableListView<int> _ioServiceTimeRecursive;
+  UnmodifiableListView<int> get ioServiceTimeRecursive => _ioServiceTimeRecursive;
+
+  UnmodifiableListView<int> _ioWaitTimeRecursive;
+  UnmodifiableListView<int> get ioWaitTimeRecursive => _ioWaitTimeRecursive;
+
+  UnmodifiableListView<int> _ioMergedRecursive;
+  UnmodifiableListView<int> get ioMergedRecursive => _ioMergedRecursive;
+
+  UnmodifiableListView<int> _ioTimeRecursive;
+  UnmodifiableListView<int> get ioTimeRecursive => _ioTimeRecursive;
+
+  UnmodifiableListView<int> _sectorsRecursive;
+  UnmodifiableListView<int> get sectorsRecursive => _sectorsRecursive;
+
+
+  BlkIoStats.fromJson(Map json, Version apiVersion) {
+    if(json == null) {
+      return;
+    }
+    _ioServiceBytesRecursive = _toUnmodifiableListView(json['io_service_bytes_recursive']);
+    _ioServicedRecursive = _toUnmodifiableListView(json['io_serviced_recursive']);
+    _ioQueueRecursive = _toUnmodifiableListView(json['io_queue_recursive']);
+    _ioServiceTimeRecursive = _toUnmodifiableListView(json['io_service_time_recursive']);
+    _ioWaitTimeRecursive = _toUnmodifiableListView(json['io_wait_time_recursive']);
+    _ioMergedRecursive = _toUnmodifiableListView(json['io_merged_recursive']);
+    _ioTimeRecursive = _toUnmodifiableListView(json['io_time_recursive']);
+    _sectorsRecursive = _toUnmodifiableListView(json['sectors_recursive']);
+
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const [
+        'io_service_bytes_recursive',
+        'io_serviced_recursive',
+        'io_queue_recursive',
+        'io_service_time_recursive',
+        'io_wait_time_recursive',
+        'io_merged_recursive',
+        'io_time_recursive',
+        'sectors_recursive',
+      ]
+    }, json.keys);
   }
 }
 
@@ -1346,7 +1542,7 @@ class TopResponse {
   List<List<String>> _processes;
   List<List<String>> get processes => _processes;
 
-  TopResponse.fromJson(Map json) {
+  TopResponse.fromJson(Map json, Version apiVersion) {
     _titles = _toUnmodifiableListView(json['Titles']);
     _processes = _toUnmodifiableListView(json['Processes']);
   }
@@ -1395,7 +1591,7 @@ class RestartPolicy {
 
   RestartPolicy(this._variant, this._maximumRetryCount);
 
-  RestartPolicy.fromJson(Map json) {
+  RestartPolicy.fromJson(Map json, Version apiVersion) {
     if (json['Name'] != null && json['Name'].isNotEmpty) {
       final value = RestartPolicyVariant.values
           .where((v) => v.toString().endsWith(json['Name']));
@@ -1457,6 +1653,9 @@ class Container {
   DateTime _created;
   DateTime get created => _created;
 
+  UnmodifiableMapView _labels;
+  UnmodifiableMapView get labels => _labels;
+
   String _image;
   String get image => _image;
 
@@ -1471,18 +1670,41 @@ class Container {
 
   Container(this._id);
 
-  Container.fromJson(Map json) {
+  Container.fromJson(Map json, Version apiVersion) {
     _id = json['Id'];
     _command = json['Command'];
     _created = _parseDate(json['Created']);
+    _labels = _parseLabels(json['Labels']);
     _image = json['Image'];
     _names = json['Names'];
     _ports = json['Ports'] == null
         ? null
-        : json['Ports'].map((p) => new PortResponse.fromJson(p)).toList();
+        : json['Ports']
+            .map((p) => new PortResponse.fromJson(p, apiVersion))
+            .toList();
     _status = json['Status'];
 
-    assert(json.keys.length <= 7); // ensure all keys were read
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const [
+        'Id',
+        'Command',
+        'Created',
+        'Image',
+        'Names',
+        'Ports',
+        'Status'
+      ],
+      ApiVersion.v1_18: [
+        'Id',
+        'Command',
+        'Created',
+        'Labels',
+        'Image',
+        'Names',
+        'Ports',
+        'Status'
+      ]
+    }, json.keys);
   }
 
   Map toJson() {
@@ -1528,6 +1750,9 @@ class ImageInfo {
   String _id;
   String get id => _id;
 
+  UnmodifiableMapView<String, String> _labels;
+  UnmodifiableMapView<String, String> get labels => _labels;
+
   String _os;
   String get os => _os;
 
@@ -1540,30 +1765,73 @@ class ImageInfo {
   int _virtualSize;
   int get virtualSize => _virtualSize;
 
+  UnmodifiableListView<String> _repoDigests;
+  UnmodifiableListView<String> get repoDigests => _repoDigests;
+
   UnmodifiableListView<String> _repoTags;
   UnmodifiableListView<String> get repoTags => _repoTags;
 
-  ImageInfo.fromJson(Map json) {
+  ImageInfo.fromJson(Map json, Version apiVersion) {
     if (json == null) {
       return;
     }
     _architecture = json['Architecture'];
     _author = json['Author'];
     _comment = json['Comment'];
-    _config = new Config.fromJson(json['Config']);
+    _config = new Config.fromJson(json['Config'], apiVersion);
     _container = json['Container'];
-    _containerConfig = new Config.fromJson(json['ContainerConfig']);
+    _containerConfig = new Config.fromJson(json['ContainerConfig'], apiVersion);
     _created = _parseDate(json['Created']);
     _dockerVersion = json['DockerVersion'];
     _id = json['Id'];
+    _labels = _parseLabels(json['Labels']);
     _os = json['Os'];
     // depending on the request `Parent` or `ParentId` is set.
     _parent = json['Parent'];
     _parent = json['ParentId'] != null ? json['ParentId'] : null;
     _size = json['Size'];
     _virtualSize = json['VirtualSize'];
+    _repoDigests = _toUnmodifiableListView(json['RepoDigests']);
     _repoTags = _toUnmodifiableListView(json['RepoTags']);
-    assert(json.keys.length <= 14); // ensure all keys were read
+
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const [
+        'Architecture',
+        'Author',
+        'Comment',
+        'Config',
+        'Container',
+        'ContainerConfig',
+        'Created',
+        'DockerVersion',
+        'Id',
+        'Os',
+        'Parent',
+        'ParentId',
+        'Size',
+        'VirtualSize',
+        'RepoTags'
+      ],
+      ApiVersion.v1_18: const [
+        'Architecture',
+        'Author',
+        'Comment',
+        'Config',
+        'Container',
+        'ContainerConfig',
+        'Created',
+        'DockerVersion',
+        'Id',
+        'Labels',
+        'Os',
+        'Parent',
+        'ParentId',
+        'Size',
+        'VirtualSize',
+        'RepoDigests',
+        'RepoTags',
+      ]
+    }, json.keys);
   }
 }
 
@@ -1586,6 +1854,9 @@ class ContainerInfo {
   String _execDriver;
   String get execDriver => _execDriver;
 
+  String _execIds;
+  String get execIds => _execIds;
+
   HostConfig _hostConfig;
   HostConfig get hostConfig => _hostConfig;
 
@@ -1600,6 +1871,9 @@ class ContainerInfo {
 
   String _image;
   String get image => _image;
+
+  String _logPath;
+  String get logPath => _logPath;
 
   String _mountLabel;
   String get mountLabel => _mountLabel;
@@ -1616,8 +1890,11 @@ class ContainerInfo {
   String _processLabel;
   String get processLabel => _processLabel;
 
-  String _resolvConfPath;
-  String get resolvConfPath => _resolvConfPath;
+  String _resolveConfPath;
+  String get resolveConfPath => _resolveConfPath;
+
+  int _restartCount;
+  int get restartCount => _restartCount;
 
   State _state;
   State get state => _state;
@@ -1628,28 +1905,80 @@ class ContainerInfo {
   VolumesRw _volumesRw;
   VolumesRw get volumesRw => _volumesRw;
 
-  ContainerInfo.fromJson(Map json) {
+  ContainerInfo.fromJson(Map json, Version apiVersion) {
     _appArmorProfile = json['AppArmorProfile'];
     _args = _toUnmodifiableListView(json['Args']);
-    _config = new Config.fromJson(json['Config']);
+    _config = new Config.fromJson(json['Config'], apiVersion);
     _created = _parseDate(json['Created']);
     _driver = json['Driver'];
     _execDriver = json['ExecDriver'];
-    _hostConfig = new HostConfig.fromJson(json['HostConfig']);
+    _execIds = json['ExecIDs'];
+    _hostConfig = new HostConfig.fromJson(json['HostConfig'], apiVersion);
     _hostnamePath = json['HostnamePath'];
     _hostsPath = json['HostsPath'];
     _id = json['Id'];
     _image = json['Image'];
+    _logPath = json['LogPath'];
     _mountLabel = json['MountLabel'];
     _name = json['Name'];
-    _networkSettings = new NetworkSettings.fromJson(json['NetworkSettings']);
+    _networkSettings =
+        new NetworkSettings.fromJson(json['NetworkSettings'], apiVersion);
     _path = json['Path'];
     _processLabel = json['ProcessLabel'];
-    _resolvConfPath = json['ResolvConfPath'];
-    _state = new State.fromJson(json['State']);
-    _volumes = new Volumes.fromJson(json['Volumes']);
-    _volumesRw = new VolumesRw.fromJson(json['VolumesRW']);
-    assert(json.keys.length <= 20); // ensure all keys are read
+    _resolveConfPath = json['ResolvConfPath'];
+    _restartCount = json['RestartCount'];
+    _state = new State.fromJson(json['State'], apiVersion);
+    _volumes = new Volumes.fromJson(json['Volumes'], apiVersion);
+    _volumesRw = new VolumesRw.fromJson(json['VolumesRW'], apiVersion);
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const [
+        'AppArmorProfile',
+        'Args',
+        'Config',
+        'Created',
+        'Driver',
+        'ExecDriver',
+        'HostConfig',
+        'HostnamePath',
+        'HostsPath',
+        'Id',
+        'Image',
+        'MountLabel',
+        'Name',
+        'NetworkSettings',
+        'Path',
+        'ProcessLabel',
+        'ResolvConfPath',
+        'State',
+        'Volumes',
+        'VolumesRW'
+      ],
+      ApiVersion.v1_18: const [
+        'AppArmorProfile',
+        'Args',
+        'Config',
+        'Created',
+        'Driver',
+        'ExecDriver',
+        'ExecIDs',
+        'HostConfig',
+        'HostnamePath',
+        'HostsPath',
+        'Id',
+        'Image',
+        'LogPath',
+        'MountLabel',
+        'Name',
+        'NetworkSettings',
+        'Path',
+        'ProcessLabel',
+        'ResolvConfPath',
+        'RestartCount',
+        'State',
+        'Volumes',
+        'VolumesRW'
+      ]
+    }, json.keys);
   }
 
   Map toJson() {
@@ -1670,7 +1999,7 @@ class ContainerInfo {
     json['NetworkSettings'] = networkSettings.toJson();
     json['Path'] = path;
     json['ProcessLabel'] = processLabel;
-    json['ResolvConfPath'] = resolvConfPath;
+    json['ResolvConfPath'] = resolveConfPath;
     json['State'] = state.toJson();
     json['Volumes'] = volumes.toJson();
     json['VolumesRW'] = volumesRw.toJson();
@@ -1688,8 +2017,17 @@ class HostConfig {
   UnmodifiableListView<String> _capDrop;
   UnmodifiableListView<String> get capDrop => _capDrop;
 
+  String _cGroupParent;
+  String get cGroupParent => _cGroupParent;
+
   String _containerIdFile;
   String get containerIdFile => _containerIdFile;
+
+  int _cpuShares;
+  int get cpuShares => _cpuShares;
+
+  String _cpusetCpus;
+  String get cpusetCpus => _cpusetCpus;
 
   UnmodifiableListView<String> _devices;
   UnmodifiableListView<String> get devices => _devices;
@@ -1703,14 +2041,29 @@ class HostConfig {
   UnmodifiableListView<String> _extraHosts;
   UnmodifiableListView<String> get extraHosts => _extraHosts;
 
+  String _ipcMode;
+  String get ipcMode => _ipcMode;
+
   UnmodifiableListView<String> _links;
   UnmodifiableListView<String> get links => _links;
+
+  UnmodifiableMapView<String, Config> _logConfig;
+  UnmodifiableMapView<String, Config> get logConfig => _logConfig;
 
   UnmodifiableListView<String> _lxcConf;
   UnmodifiableListView<String> get lxcConf => _lxcConf;
 
+  int _memory;
+  int get memory => _memory;
+
+  int _memorySwap;
+  int get memorySwap => _memorySwap;
+
   String _networkMode;
   String get networkMode => _networkMode;
+
+  String _pidMode;
+  String get pidMode => _pidMode;
 
   UnmodifiableMapView _portBindings;
   UnmodifiableMapView get portBindings => _portBindings;
@@ -1721,37 +2074,103 @@ class HostConfig {
   bool _publishAllPorts;
   bool get publishAllPorts => _publishAllPorts;
 
+  bool _readonlyRootFs;
+  bool get readonlyRootFs => _readonlyRootFs;
+
   RestartPolicy _restartPolicy;
   RestartPolicy get restartPolicy => _restartPolicy;
 
   String _securityOpt;
   String get securityOpt => _securityOpt;
 
+  int _ulimits;
+  int get ulimits => _ulimits;
+
   UnmodifiableListView _volumesFrom;
   UnmodifiableListView get volumesFrom => _volumesFrom;
 
-  HostConfig.fromJson(Map json) {
+  HostConfig.fromJson(Map json, Version apiVersion) {
     if (json == null) {
       return;
     }
     _binds = _toUnmodifiableListView(json['Binds']);
     _capAdd = _toUnmodifiableListView(json['CapAdd']);
     _capDrop = _toUnmodifiableListView(json['CapDrop']);
+    _cGroupParent = json['CgroupParent'];
     _containerIdFile = json['ContainerIDFile'];
+    _cpuShares = json['CpuShares'];
+    _cpusetCpus = json['CpusetCpus'];
     _devices = _toUnmodifiableListView(json['Devices']);
     _dns = _toUnmodifiableListView(json['Dns']);
     _dnsSearch = _toUnmodifiableListView(json['DnsSearch']);
     _extraHosts = _toUnmodifiableListView(json['ExtraHosts']);
+    _ipcMode = json['IpcMode'];
     _links = _toUnmodifiableListView(json['Links']);
+    _logConfig = _toUnmodifiableMapView(json['LogConfig']);
     _lxcConf = _toUnmodifiableListView(json['LxcConf']);
+    _memory = json['Memory'];
+    _memorySwap = json['MemorySwap'];
     _networkMode = json['NetworkMode'];
+    _pidMode = json['PidMode'];
     _portBindings = _toUnmodifiableMapView(json['PortBindings']);
     _privileged = json['Privileged'];
     _publishAllPorts = json['PublishAllPorts'];
-    _restartPolicy = new RestartPolicy.fromJson(json['RestartPolicy']);
+    _readonlyRootFs = json['ReadonlyRootfs'];
+    _restartPolicy =
+        new RestartPolicy.fromJson(json['RestartPolicy'], apiVersion);
     _securityOpt = json['SecurityOpt'];
+    _ulimits = json['Ulimits'];
     _volumesFrom = _toUnmodifiableListView(json['VolumesFrom']);
-    assert(json.keys.length <= 17); // ensure all keys were read
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const [
+        'Binds',
+        'CapAdd',
+        'CapDrop',
+        'ContainerIDFile',
+        'Devices',
+        'Dns',
+        'DnsSearch',
+        'ExtraHosts',
+        'Links',
+        'LxcConf',
+        'NetworkMode',
+        'PortBindings',
+        'Privileged',
+        'PublishAllPorts',
+        'RestartPolicy',
+        'SecurityOpt',
+        'VolumesFrom'
+      ],
+      ApiVersion.v1_18: const [
+        'Binds',
+        'CapAdd',
+        'CapDrop',
+        'CgroupParent',
+        'ContainerIDFile',
+        'CpuShares',
+        'CpusetCpus',
+        'Devices',
+        'Dns',
+        'DnsSearch',
+        'ExtraHosts',
+        'IpcMode',
+        'Links',
+        'LogConfig',
+        'LxcConf',
+        'Memory',
+        'MemorySwap',
+        'NetworkMode',
+        'PidMode',
+        'PortBindings',
+        'Privileged',
+        'PublishAllPorts',
+        'ReadonlyRootfs',
+        'RestartPolicy',
+        'SecurityOpt',
+        'Ulimits',
+        'VolumesFrom'
+      ]
+    }, json.keys);
   }
 
   Map toJson() {
@@ -1784,11 +2203,26 @@ class NetworkSettings {
   String _gateway;
   String get gateway => _gateway;
 
+  String _globalIPv6Address;
+  String get globalIPv6Address => _globalIPv6Address;
+
+  int _globalIPv6PrefixLen;
+  int get globalIPv6PrefixLen => _globalIPv6PrefixLen;
+
   String _ipAddress;
   String get ipAddress => _ipAddress;
 
   int _ipPrefixLen;
   int get ipPrefixLen => _ipPrefixLen;
+
+  String _ipv6Gateway;
+  String get ipv6Gateway => _ipv6Gateway;
+
+  String _linkLocalIPv6Address;
+  String get linkLocalIPv6Address => _linkLocalIPv6Address;
+
+  int _linkLocalIPv6PrefixLen;
+  int get linkLocalIPv6PrefixLen => _linkLocalIPv6PrefixLen;
 
   String _macAddress;
   String get macAddress => _macAddress;
@@ -1799,18 +2233,47 @@ class NetworkSettings {
   UnmodifiableMapView _ports;
   UnmodifiableMapView get ports => _ports;
 
-  NetworkSettings.fromJson(Map json) {
+  NetworkSettings.fromJson(Map json, Version apiVersion) {
     if (json == null) {
       return;
     }
     _bridge = json['Bridge'];
     _gateway = json['Gateway'];
+    _globalIPv6Address = json['GlobalIPv6Address'];
+    _globalIPv6PrefixLen = json['GlobalIPv6PrefixLen'];
     _ipAddress = json['IPAddress'];
     _ipPrefixLen = json['IPPrefixLen'];
+    _ipv6Gateway = json['IPv6Gateway'];
+    _linkLocalIPv6Address = json['LinkLocalIPv6Address'];
+    _linkLocalIPv6PrefixLen = json['LinkLocalIPv6PrefixLen'];
     _macAddress = json['MacAddress'];
     _portMapping = _toUnmodifiableMapView(json['PortMapping']);
     _ports = _toUnmodifiableMapView(json['Ports']);
-    assert(json.keys.length <= 7); // ensure all keys were read
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const [
+        'Bridge',
+        'Gateway',
+        'IPAddress',
+        'IPPrefixLen',
+        'MacAddress',
+        'PortMapping',
+        'Ports'
+      ],
+      ApiVersion.v1_18: const [
+        'Bridge',
+        'Gateway',
+        'GlobalIPv6Address',
+        'GlobalIPv6PrefixLen',
+        'IPAddress',
+        'IPPrefixLen',
+        'IPv6Gateway',
+        'LinkLocalIPv6Address',
+        'LinkLocalIPv6PrefixLen',
+        'MacAddress',
+        'PortMapping',
+        'Ports'
+      ]
+    }, json.keys);
   }
 
   Map toJson() {
@@ -1827,11 +2290,20 @@ class NetworkSettings {
 }
 
 class State {
+  bool _dead;
+  bool get dead => _dead;
+
+  String _error;
+  String get error => _error;
+
   int _exitCode;
   int get exitCode => _exitCode;
 
   DateTime _finishedAt;
   DateTime get finishedAt => _finishedAt;
+
+  bool _outOfMemoryKilled;
+  bool get outOfMemoryKilled => _outOfMemoryKilled;
 
   bool _paused;
   bool get paused => _paused;
@@ -1848,18 +2320,44 @@ class State {
   DateTime _startedAt;
   DateTime get startedAt => _startedAt;
 
-  State.fromJson(Map json) {
+  State.fromJson(Map json, Version apiVersion) {
     if (json == null) {
       return;
     }
+
+    _dead = json['Dead'];
+    _error = json['Error'];
     _exitCode = json['ExitCode'];
     _finishedAt = _parseDate(json['FinishedAt']);
+    _outOfMemoryKilled = json['OOMKilled'];
     _paused = json['Paused'];
     _pid = json['Pid'];
     _restarting = json['Restarting'];
     _running = json['Running'];
     _startedAt = _parseDate(json['StartedAt']);
-    assert(json.keys.length <= 7); // ensure all keys were read
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const [
+        'ExitCode',
+        'FinishedAt',
+        'Paused',
+        'Pid',
+        'Restarting',
+        'Running',
+        'StartedAt',
+      ],
+      ApiVersion.v1_15: const [
+        'Dead',
+        'Error',
+        'ExitCode',
+        'FinishedAt',
+        'OOMKilled',
+        'Paused',
+        'Pid',
+        'Restarting',
+        'Running',
+        'StartedAt',
+      ]
+    }, json.keys);
   }
 
   Map toJson() {
@@ -1883,7 +2381,7 @@ class Volumes {
 
   Volumes();
 
-  Volumes.fromJson(Map json) {
+  Volumes.fromJson(Map json, Version apiVersion) {
     if (json == null) {
       return;
     }
@@ -1907,11 +2405,11 @@ class Volumes {
 }
 
 class VolumesRw {
-  VolumesRw.fromJson(Map json) {
+  VolumesRw.fromJson(Map json, Version apiVersion) {
     if (json == null) {
       return;
     }
-    assert(json.keys.length <= 0); // ensure all keys were read
+    _checkSurplusItems(apiVersion, {ApiVersion.v1_15: const []}, json.keys);
   }
 
   Map toJson() {
@@ -1959,6 +2457,12 @@ class Config {
   String _image;
   String get image => _image;
 
+  UnmodifiableMapView _labels;
+  UnmodifiableMapView get labels => _labels;
+
+  String _macAddress;
+  String get macAddress => _macAddress;
+
   String get imageName => _image.split(':')[0];
   String get imageVersion => _image.split(':')[1];
 
@@ -1995,7 +2499,7 @@ class Config {
   String _workingDir;
   String get workingDir => _workingDir;
 
-  Config.fromJson(Map json) {
+  Config.fromJson(Map json, Version apiVersion) {
     if (json == null) {
       return;
     }
@@ -2016,6 +2520,8 @@ class Config {
     _exposedPorts = _toUnmodifiableMapView(json['ExposedPorts']);
     _hostName = json['Hostname'];
     _image = json['Image'];
+    _labels = _parseLabels(json['Labels']);
+    _macAddress = json['MacAddress'];
     _memory = json['Memory'];
     _memorySwap = json['MemorySwap'];
     _networkDisabled = json['NetworkDisabled'];
@@ -2025,9 +2531,63 @@ class Config {
     _stdinOnce = json['StdinOnce'];
     _tty = json['Tty'];
     _user = json['User'];
-    _volumes = new Volumes.fromJson(json['Volumes']);
+    _volumes = new Volumes.fromJson(json['Volumes'], apiVersion);
     _workingDir = json['WorkingDir'];
-    assert(json.keys.length <= 23); // ensure all keys were read
+
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const [
+        'AttachStderr',
+        'AttachStdin',
+        'AttachStdout',
+        'Cmd',
+        'CpuShares',
+        'Cpuset',
+        'Domainname',
+        'Entrypoint',
+        'Env',
+        'ExposedPorts',
+        'Hostname',
+        'Image',
+        'Memory',
+        'MemorySwap',
+        'NetworkDisabled',
+        'OnBuild',
+        'OpenStdin',
+        'PortSpecs',
+        'StdinOnce',
+        'Tty',
+        'User',
+        'Volumes',
+        'WorkingDir',
+      ],
+      ApiVersion.v1_18: const [
+        'AttachStderr',
+        'AttachStdin',
+        'AttachStdout',
+        'Cmd',
+        'CpuShares',
+        'Cpuset',
+        'Domainname',
+        'Entrypoint',
+        'Env',
+        'ExposedPorts',
+        'Hostname',
+        'Image',
+        'Labels',
+        'MacAddress',
+        'Memory',
+        'MemorySwap',
+        'NetworkDisabled',
+        'OnBuild',
+        'OpenStdin',
+        'PortSpecs',
+        'StdinOnce',
+        'Tty',
+        'User',
+        'Volumes',
+        'WorkingDir',
+      ]
+    }, json.keys);
   }
 
   Map toJson() {
@@ -2072,7 +2632,7 @@ class PortResponse {
   String _type;
   String get type => _type;
 
-  PortResponse.fromJson(Map json) {
+  PortResponse.fromJson(Map json, Version apiVersion) {
     if (json == null) {
       return;
     }
@@ -2080,7 +2640,9 @@ class PortResponse {
     _privatePort = json['PrivatePort'];
     _publicPort = json['PublicPort'];
     _type = json['Type'];
-    assert(json.keys.length <= 4); // ensure all keys were read
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const ['IP', 'PrivatePort', 'PublicPort', 'Type',]
+    }, json.keys);
   }
 }
 
@@ -2089,15 +2651,16 @@ class AuthResponse {
   String _status;
   String get status => _status;
 
-  AuthResponse.fromJson(Map json) {
+  AuthResponse.fromJson(Map json, Version apiVersion) {
     _status = json['Status'];
-    assert(json.keys.length <= 1); // ensure all keys were read
+    _checkSurplusItems(
+        apiVersion, {ApiVersion.v1_15: const ['Status']}, json.keys);
   }
 }
 
 /// A response which isn't supposed to carry any information.
 class SimpleResponse {
-  SimpleResponse.fromJson(Map json) {
+  SimpleResponse.fromJson(Map json, Version apiVersion) {
     if (json != null && json.keys.length > 0) {
       throw json;
     }
@@ -2109,14 +2672,15 @@ class CreateResponse {
   Container _container;
   Container get container => _container;
 
-  CreateResponse.fromJson(Map json) {
+  CreateResponse.fromJson(Map json, Version apiVersion) {
     if (json['Id'] != null && (json['Id'] as String).isNotEmpty) {
       _container = new Container(json['Id']);
     }
     if (json['Warnings'] != null) {
       throw json['Warnings'];
     }
-    assert(json.keys.length <= 2);
+    _checkSurplusItems(
+        apiVersion, {ApiVersion.v1_15: const ['Id', 'Warnings']}, json.keys);
   }
 }
 
