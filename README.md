@@ -1,6 +1,6 @@
 # Dart client for the Docker remote API
 
-See https://docs.docker.com/reference/api/docker_remote_api_v1.18/#image-tarball-format 
+See [Docker Remote API v1.18](https://docs.docker.com/reference/api/docker_remote_api_v1.18/#image-tarball-format) 
 for more details.
 
 This package provides a typed interface to the Docker REST API and deserializes
@@ -14,58 +14,58 @@ The intention is to make it easy to automate Docker tasks like for example in
 See example below or the unit tests.
 
 Ensure you have Docker listening on a TCP port (for more details see 
-[Bind Docker to another host/port or a Unix socket](https://docs.docker.com/articles/basics/#bind-docker-to-another-hostport-or-a-unix-socket))
+[Bind Docker to another host/port or a Unix socket](https://docs.docker.com/articles/basics/#bind-docker-to-another-hostport-or-a-unix-socket)),
 becaues Dart currently can't communicate using Unix sockets (see 
-[Dart Issue 21403 - Support Unix Sockets in dart:io](http://dartbug.com/21403).
+[Dart Issue 21403 - Support Unix Sockets in dart:io](http://dartbug.com/21403) for details).
 
 
 ## Supported commands
 
 ### Containers
-- containers (List containers)
-- create (Create a container)
-- container (Inspect a container)
-- top (List processes running inside a container) 
-- logs (missing test) (Get container logs)
-- export (Export a container)
-- stats (Get container stats based on resource usage)
-- resize (missing test) (Resize a container TTY)
-- start (Start a container)
-- stop (Stop a container)
-- restart (Restart a container)
-- kill (Kill a container)
-- rename (Rename a container)
-- pause (Pause a container)
-- unpause (Unpause a container)
-- attach (missing test) (Attach to a container)
-- wait (Wait a container)
-- remove (Remove a container)
+- **containers** (List containers)
+- **create** (Create a container)
+- **container** (Inspect a container)
+- **top** (List processes running inside a container) 
+- **logs** (missing test) (Get container logs)
+- **export** (Export a container)
+- **stats** (Get container stats based on resource usage)
+- **resize** (missing test) (Resize a container TTY)
+- **start** (Start a container)
+- **stop** (Stop a container)
+- **restart** (Restart a container)
+- **kill** (Kill a container)
+- **rename** (Rename a container)
+- **pause** (Pause a container)
+- **unpause** (Unpause a container)
+- **attach** (missing test) (Attach to a container)
+- **wait** (Wait a container)
+- **remove** (Remove a container)
 
 ### Images
-- images (List images)
-- build (Build image from a Dockerfile)
-- create (missing test) (Create an image)
-- image (Inspect an image)
-- history (Get the history of an image)
-- push (missing test) (Push an image into a repository)
-- tag (Tag an image into a repository)
-- remove (Remove an image)
-- search (Search images)
+- **images** (List images)
+- **build** (Build image from a Dockerfile)
+- **create** (missing test) (Create an image)
+- **image** (Inspect an image)
+- **history** (Get the history of an image)
+- **push** (missing test) (Push an image into a repository)
+- **tag** (Tag an image into a repository)
+- **remove** (Remove an image)
+- **search** (Search images)
 
 ### Misc
-- auth (Check auth configuration)
-- info (Display system-wide information)
-- version (Show the Docker version information)
-- ping (Ping the docker server)
-- commit (Create a new image from a containers changes)
-- events (Monitor Dockers events)
-- get (Get a tarball containing all images in a repository)
-- get all (missing test) (Get a tarball containing all images)
-- load (missing test) (Load a tarball with a set of images and tags into Docker)
-- exec create (Set up an exec instance)
-- exec start (missing test) (Start an exec instance)
-- exec resize (missing test) (Resize the tty session) 
-- exec inspect (Inspect an exec command) 
+- **auth** (Check auth configuration)
+- **info** (Display system-wide information)
+- **version** (Show the Docker version information)
+- **ping** (Ping the docker server)
+- **commit** (Create a new image from a containers changes)
+- **events** (Monitor Dockers events)
+- **get** (Get a tarball containing all images in a repository)
+- **get** all (missing test) (Get a tarball containing all images)
+- **load** (missing test) (Load a tarball with a set of images and tags into Docker)
+- **exec** create (Set up an exec instance)
+- **exec** start (missing test) (Start an exec instance)
+- **exec** resize (missing test) (Resize the tty session) 
+- **exec** inspect (Inspect an exec command) 
 
 ## Feedback
 
@@ -74,17 +74,17 @@ missing a feature just create a bug report in the
 [GitHub repo](https://github.com/bwu-dart/bwu_docker/issues).
 
 ## TODO
-- container attach (missing test) 
-- container attachWs (Attach to a container using websocket)
-- container logs (missing test)
-- container changes (Inspect changes on a containers filesystem)
-- container resize (missing test)
-- container copy (missing test)
-- image build (missing test)
-- misc load (missing test)
-- image push (missing test)
-- exec start (missing test) 
-- exec resize (missing test)
+- **container** attach (missing test) 
+- **container** attachWs (Attach to a container using websocket)
+- **container** logs (missing test)
+- **container** changes (Inspect changes on a containers filesystem)
+- **container** resize (missing test)
+- **container** copy (missing test)
+- **image** build (missing test)
+- **misc** load (missing test)
+- **image** push (missing test)
+- **exec** start (missing test) 
+- **exec** resize (missing test)
 
 
 ## Example
@@ -130,4 +130,4 @@ main() async {
 }
 ```
 
-for more examples check out the [unit tests](https://github.com/bwu-dart/bwu_docker/blob/master/test/remote_api_test.dart).
+For more examples check out the [unit tests](https://github.com/bwu-dart/bwu_docker/blob/master/test/remote_api_test.dart).
