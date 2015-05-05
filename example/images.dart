@@ -1,7 +1,6 @@
 library bwu_docker.example.images;
 
-import 'package:bwu_docker/src/remote_api.dart';
-import 'package:bwu_docker/src/data_structures.dart';
+import 'package:bwu_docker/bwu_docker.dart';
 
 const dockerPort = 2375;
 

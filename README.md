@@ -11,7 +11,8 @@ The intention is to make it easy to automate Docker tasks like for example in
 
 ## Usage
 
-See example below or the unit tests.
+See example below or the 
+[unit tests](https://github.com/bwu-dart/bwu_docker/blob/master/test/remote_api_test.dart).
 
 Ensure you have Docker listening on a TCP port (for more details see 
 [Bind Docker to another host/port or a Unix socket](https://docs.docker.com/articles/basics/#bind-docker-to-another-hostport-or-a-unix-socket)),
@@ -92,8 +93,7 @@ missing a feature just create a bug report in the
 ```dart
 library bwu_docker.example.images;
 
-import 'package:bwu_docker/src/remote_api.dart';
-import 'package:bwu_docker/src/data_structures.dart';
+import 'package:bwu_docker/bwu_docker.dart';
 
 const dockerPort = 2375;
 
