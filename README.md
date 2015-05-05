@@ -6,15 +6,17 @@ for more details.
 This package provides a typed interface to the Docker REST API and deserializes
 JSON response to Dart classes.
 
-This package is intended to make it easy to automate Docker tasks like for 
-example in [Grinder](https://pub.dartlang.org/packages/grinder) tasks.
+The intention is to make it easy to automate Docker tasks like for example in 
+[Grinder](https://pub.dartlang.org/packages/grinder) tasks.
 
 ## Usage
 
 See example below or the unit tests.
 
 Ensure you have Docker listening on a TCP port (for more details see 
-[Bind Docker to another host/port or a Unix socket](https://docs.docker.com/articles/basics/#bind-docker-to-another-hostport-or-a-unix-socket)
+[Bind Docker to another host/port or a Unix socket](https://docs.docker.com/articles/basics/#bind-docker-to-another-hostport-or-a-unix-socket))
+becaues Dart currently can't communicate using Unix sockets (see 
+[Dart Issue 21403 - Support Unix Sockets in dart:io](http://dartbug.com/21403).
 
 
 ## Supported commands
@@ -128,4 +130,4 @@ main() async {
 }
 ```
 
-for more examples check out the unit tests.
+for more examples check out the [unit tests](https://github.com/bwu-dart/bwu_docker/blob/master/test/remote_api_test.dart).
