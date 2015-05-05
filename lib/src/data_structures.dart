@@ -1,7 +1,7 @@
 library bwu_docker.src.data_structures;
 
 import 'dart:collection';
-import 'package:quiver/core.dart';
+//import 'package:quiver/core.dart';
 
 final containerNameRegex = new RegExp(r'^/?[a-zA-Z0-9_-]+$');
 
@@ -188,9 +188,28 @@ class ExecInfo {
   ContainerInfo get container => _container;
 
   ExecInfo.fromJson(Map json, Version apiVersion) {
-    _id = json['Id'];
+    _id = json['ID'];
     _running = json['Running'];
-    _checkSurplusItems(apiVersion, {ApiVersion.v1_15: const ['Id']}, json.keys);
+    _exitCode = json['ExitCode'];
+    _processConfig =
+        new ProcessConfig.fromJson(json['ProcessConfig'], apiVersion);
+    _openStdin = json['OpenStdin'];
+    _openStderr = json['OpenStderr'];
+    _openStdout = json['OpenStdout'];
+    _container = new ContainerInfo.fromJson(json['Container'], apiVersion);
+
+    _checkSurplusItems(apiVersion, {
+      ApiVersion.v1_15: const [
+        'ID',
+        'Running',
+        'ProcessConfig',
+        'ExitCode',
+        'OpenStdin',
+        'OpenStderr',
+        'OpenStdout',
+        'Container',
+      ]
+    }, json.keys);
   }
 }
 
@@ -215,11 +234,12 @@ class ProcessConfig {
     _user = json['user'];
     _tty = json['tty'];
     _entrypoint = json['entrypoint'];
-    _arguments = json['arguments'];
+    _arguments = _toUnmodifiableListView(json['arguments']);
     _checkSurplusItems(apiVersion, {
       ApiVersion.v1_15: const [
         'privileged',
-        'user' 'tty',
+        'user',
+        'tty',
         'entrypoint',
         'arguments'
       ]
@@ -280,6 +300,7 @@ class ContainerEvent extends DockerEventBase {
 
   final int value;
   final String _asString;
+
   const ContainerEvent._(this.value, this._asString) : super();
 
   @override
@@ -295,7 +316,11 @@ class ImageEvent extends DockerEventBase {
 
   final int value;
   final String _asString;
+
   const ImageEvent._(this.value, this._asString) : super();
+
+  @override
+  String toString() => _asString;
 }
 
 /// All Docker events in one enum
@@ -356,8 +381,12 @@ class EventsResponse {
 
   EventsResponse.fromJson(Map json, Version apiVersion) {
     if (json['status'] != null) {
-      _status =
-          DockerEvent.values.firstWhere((e) => e.toString() == json['status']);
+      try {
+        _status = DockerEvent.values
+            .firstWhere((e) => e.toString() == json['status']);
+      } catch (e) {
+        print('${e}');
+      }
     }
     _id = json['id'];
     _from = json['from'];
@@ -565,7 +594,6 @@ class Version implements Comparable {
     return 1;
   }
 
-  @override
   static int compare(Comparable a, Comparable b) => a.compareTo(b);
 }
 
@@ -809,7 +837,9 @@ class RegistryConfigs {
     }
 
     _indexConfigs = _toUnmodifiableMapView(json['IndexConfigs']);
-    _indexConfigs = _toUnmodifiableListView(json['InsecureRegistryCIDRs']);
+    _insecureRegistryCidrs =
+        _toUnmodifiableListView(json['InsecureRegistryCIDRs']);
+
     _checkSurplusItems(apiVersion, {
       ApiVersion.v1_18: const ['IndexConfigs', 'InsecureRegistryCIDRs']
     }, json.keys);
@@ -1437,7 +1467,8 @@ class StatsResponse {
 
 class BlkIoStats {
   UnmodifiableListView<int> _ioServiceBytesRecursive;
-  UnmodifiableListView<int> get ioServiceBytesRecursive => _ioServiceBytesRecursive;
+  UnmodifiableListView<int> get ioServiceBytesRecursive =>
+      _ioServiceBytesRecursive;
 
   UnmodifiableListView<int> _ioServicedRecursive;
   UnmodifiableListView<int> get ioServicedRecursive => _ioServicedRecursive;
@@ -1446,7 +1477,8 @@ class BlkIoStats {
   UnmodifiableListView<int> get ioQueueRecursive => _ioQueueRecursive;
 
   UnmodifiableListView<int> _ioServiceTimeRecursive;
-  UnmodifiableListView<int> get ioServiceTimeRecursive => _ioServiceTimeRecursive;
+  UnmodifiableListView<int> get ioServiceTimeRecursive =>
+      _ioServiceTimeRecursive;
 
   UnmodifiableListView<int> _ioWaitTimeRecursive;
   UnmodifiableListView<int> get ioWaitTimeRecursive => _ioWaitTimeRecursive;
@@ -1460,16 +1492,19 @@ class BlkIoStats {
   UnmodifiableListView<int> _sectorsRecursive;
   UnmodifiableListView<int> get sectorsRecursive => _sectorsRecursive;
 
-
   BlkIoStats.fromJson(Map json, Version apiVersion) {
-    if(json == null) {
+    if (json == null) {
       return;
     }
-    _ioServiceBytesRecursive = _toUnmodifiableListView(json['io_service_bytes_recursive']);
-    _ioServicedRecursive = _toUnmodifiableListView(json['io_serviced_recursive']);
+    _ioServiceBytesRecursive =
+        _toUnmodifiableListView(json['io_service_bytes_recursive']);
+    _ioServicedRecursive =
+        _toUnmodifiableListView(json['io_serviced_recursive']);
     _ioQueueRecursive = _toUnmodifiableListView(json['io_queue_recursive']);
-    _ioServiceTimeRecursive = _toUnmodifiableListView(json['io_service_time_recursive']);
-    _ioWaitTimeRecursive = _toUnmodifiableListView(json['io_wait_time_recursive']);
+    _ioServiceTimeRecursive =
+        _toUnmodifiableListView(json['io_service_time_recursive']);
+    _ioWaitTimeRecursive =
+        _toUnmodifiableListView(json['io_wait_time_recursive']);
     _ioMergedRecursive = _toUnmodifiableListView(json['io_merged_recursive']);
     _ioTimeRecursive = _toUnmodifiableListView(json['io_time_recursive']);
     _sectorsRecursive = _toUnmodifiableListView(json['sectors_recursive']);
@@ -1524,7 +1559,8 @@ class _ChangesPath {
   }
 
   @override
-  int get hashCode => hash2(path, kind);
+  // TODO(zoechi) use quiver once it supports the test package // hash2(path, kind);
+  int get hashCode => '${path}-${kind}'.hashCode;
 
   @override
   bool operator ==(other) {
@@ -1839,6 +1875,9 @@ class ContainerInfo {
   String _appArmorProfile;
   String get appArmorProfile => _appArmorProfile;
 
+  String _appliedVolumesFrom; // ExecInfo
+  String get appliedVolumesFrom => _appliedVolumesFrom;
+
   UnmodifiableListView<String> _args;
   UnmodifiableListView<String> get args => _args;
 
@@ -1905,8 +1944,12 @@ class ContainerInfo {
   VolumesRw _volumesRw;
   VolumesRw get volumesRw => _volumesRw;
 
+  bool _updateDns;
+  bool get updateDns => _updateDns;
+
   ContainerInfo.fromJson(Map json, Version apiVersion) {
     _appArmorProfile = json['AppArmorProfile'];
+    _appliedVolumesFrom = json['AppliedVolumesFrom'];
     _args = _toUnmodifiableListView(json['Args']);
     _config = new Config.fromJson(json['Config'], apiVersion);
     _created = _parseDate(json['Created']);
@@ -1916,7 +1959,11 @@ class ContainerInfo {
     _hostConfig = new HostConfig.fromJson(json['HostConfig'], apiVersion);
     _hostnamePath = json['HostnamePath'];
     _hostsPath = json['HostsPath'];
-    _id = json['Id'];
+    if (json.containsKey('Id')) {
+      _id = json['Id'];
+    } else if (json.containsKey('ID')) {
+      _id = json['ID']; // ExecInfo
+    }
     _image = json['Image'];
     _logPath = json['LogPath'];
     _mountLabel = json['MountLabel'];
@@ -1928,11 +1975,14 @@ class ContainerInfo {
     _resolveConfPath = json['ResolvConfPath'];
     _restartCount = json['RestartCount'];
     _state = new State.fromJson(json['State'], apiVersion);
+    _updateDns = json['UpdateDns'];
     _volumes = new Volumes.fromJson(json['Volumes'], apiVersion);
     _volumesRw = new VolumesRw.fromJson(json['VolumesRW'], apiVersion);
+
     _checkSurplusItems(apiVersion, {
       ApiVersion.v1_15: const [
         'AppArmorProfile',
+        'AppliedVolumesFrom', // ExecInfo
         'Args',
         'Config',
         'Created',
@@ -1942,6 +1992,7 @@ class ContainerInfo {
         'HostnamePath',
         'HostsPath',
         'Id',
+        'ID',
         'Image',
         'MountLabel',
         'Name',
@@ -1955,6 +2006,7 @@ class ContainerInfo {
       ],
       ApiVersion.v1_18: const [
         'AppArmorProfile',
+        'AppliedVolumesFrom', // ExecInfo
         'Args',
         'Config',
         'Created',
@@ -1965,6 +2017,7 @@ class ContainerInfo {
         'HostnamePath',
         'HostsPath',
         'Id',
+        'ID',
         'Image',
         'LogPath',
         'MountLabel',
@@ -1975,6 +2028,7 @@ class ContainerInfo {
         'ResolvConfPath',
         'RestartCount',
         'State',
+        'UpdateDns',
         'Volumes',
         'VolumesRW'
       ]

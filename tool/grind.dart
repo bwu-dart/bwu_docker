@@ -13,7 +13,8 @@ main(List<String> args) => grind(args);
 //void clean() => defaultClean(context);
 
 @Task('Run analyzer')
-analyze() => new PubApp.global('tuneup').run(['check']); // analyzerTask(files: [], directories: sourceDirs);
+analyze() => new PubApp.global('tuneup')
+    .run(['check']); // analyzerTask(files: [], directories: sourceDirs);
 
 @Task('Runn all tests')
 test() => new PubApp.local('test').run([]);

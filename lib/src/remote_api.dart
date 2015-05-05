@@ -2,7 +2,6 @@ library bwu_docker.src.remote_api.dart;
 
 import 'dart:async' show Future, Stream, Completer, StreamController;
 import 'dart:convert' show JSON, UTF8;
-import 'dart:math' as math;
 import 'package:crypto/crypto.dart' show CryptoUtils;
 import 'dart:async' show Future, Stream, ByteStream;
 import 'package:http/http.dart' as http;
@@ -329,8 +328,9 @@ class DockerConnection {
         container != null && container.id != null && container.id.isNotEmpty);
 //    final Map response =
 //        await _request(RequestType.get, '/containers/${container.id}/stats');
-    final stream = await _requestStream(RequestType.get, '/containers/${container.id}/stats');
-    await for(var v in stream) {
+    final stream = await _requestStream(
+        RequestType.get, '/containers/${container.id}/stats');
+    await for (var v in stream) {
       yield new StatsResponse.fromJson(JSON.decode(UTF8.decode(v)), apiVersion);
     }
     //return new StatsResponse.fromJson(response, apiVersion);
@@ -524,7 +524,7 @@ class DockerConnection {
   /// Goto 1
   // TODO(zoechi) return an instance of a class which provides access to the
   // stdout/stderr as separate streams
-  Future<http.ByteStream> attach(Container container,
+  Future<DeMux> attach(Container container,
       {bool logs, bool stream, bool stdin, bool stdout, bool stderr}) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
@@ -535,8 +535,9 @@ class DockerConnection {
     if (stdout != null) query['stdout'] = stdout.toString();
     if (stderr != null) query['stderr'] = stderr.toString();
 
-    return _requestStream(RequestType.get, '/containers/${container.id}/attach',
-        query: query);
+    final streamResponse = await _requestStream(
+        RequestType.post, '/containers/${container.id}/attach', query: query);
+    return new DeMux(streamResponse);
   }
 
   /// Attach to the [container] via websocket
@@ -1086,8 +1087,8 @@ class DockerConnection {
     if (detach != null) body['Detach'] = detach;
     if (tty != null) body['Tty'] = tty;
 
-    final response = await
-        _requestStream(RequestType.post, '/exec/${exec.id}/start', body: body);
+    final response = await _requestStream(
+        RequestType.post, '/exec/${exec.id}/start', body: body);
     return new DeMux(response);
   }
 
@@ -1127,7 +1128,20 @@ class DeMux {
   static const _stdin = 0;
   static const _stdout = 1;
   static const _stderr = 2;
+
   final Stream<List<int>> _stream;
+
+  final StreamController<List<int>> _stdinController =
+      new StreamController<List<int>>();
+  Stream<List<int>> get stdin => _stdinController.stream;
+
+  final StreamController<List<int>> _stdoutController =
+      new StreamController<List<int>>();
+  Stream<List<int>> get stdout => _stdoutController.stream;
+
+  final StreamController<List<int>> _stderrController =
+      new StreamController<List<int>>();
+  Stream<List<int>> get stderr => _stderrController.stream;
 
   DeMux(this._stream) {
     _processData();
@@ -1140,14 +1154,13 @@ class DeMux {
     List<int> buf = <int>[];
     _stream.listen((data) {
       buf.addAll(data);
-      while(byteCountdown != 0 || buf.length >= 8) {
-        if(byteCountdown == 0) {
-
-          if(buf.length >= 8) {
+      while (buf.length > 8) {
+        if (byteCountdown == 0) {
+          if (buf.length >= 8) {
             final header = buf.sublist(0, 8);
             buf.removeRange(0, 8);
 
-            switch(header[0]) {
+            switch (header[0]) {
               case _stdin:
                 current = _stdinController;
                 break;
@@ -1160,32 +1173,39 @@ class DeMux {
               default:
                 throw 'Must not be reached.';
             }
-            byteCountdown = (header[4] << 24) | (header[5] << 16) | (header[6] << 8) | header[7];
+            byteCountdown = (header[4] << 24) |
+                (header[5] << 16) |
+                (header[6] << 8) |
+                header[7];
           }
         }
-        if(byteCountdown > 0) {
-          if(buf.length <= byteCountdown) {
-            print(UTF8.decode(buf));  // TODO(zoechi) remove
+        if (byteCountdown > 0) {
+          //print('${UTF8.decode(buf.sublist(0,10))}...'); // TODO(zoechi) remove
+          if (buf.length <= byteCountdown) {
             current.add(buf);
             byteCountdown -= buf.length;
             buf = <int>[];
           } else {
-            print(UTF8.decode(buf.sublist(0, byteCountdown + 1))); // TODO(zoechi) remove
-            current.add(buf.sublist(0, byteCountdown + 1));
-            buf = buf.sublist(byteCountdown + 1);
+            current.add(buf.sublist(0, byteCountdown));
+            buf = buf.sublist(byteCountdown);
             byteCountdown = 0;
           }
         }
       }
-    });
+    }, onDone: () => _close(), onError: (e, s) => _error(e, s));
   }
 
-  StreamController<List<int>> _stdinController = new StreamController<List<int>>();
-  Stream<List<int>> get stdin => _stdinController.stream;
-  StreamController<List<int>> _stdoutController = new StreamController<List<int>>();
-  Stream<List<int>> get stdout => _stdoutController.stream;
-  StreamController<List<int>> _stderrController = new StreamController<List<int>>();
-  Stream<List<int>> get stderr => _stderrController.stream;
+  _error(e, s) {
+    _stdinController.addError(e, s);
+    _stderrController.addError(e, s);
+    _stdoutController.addError(e, s);
+    _close();
+  }
 
-
+  _close() {
+    //print('close');
+    _stdinController.close();
+    _stderrController.close();
+    _stdoutController.close();
+  }
 }
