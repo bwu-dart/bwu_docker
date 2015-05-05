@@ -60,12 +60,12 @@ becaues Dart currently can't communicate using Unix sockets (see
 - **commit** (Create a new image from a containers changes)
 - **events** (Monitor Dockers events)
 - **get** (Get a tarball containing all images in a repository)
-- **get** all (missing test) (Get a tarball containing all images)
+- **get all** (missing test) (Get a tarball containing all images)
 - **load** (missing test) (Load a tarball with a set of images and tags into Docker)
-- **exec** create (Set up an exec instance)
-- **exec** start (missing test) (Start an exec instance)
-- **exec** resize (missing test) (Resize the tty session) 
-- **exec** inspect (Inspect an exec command) 
+- **exec create** (Set up an exec instance)
+- **exec start** (missing test) (Start an exec instance)
+- **exec resize** (missing test) (Resize the tty session) 
+- **exec inspect** (Inspect an exec command) 
 
 ## Feedback
 
@@ -74,17 +74,17 @@ missing a feature just create a bug report in the
 [GitHub repo](https://github.com/bwu-dart/bwu_docker/issues).
 
 ## TODO
-- **container** attach (missing test) 
-- **container** attachWs (Attach to a container using websocket)
-- **container** logs (missing test)
-- **container** changes (Inspect changes on a containers filesystem)
-- **container** resize (missing test)
-- **container** copy (missing test)
-- **image** build (missing test)
-- **misc** load (missing test)
-- **image** push (missing test)
-- **exec** start (missing test) 
-- **exec** resize (missing test)
+- **container attach** (missing test) 
+- **container attachWs** (Attach to a container using websocket)
+- **container logs** (missing test)
+- **container changes** (Inspect changes on a containers filesystem)
+- **container resize** (missing test)
+- **container copy** (missing test)
+- **image build** (missing test)
+- **misc load** (missing test)
+- **image push** (missing test)
+- **exec start** (missing test) 
+- **exec resize** (missing test)
 
 
 ## Example
