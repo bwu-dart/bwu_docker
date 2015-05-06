@@ -2,19 +2,13 @@ library bwu_docker.tool.grind;
 
 import 'package:grinder/grinder.dart';
 
-const sourceDirs = const ['bin', 'lib', 'tool', 'test'];
-
-// TODO(zoechi) check if version was incremented
-// TODO(zoechi) check if CHANGELOG.md contains version
+const sourceDirs = const ['bin', 'lib', 'tool', 'test', 'example'];
 
 main(List<String> args) => grind(args);
 
-//@Task('Delete build directory')
-//void clean() => defaultClean(context);
-
 @Task('Run analyzer')
 analyze() => new PubApp.global('tuneup')
-    .run(['check']); // analyzerTask(files: [], directories: sourceDirs);
+    .run(['check']);
 
 @Task('Runn all tests')
 test() => new PubApp.local('test').run([]);

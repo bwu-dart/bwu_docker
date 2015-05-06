@@ -272,7 +272,7 @@ void main([List<String> args]) {
           expect(containers, anyElement((c) => c.image == imageNameAndTag));
         });
 
-        test('containers all: true', () async {
+        test('"all: true"', () async {
           // set up
           String containerId = createdContainer.container.id;
           final Iterable<Container> containers =
@@ -294,6 +294,32 @@ void main([List<String> args]) {
           expect(
               updatedContainers, isNot(anyElement((c) => c.id == containerId)));
           createdContainer = null;
+        });
+
+        test('filter "status: exited"', () async {
+          // set up
+
+          final Iterable<Container> containers =
+              await connection.containers(filters: {'status': ['exited']});
+
+          expect(containers, isNotEmpty);
+          expect(containers.first.image, isNotEmpty);
+          expect(containers,
+              isNot(anyElement((c) => c.id == createdContainer.container.id)));
+
+          // exercise
+          await connection.kill(createdContainer.container, signal: 'SIGKILL');
+
+          await new Future.delayed(const Duration(milliseconds: 500));
+
+          final Iterable<Container> updatedContainers =
+              await connection.containers(all: true);
+
+          // verification
+          expect(updatedContainers, isNotEmpty);
+          expect(updatedContainers.first.image, isNotEmpty);
+          expect(updatedContainers,
+              anyElement((c) => c.id == createdContainer.container.id));
         });
       });
 
