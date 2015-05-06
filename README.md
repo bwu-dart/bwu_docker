@@ -131,27 +131,4 @@ main() async {
 
 For more examples check out the [unit tests](https://github.com/bwu-dart/bwu_docker/blob/master/test/remote_api_test.dart).
 
-## Tips & Tricks
-
-### Find out what the Docker command line client does
-
-To see what the Docker command line client sends/receives to the Docker service
-for various commands use
-  
-```sh
-# on one terminal  
-sudo socat -t100 -v UNIX-LISTEN:/tmp/proxysocket.sock,mode=777,reuseaddr,fork \
-    UNIX-CONNECT:/var/run/docker.sock
-
-# on a second terminal  
-export DOCKER_HOST="unix:///tmp/proxysocket.sock" 
-```
-For more details see 
-[Use socat to sniff Docker CLI commands](http://stackoverflow.com/questions/20363659/linking-containers-via-docker-remote-api).
-
-### Similar projects
-
-To see how they do things:
-
-- https://github.com/apocas/dockerode (node.js module)
-- https://github.com/swipely/docker-api (Ruby)
+Also check out the [BWU Docker wiki pages](https://github.com/bwu-dart/bwu_docker/wiki).
