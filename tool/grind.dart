@@ -7,8 +7,7 @@ const sourceDirs = const ['bin', 'lib', 'tool', 'test', 'example'];
 main(List<String> args) => grind(args);
 
 @Task('Run analyzer')
-analyze() => new PubApp.global('tuneup')
-    .run(['check']);
+analyze() => new PubApp.global('tuneup').run(['check']);
 
 @Task('Runn all tests')
 test() => new PubApp.local('test').run([]);

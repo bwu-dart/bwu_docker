@@ -400,12 +400,11 @@ void main([List<String> args]) {
             '/bin/sh -c ls -la'
           ]);
           //cmd: ['echo hallo']);
-          //final startResponse =
-          await connection.execStart(createdExec);
+          final startResponse = await connection.execStart(createdExec);
 
-//          await for (var x in startResponse.stdout) {
-//            print('x: ${UTF8.decode(x)}');
-//          }
+          await for (var _ in startResponse.stdout) {
+            //print('x: ${UTF8.decode(x)}');
+          }
           await new Future.delayed(const Duration(
               milliseconds: 500)); // TODO(zoechi) check if necessary
 
@@ -669,57 +668,6 @@ void main([List<String> args]) {
         });
       });
 
-      group('attach', () {
-        test('simple', () async {
-          final supportedVersion = new Version.fromString('1.17');
-          if (!checkMinVersion(supportedVersion)) {
-            return;
-          }
-
-          // exercise
-          final DeMux attachResponse = await connection.attach(
-              createdContainer.container,
-              logs: true,
-              stream: true,
-              stdin: true,
-              stdout: true,
-              stderr: true);
-
-          final buf = new BytesBuilder(copy: false);
-
-          final subscr = attachResponse.stdout.listen((data) {
-            print(UTF8.decode(data));
-            buf.add(data);
-            if (buf.length >= 1000) {
-              print('done1');
-            }
-          });
-
-//          final Exec createdExec = await connection.execCreate(
-//              createdContainer.container,
-//              attachStdin: true,
-//              tty: true,
-//              cmd: [
-//            '/bin/sh -c "echo sometext > /tmp/somefile.txt"',
-//            '/bin/sh -c ls -la'
-//          ]);
-          //cmd: ['echo hallo']);
-          print('execStart');
-          //await connection.execStart(createdExec);
-          //removeContainer();
-
-          print('c.future');
-          await subscr.asFuture();
-          print('done3');
-
-//          print(UTF8.decode(buf.takeBytes()));
-          // verification
-          print('buf: ${UTF8.decode(buf.toBytes())}');
-          // TODO(zoechi) enable when execCreate works
-          // expect(buf.length, greaterThan(1000));
-        }, timeout: const Timeout(const Duration(seconds: 60)));
-      }, skip: 'Test broken probably due to Docker issues');
-
       group('attachWs', () {
         test('simple', () async {
           final supportedVersion = new Version.fromString('1.17');
@@ -794,6 +742,48 @@ void main([List<String> args]) {
           // tear down
           createdContainer = null; // prevent removing again in tearDown
         }, timeout: const Timeout(const Duration(seconds: 60)));
+      });
+    });
+
+    group('attach', () {
+      setUp(() async {
+        createdContainer = await connection.createContainer(
+            new CreateContainerRequest()
+          ..image = imageNameAndTag
+          ..openStdin = false
+          ..attachStdin = false
+          ..cmd = ['/bin/sh', '-c', 'uptime']);
+      });
+
+      test('simple', () async {
+        if (!checkMinVersion(ApiVersion.v1_17)) {
+          return;
+        }
+
+        // exercise
+        final DeMux attachResponse = await connection.attach(
+            createdContainer.container,
+            stream: true, stdout: true, stderr: true);
+
+        expect(attachResponse, isNotNull);
+
+        final buf = new BytesBuilder(copy: false);
+
+        final stdoutSubscription = attachResponse.stdout
+            .take(1000)
+            .listen((data) {
+          buf.add(data);
+        }, onDone: () => print('done'));
+
+        await connection.start(createdContainer.container);
+        await stdoutSubscription.asFuture();
+
+        // verification
+        expect(buf.length, greaterThan(50));
+        final s = UTF8.decode(buf.toBytes());
+        expect(s, contains('up'));
+        expect(s, contains('days'));
+        expect(s, contains('load average'));
       });
     });
   });

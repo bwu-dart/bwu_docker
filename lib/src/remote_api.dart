@@ -1128,6 +1128,8 @@ class DeMux {
   static const _stdin = 0;
   static const _stdout = 1;
   static const _stderr = 2;
+  static const _headerLength = 8;
+  static const _firstLengthBytePos = 4;
 
   final Stream<List<int>> _stream;
 
@@ -1137,6 +1139,7 @@ class DeMux {
 
   final StreamController<List<int>> _stdoutController =
       new StreamController<List<int>>();
+
   Stream<List<int>> get stdout => _stdoutController.stream;
 
   final StreamController<List<int>> _stderrController =
@@ -1147,18 +1150,18 @@ class DeMux {
     _processData();
   }
 
-  Future _processData() async {
+  _processData() {
     StreamController current;
     int byteCountdown = 0;
 
     List<int> buf = <int>[];
     _stream.listen((data) {
       buf.addAll(data);
-      while (buf.length > 8) {
+      while (buf.length > _headerLength) {
         if (byteCountdown == 0) {
-          if (buf.length >= 8) {
-            final header = buf.sublist(0, 8);
-            buf.removeRange(0, 8);
+          if (buf.length >= _headerLength) {
+            final header = buf.sublist(0, _headerLength);
+            buf.removeRange(0, _headerLength);
 
             switch (header[0]) {
               case _stdin:
@@ -1173,14 +1176,14 @@ class DeMux {
               default:
                 throw 'Must not be reached.';
             }
-            byteCountdown = (header[4] << 24) |
-                (header[5] << 16) |
-                (header[6] << 8) |
-                header[7];
+            byteCountdown = (header[_firstLengthBytePos] << 24) |
+                (header[_firstLengthBytePos + 1] << 16) |
+                (header[_firstLengthBytePos + 2] << 8) |
+                header[_firstLengthBytePos + 3];
           }
         }
         if (byteCountdown > 0) {
-          //print('${UTF8.decode(buf.sublist(0,10))}...'); // TODO(zoechi) remove
+//          print('${UTF8.decode(buf.sublist(0,10))}...'); // TODO(zoechi) remove
           if (buf.length <= byteCountdown) {
             current.add(buf);
             byteCountdown -= buf.length;
@@ -1203,7 +1206,6 @@ class DeMux {
   }
 
   _close() {
-    //print('close');
     _stdinController.close();
     _stderrController.close();
     _stdoutController.close();
