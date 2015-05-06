@@ -6,8 +6,9 @@ for more details.
 This package provides a typed interface to the Docker REST API and deserializes
 JSON response to Dart classes.
 
-The intention is to make it easy to automate Docker tasks like for example in 
-[Grinder](https://pub.dartlang.org/packages/grinder) tasks.
+The intention is to make it easy to automate Docker related tasks from 
+[Grinder](https://pub.dartlang.org/packages/grinder) or other scripts.
+This package also makes it easy to build a dashboard for the Docker service.
 
 ## Usage
 
@@ -16,7 +17,7 @@ See example below or the
 
 Ensure you have Docker listening on a TCP port (for more details see 
 [Bind Docker to another host/port or a Unix socket](https://docs.docker.com/articles/basics/#bind-docker-to-another-hostport-or-a-unix-socket)),
-becaues Dart currently can't communicate using Unix sockets (see 
+because Dart currently can't communicate using Unix sockets (see 
 [Dart Issue 21403 - Support Unix Sockets in dart:io](http://dartbug.com/21403) for details).
 
 
@@ -72,7 +73,8 @@ becaues Dart currently can't communicate using Unix sockets (see
 
 I'm not a Docker specialist. If something isn't working as expected or you are
 missing a feature just create a bug report in the 
-[GitHub repo](https://github.com/bwu-dart/bwu_docker/issues).
+[GitHub repo](https://github.com/bwu-dart/bwu_docker/issues) or even better, 
+create a pull request.
 
 ## TODO
 - **container attachWs** (Attach to a container using websocket)
