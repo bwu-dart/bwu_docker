@@ -15,7 +15,6 @@ main() {
         () {
       final hc = new HostConfig.fromJson(json, ApiVersion.v1_17);
       final json2 = hc.toJson();
-      print(json2);
       final hc2 = new HostConfig.fromJson(json2, ApiVersion.v1_17);
 
       expect(hc2.portBindings.length, hc.portBindings.length);

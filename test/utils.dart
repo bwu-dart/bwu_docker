@@ -9,11 +9,11 @@ Future ensureImageExists(DockerConnection connection, imageName) async {
   try {
     await connection.image(new Image(imageName));
   } on DockerRemoteApiError {
-    final Iterable<CreateImageResponse> createResponse =
+//    final Iterable<CreateImageResponse> createResponse =
         await connection.createImage(imageName);
-    for (var e in createResponse) {
-      // print('${e.status} - ${e.progressDetail}');
-    }
+//    for (var e in createResponse) {
+//      print('${e.status} - ${e.progressDetail}');
+//    }
   }
 }
 
@@ -30,7 +30,7 @@ Future removeContainer(DockerConnection connection, Container container) async {
     while (container != null && tries > 0) {
       try {
         connection.stop(container, timeout: 3).catchError((_) {});
-        final WaitResponse r = await connection.wait(container);
+        await connection.wait(container);
         await connection.removeContainer(container,
             force: true, removeVolumes: true);
         removed = true;

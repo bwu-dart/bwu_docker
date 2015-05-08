@@ -12,7 +12,7 @@ main(List<String> args) => grind(args);
 analyze() => new PubApp.global('tuneup').run(['check']);
 
 @Task('Runn all tests')
-test() => new PubApp.local('test').run([]);
+test() => new PubApp.local('test').run(['-rexpanded']);
 
 @Task('Check everything')
 @Depends(analyze, /*checkFormat,*/ lint, test)
