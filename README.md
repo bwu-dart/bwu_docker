@@ -24,30 +24,32 @@ because Dart currently can't communicate using Unix sockets (see
 ## Supported commands
 
 ### Containers
-- **containers** (List containers)
-- **create** (Create a container)
-- **container** (Inspect a container)
-- **top** (List processes running inside a container) 
-- **logs** (missing test) (Get container logs)
-- **export** (Export a container)
-- **stats** (Get container stats based on resource usage)
-- **resize** (missing test) (Resize a container TTY)
-- **start** (Start a container)
-- **stop** (Stop a container)
-- **restart** (Restart a container)
-- **kill** (Kill a container)
-- **rename** (Rename a container)
-- **pause** (Pause a container)
-- **unpause** (Unpause a container)
 - **attach** (Attach to a container)
-- **wait** (Wait a container)
+- **changes** (Changes to a containers file system)
+- **container** (Inspect a container)
+- **containers** (List containers)
+- **copy** (Copy files or folders from a container)
+- **create** (Create a container)
+- **export** (Export a container)
+- **kill** (Kill a container)
+- **logs** (Get container logs)
+- **pause** (Pause a container)
+- **top** (List processes running inside a container) 
+- **rename** (Rename a container)
 - **remove** (Remove a container)
+- **resize** (Resize a container TTY)
+- **restart** (Restart a container)
+- **start** (Start a container)
+- **stats** (Get container stats based on resource usage)
+- **stop** (Stop a container)
+- **unpause** (Unpause a container)
+- **wait** (Wait a container)
 
 ### Images
-- **images** (List images)
-- **build** (Build image from a Dockerfile)
-- **create** (missing test) (Create an image)
+- **build** (missing test) (Build image from a Dockerfile)
+- **create** (Create an image)
 - **image** (Inspect an image)
+- **images** (List images)
 - **history** (Get the history of an image)
 - **push** (missing test) (Push an image into a repository)
 - **tag** (Tag an image into a repository)
@@ -56,18 +58,18 @@ because Dart currently can't communicate using Unix sockets (see
 
 ### Misc
 - **auth** (Check auth configuration)
-- **info** (Display system-wide information)
-- **version** (Show the Docker version information)
-- **ping** (Ping the docker server)
 - **commit** (Create a new image from a containers changes)
 - **events** (Monitor Dockers events)
+- **exec create** (Set up an exec instance)
+- **exec inspect** (Inspect an exec command) 
+- **exec resize** (missing test) (Resize the tty session) 
+- **exec start** (Start an exec instance)
 - **get** (Get a tarball containing all images in a repository)
 - **get all** (missing test) (Get a tarball containing all images)
+- **info** (Display system-wide information)
 - **load** (missing test) (Load a tarball with a set of images and tags into Docker)
-- **exec create** (Set up an exec instance)
-- **exec start** (missing test) (Start an exec instance)
-- **exec resize** (missing test) (Resize the tty session) 
-- **exec inspect** (Inspect an exec command) 
+- **ping** (Ping the docker server)
+- **version** (Show the Docker version information)
 
 ## Feedback
 
@@ -77,16 +79,14 @@ missing a feature just create a bug report in the
 create a pull request.
 
 ## TODO
-- **container attachWs** (Attach to a container using websocket)
-- **container logs** (missing test)
-- **container changes** (Inspect changes on a containers filesystem)
-- **container resize** (missing test)
-- **container copy** (missing test)
-- **image build** (missing test)
-- **misc load** (missing test)
-- **image push** (missing test)
-- **exec start** (missing test) 
-- **exec resize** (missing test)
+- container **attachWs** (Attach to a container using websocket)
+- image **build** (missing test) (Build image from a Dockerfile)
+- image **push** (missing test) (Push an image into a repository)
+- misc **get all** (missing test) (Get a tarball containing all images)
+- misc **load** (missing test) (Load a tarball with a set of images and tags into Docker)
+- exec **resize** (missing test) (Resize the tty session) 
+ 
+
 
 
 ## Example

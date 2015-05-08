@@ -1628,6 +1628,9 @@ class RestartPolicy {
   RestartPolicy(this._variant, this._maximumRetryCount);
 
   RestartPolicy.fromJson(Map json, Version apiVersion) {
+    if (json == null) {
+      return;
+    }
     if (json['Name'] != null && json['Name'].isNotEmpty) {
       final value = RestartPolicyVariant.values
           .where((v) => v.toString().endsWith(json['Name']));
@@ -2061,6 +2064,46 @@ class ContainerInfo {
   }
 }
 
+class PortBinding {
+  String _port;
+  String get port => _port;
+
+  UnmodifiableListView<HostPort> _hostPorts;
+  UnmodifiableListView<HostPort> get hostPorts => _hostPorts;
+
+  PortBinding.fromJson(Map json, Version apiVersion) {
+    _port = json['Port'];
+    if (json['Values'] != null) {
+      _hostPorts = _toUnmodifiableListView(
+          json['Values'].map((v) => new HostPort.fromJson(v, apiVersion)));
+    }
+    _checkSurplusItems(
+        apiVersion, {ApiVersion.v1_15: const ['Port', 'Values',]}, json.keys);
+  }
+
+  Map toJson() {
+    return {port: hostPorts.map((hp) => hp.toJson()).toList()};
+  }
+}
+
+class HostPort {
+  String _port;
+  String get port => _port;
+
+  HostPort(this._port);
+
+  HostPort.fromJson(Map json, Version apiVersion) {
+    _port = json['HostPort'];
+
+    _checkSurplusItems(
+        apiVersion, {ApiVersion.v1_15: const ['HostPort',]}, json.keys);
+  }
+
+  Map toJson() {
+    return {'HostPort': port};
+  }
+}
+
 class HostConfig {
   UnmodifiableListView<String> _binds;
   UnmodifiableListView<String> get binds => _binds;
@@ -2119,8 +2162,8 @@ class HostConfig {
   String _pidMode;
   String get pidMode => _pidMode;
 
-  UnmodifiableMapView _portBindings;
-  UnmodifiableMapView get portBindings => _portBindings;
+  UnmodifiableListView<PortBinding> _portBindings;
+  UnmodifiableListView<PortBinding> get portBindings => _portBindings;
 
   bool _privileged;
   bool get privileged => _privileged;
@@ -2166,7 +2209,13 @@ class HostConfig {
     _memorySwap = json['MemorySwap'];
     _networkMode = json['NetworkMode'];
     _pidMode = json['PidMode'];
-    _portBindings = _toUnmodifiableMapView(json['PortBindings']);
+    final Map<String, List<Map<String, String>>> portBindings =
+        json['PortBindings'];
+    if (portBindings != null) {
+      _portBindings = _toUnmodifiableListView(portBindings.keys.map(
+          (k) => new PortBinding.fromJson(
+              {'Port': k, 'Values': portBindings[k]}, apiVersion)));
+    }
     _privileged = json['Privileged'];
     _publishAllPorts = json['PublishAllPorts'];
     _readonlyRootFs = json['ReadonlyRootfs'];
@@ -2240,7 +2289,9 @@ class HostConfig {
     json['Links'] = links;
     json['LxcConf'] = lxcConf;
     json['NetworkMode'] = networkMode;
-    json['PortBindings'] = portBindings;
+    json['PortBindings'] = new Map.fromIterable(portBindings,
+        key: (pb) => pb.port,
+        value: (pb) => pb.hostPorts.map((hp) => hp.toJson()).toList());
     json['Privileged'] = privileged;
     json['PublishAllPorts'] = publishAllPorts;
     json['RestartPolicy'] = restartPolicy.toJson();

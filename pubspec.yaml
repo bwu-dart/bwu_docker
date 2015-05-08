@@ -4,25 +4,24 @@ homepage: http://github.com/bwu-dart/bwu_docker
 description: Object-oriented API to the Docker JSON remote API. This makes it
   easy to automate Docker related tasks or allows to easily build a dashboard
   for Docker.
-version: 0.1.0+4
+version: 0.2.0
 environment:
-  sdk: '>=1.10.0 <2.0.0'
+  sdk: '>=1.9.0 <2.0.0'
 
 description: Dart client for the Docker remote API
 
 dependencies:
   collection: '^1.1.0'
   crypto: '^0.9.0'
-  intl: '^0.12.2'
   http: '^0.11.2'
 #  quiver: '^0.21.3'
+  stack_trace: '>= 1.2.1 <2.0.0'
 
 dev_dependencies:
   test: '>=0.12.0 < 0.13.0'
-  grinder: any
+  grinder: '^0.7.0'
 
 dependency_overrides:
-#  matcher: '>=0.12.0 < 0.13.0'
 
 transformers:
 - test/pub_serve:

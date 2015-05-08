@@ -7,6 +7,7 @@ import 'dart:async' show Completer, Future, Stream, StreamSubscription;
 import 'package:test/test.dart';
 import 'package:bwu_docker/src/remote_api.dart';
 import 'package:bwu_docker/src/data_structures.dart';
+import 'utils.dart' as utils;
 
 //const imageName = 'selenium/standalone-chrome';
 //const imageTag = '2.45.0';
@@ -16,6 +17,7 @@ import 'package:bwu_docker/src/data_structures.dart';
 
 // Docker-in-Docker to allow to test with different Docker version
 // docker run --privileged -d -p 1234:1234 -e PORT=1234 jpetazzo/dind
+// See also https://github.com/bwu-dart/bwu_docker/wiki/Development-tips-&-tricks#run-docker-inside-docker
 const imageName = 'busybox';
 const imageTag = 'buildroot-2014.02';
 const entryPoint = '/bin/sh';
@@ -28,70 +30,32 @@ void main([List<String> args]) {
   //initLogging(args);
 
   DockerConnection connection;
-  CreateResponse createdContainer;
+  Container createdContainer;
 
   /// setUp helper to create the image used in tests if it is not yet available.
   final ensureImageExists = () async {
-    try {
-      await connection.image(new Image(imageNameAndTag));
-    } on DockerRemoteApiError {
-      final Iterable<CreateImageResponse> createResponse =
-          await connection.createImage(imageNameAndTag);
-      for (var e in createResponse) {
-        print('${e.status} - ${e.progressDetail}');
-      }
-    }
+    return utils.ensureImageExists(connection, imageNameAndTag);
   };
 
   /// setUp helper to create a container from the image used in tests.
   final createContainer = () async {
-    createdContainer = await connection
-        .createContainer(new CreateContainerRequest()..image = imageNameAndTag);
+    createdContainer = (await connection.createContainer(
+        new CreateContainerRequest()
+      ..image = imageNameAndTag
+      ..cmd = ['/bin/sh']
+      ..attachStdin = false
+      ..attachStdout = true
+      ..attachStderr = true
+      ..openStdin = false
+      ..stdinOnce = false
+      ..tty = true
+      ..hostConfig.logConfig = {'Type': 'json-file'})).container;
   };
 
   /// teatDown helper to remove the container created in setUp
   final removeContainer = () async {
-    if (createdContainer != null) {
-      int tries = 3;
-      String errorMsg = '';
-      while (createdContainer != null && tries > 0) {
-        try {
-          connection
-              .stop(createdContainer.container, timeout: 3)
-              .catchError((_) {});
-          final WaitResponse r =
-              await connection.wait(createdContainer.container);
-          await connection.removeContainer(createdContainer.container,
-              force: true, removeVolumes: true);
-          createdContainer = null;
-        } catch (error) {
-          if (error.statusCode == 404) {
-            createdContainer = null;
-            break;
-          }
-          if (error.toString().isNotEmpty) {
-            errorMsg = '${error}\n${error}';
-          }
-          await new Future.delayed(const Duration(milliseconds: 100));
-        }
-        tries--;
-      }
-      if (createdContainer != null) {
-        print(
-            '>>> remove ${createdContainer.container.id} failed - ${errorMsg}');
-        createdContainer = null;
-      }
-    }
-  };
-
-  /// Helper to skip test if feature is not supported on the connected server.
-  final checkMinVersion = (Version supportedVersion) {
-    if (connection.apiVersion < supportedVersion) {
-      print(
-          'Test skipped because this command requires Docker API version ${supportedVersion} (current: ${connection.apiVersion}).');
-      return false;
-    }
-    return true;
+    await utils.removeContainer(connection, createdContainer);
+    createdContainer = null;
   };
 
   setUp(() async {
@@ -116,33 +80,42 @@ void main([List<String> args]) {
 
   group('containers', () {
     group('create', () {
-      test('simple', () async {
+      test('should create a new container', () async {
         // exercise
         await createContainer();
 
         // verification
-        expect(createdContainer.container, new isInstanceOf<Container>());
-        expect(createdContainer.container.id, isNotEmpty);
+        expect(createdContainer, new isInstanceOf<Container>());
+        expect(createdContainer.id, isNotEmpty);
       });
 
-      test('with name', () async {
+      test('should create a new container with an assigned name', () async {
         // set up
-        if (!checkMinVersion(ApiVersion.v1_17)) {
+        if (!utils.isMinVersion(connection, ApiVersion.v1_17)) {
           return;
         }
 
         const containerName = '/dummy_name';
 
+        final Iterable<Container> alreadyExisting = await connection.containers(
+            filters: {'name': [containerName]}, all: true);
+        alreadyExisting
+            .where((c) => c.names.contains(containerName))
+            .forEach((c) {
+          connection.removeContainer(new Container(c.id));
+        });
+        await utils.waitMilliseconds(100);
+
         // exercise
-        createdContainer = await connection.createContainer(
+        createdContainer = (await connection.createContainer(
             new CreateContainerRequest()..image = imageNameAndTag,
-            name: 'dummy_name');
-        await new Future.delayed(const Duration(milliseconds: 100));
-//          print(createdContainer.container.id);
+            name: 'dummy_name')).container;
+        await utils.waitMilliseconds(100);
+//          print(createdContainer.id);
 
         // verification
-        expect(createdContainer.container, new isInstanceOf<Container>());
-        expect(createdContainer.container.id, isNotEmpty);
+        expect(createdContainer, new isInstanceOf<Container>());
+        expect(createdContainer.id, isNotEmpty);
 
         final Iterable<Container> containers = await connection.containers(
             filters: {'name': [containerName]}, all: true);
@@ -154,22 +127,22 @@ void main([List<String> args]) {
     });
 
     group('logs', () {
-      setUp(() {
-        ensureImageExists();
+      setUp(() async {
+        await ensureImageExists();
+        await createContainer();
+        // produce some log output - TODO(zoechi) find a better way
+        await connection.start(createdContainer);
+        await connection.restart(createdContainer);
+        await connection.kill(createdContainer, signal: 'SIGKILL');
+        final startedContainer = await connection.start(createdContainer);
+
+        expect(startedContainer, isNotNull);
       });
 
-      test('simple', () async {
-        // set up
-        createdContainer = await connection.createContainer(
-            new CreateContainerRequest()
-          ..image = imageNameAndTag
-          ..hostConfig.logConfig = {'Type': 'json-file'});
-        final SimpleResponse startedContainer =
-            await connection.start(createdContainer.container);
-        expect(startedContainer, isNotNull);
+      test('should receive log output', () async {
 
         // exercise
-        Stream log = await connection.logs(createdContainer.container,
+        Stream log = await connection.logs(createdContainer,
             stdout: true,
             stderr: true,
             timestamps: true,
@@ -180,12 +153,9 @@ void main([List<String> args]) {
 
         await sub.asFuture();
 
-//          print(buf.length);
-//          print(buf.toBytes());
-
         // verification
-        expect(buf, isNotNull);
-      } /*, skip: 'find a way to produce log output, currently the returned data is always empty'*/);
+        expect(buf, isNotEmpty);
+      });
     });
 
     group('start', () {
@@ -194,21 +164,18 @@ void main([List<String> args]) {
         await createContainer();
       });
 
-      test('simple', () async {
-        // set up
-
+      test('should start the container', () async {
         // exercise
         final SimpleResponse startedContainer =
-            await connection.start(createdContainer.container);
+            await connection.start(createdContainer);
+        await utils.waitMilliseconds(100);
 
         // verification
         expect(startedContainer, isNotNull);
         final Iterable<Container> containers = await connection.containers(
             filters: {'status': [ContainerStatus.running.toString()]});
-        //print(containers.map((c) => c.toJson()).toList());
 
-        expect(containers,
-            anyElement((c) => c.id == createdContainer.container.id));
+        expect(containers, anyElement((c) => c.id == createdContainer.id));
       }, timeout: const Timeout(const Duration(seconds: 100)));
     });
 
@@ -218,23 +185,22 @@ void main([List<String> args]) {
         await createContainer();
       });
 
-      test('simple', () async {
+      test('should create a new image from the containers changes', () async {
         // set up
+        final SimpleResponse startedContainer =
+            await connection.start(createdContainer);
+        expect(startedContainer, isNotNull);
 
         // exercise
-        final SimpleResponse startedContainer =
-            await connection.start(createdContainer.container);
-
-        // verification
-        expect(startedContainer, isNotNull);
         final CommitResponse commitResponse = await connection.commit(
             new CommitRequest(
                 attachStdout: true,
                 cmd: ['date'],
                 volumes: new Volumes()..add('/tmp', {}),
-                exposedPorts: {'22/tcp': {}}), createdContainer.container,
+                exposedPorts: {'22/tcp': {}}), createdContainer,
             tag: 'commitTest', comment: 'remove', author: 'someAuthor');
 
+        // verification
         expect(commitResponse.id, isNotEmpty);
 //          print(commitResponse.id);
 
@@ -252,17 +218,18 @@ void main([List<String> args]) {
     // with container started in setUp
     group('', () {
       setUp(() async {
-        createdContainer = await connection.createContainer(
-            new CreateContainerRequest()
-          ..image = imageNameAndTag
-          ..openStdin = true
-          ..tty = true);
-        await connection.start(createdContainer.container);
-        await new Future.delayed(const Duration(milliseconds: 100));
+        await createContainer();
+//        createdContainer = await connection.createContainer(
+//            new CreateContainerRequest()
+//          ..image = imageNameAndTag
+//          ..openStdin = true
+//          ..tty = true);
+        await connection.start(createdContainer);
+        await utils.waitMilliseconds(100);
       });
 
       group('containers', () {
-        test('simple', () async {
+        test('should return the list of all running containers', () async {
           // exercise
           Iterable<Container> containers = await connection.containers();
 
@@ -272,68 +239,70 @@ void main([List<String> args]) {
           expect(containers, anyElement((c) => c.image == imageNameAndTag));
         });
 
-        test('"all: true"', () async {
+        test('should return the list of containers including status exited',
+            () async {
           // set up
-          String containerId = createdContainer.container.id;
-          final Iterable<Container> containers =
-              await connection.containers(all: true);
+          final Iterable<Container> containers = await connection.containers();
           expect(containers, isNotEmpty);
           expect(containers.first.image, isNotEmpty);
-          expect(containers,
-              anyElement((c) => c.id == createdContainer.container.id));
+          expect(containers, anyElement((c) => c.id == createdContainer.id));
 
-          await connection.kill(createdContainer.container, signal: 'SIGKILL');
-          await connection.removeContainer(createdContainer.container);
-          createdContainer = null; // prevent remove again in tearDown
+          await connection.stop(createdContainer);
 
           // exercise
           final Iterable<Container> updatedContainers =
               await connection.containers(all: true);
 
           // verification
-          expect(
-              updatedContainers, isNot(anyElement((c) => c.id == containerId)));
-          createdContainer = null;
+          final Container stoppedContainer =
+              updatedContainers.firstWhere((c) => c.id == createdContainer.id);
+
+          expect(stoppedContainer.status, startsWith('Exited'));
         });
 
-        test('filter "status: exited"', () async {
+        test('should return the list of exited containers', () async {
           // set up
+          final SimpleResponse startedResponse =
+              await connection.start(createdContainer);
+          expect(startedResponse, isNotNull);
 
-          final Iterable<Container> containers =
+          await utils.waitMilliseconds(100);
+
+          final Iterable<Container> exitedContainers =
               await connection.containers(filters: {'status': ['exited']});
 
-          expect(containers, isNotEmpty);
-          expect(containers.first.image, isNotEmpty);
-          expect(containers,
-              isNot(anyElement((c) => c.id == createdContainer.container.id)));
+          expect(exitedContainers, isNotEmpty);
+          expect(exitedContainers.first.image, isNotEmpty);
+          expect(exitedContainers,
+              isNot(anyElement((c) => c.id == createdContainer.id)));
 
           // exercise
-          await connection.kill(createdContainer.container, signal: 'SIGKILL');
+          await connection.stop(createdContainer);
 
-          await new Future.delayed(const Duration(milliseconds: 500));
+          await utils.waitMilliseconds(100);
 
           final Iterable<Container> updatedContainers =
-              await connection.containers(all: true);
+              await connection.containers(filters: {'status': ['exited']});
 
           // verification
           expect(updatedContainers, isNotEmpty);
           expect(updatedContainers.first.image, isNotEmpty);
           expect(updatedContainers,
-              anyElement((c) => c.id == createdContainer.container.id));
+              anyElement((c) => c.id == createdContainer.id));
         });
       });
 
       group('container', () {
-        test('simple', () async {
+        test('should return detail information about the container', () async {
           // exercise
           final ContainerInfo container =
-              await connection.container(createdContainer.container);
-          await connection.start(createdContainer.container);
-          await new Future.delayed(const Duration(milliseconds: 500));
+              await connection.container(createdContainer);
+          await connection.start(createdContainer);
+          await utils.waitMilliseconds(500);
 
           // verification
           expect(container, new isInstanceOf<ContainerInfo>());
-          expect(container.id, createdContainer.container.id);
+          expect(container.id, createdContainer.id);
           expect(container.config.cmd, [entryPoint]);
           expect(container.config.image, imageNameAndTag);
           expect(container.state.running, isTrue);
@@ -341,10 +310,11 @@ void main([List<String> args]) {
       });
 
       group('top', () {
-        test('simple', () async {
+        test('should return the list of active processes in the container',
+            () async {
           // exercise
           final TopResponse topResponse =
-              await connection.top(createdContainer.container);
+              await connection.top(createdContainer);
 
           // verification
           const titles = const [
@@ -363,10 +333,12 @@ void main([List<String> args]) {
               anyElement((e) => e.any((i) => i.contains(runningProcess))));
         });
 
-        test('with ps_args', () async {
+        test(
+            'should return the list of active processes with customized "ps" arguments',
+            () async {
           // exercise
           final TopResponse topResponse =
-              await connection.top(createdContainer.container, psArgs: 'aux');
+              await connection.top(createdContainer, psArgs: 'aux');
 
           // verification
           const titles = const [
@@ -390,9 +362,8 @@ void main([List<String> args]) {
       });
 
       group('changes', () {
-        test('simple', () async {
-          final Exec createdExec = await connection.execCreate(
-              createdContainer.container,
+        test('should return a list of changes in the container', () async {
+          final Exec createdExec = await connection.execCreate(createdContainer,
               attachStdin: true,
               tty: true,
               cmd: [
@@ -405,13 +376,12 @@ void main([List<String> args]) {
           await for (var _ in startResponse.stdout) {
             //print('x: ${UTF8.decode(x)}');
           }
-          await new Future.delayed(const Duration(
-              milliseconds: 500)); // TODO(zoechi) check if necessary
+          await utils.waitMilliseconds(500); // TODO(zoechi) check if necessary
 
 //          print('4');
           // exercise
           final ChangesResponse changesResponse =
-              await connection.changes(createdContainer.container);
+              await connection.changes(createdContainer);
 //          print('changes: ${changesResponse.changes}');
 
           // verification
@@ -424,14 +394,15 @@ void main([List<String> args]) {
       });
 
       group('export', () {
-        test('simple', () async {
-          if (!checkMinVersion(ApiVersion.v1_17)) {
+        test('should return the contents of the container as tar stream',
+            () async {
+          if (!utils.isMinVersion(connection, ApiVersion.v1_17)) {
             return;
           }
 
           // exercise
           final Stream exportResponse =
-              await connection.export(createdContainer.container);
+              await connection.export(createdContainer);
           final buf = new BytesBuilder(copy: false);
           var subscription = exportResponse.take(1000000).listen((data) {
             buf.add(data);
@@ -444,19 +415,21 @@ void main([List<String> args]) {
           // tearDown
           // Remove container in tearDown fails without some delay after
           // canceling the export stream.
-          await new Future.delayed(const Duration(milliseconds: 500));
+          await utils.waitMilliseconds(500);
         });
       });
 
       group('stats', () {
-        test('simple', () async {
-          if (!checkMinVersion(ApiVersion.v1_17)) {
+        test(
+            'should return a live stream of the containers resource usage statistics',
+            () async {
+          if (!utils.isMinVersion(connection, ApiVersion.v1_17)) {
             return;
           }
 
           // exercise
           final Stream<StatsResponse> stream =
-              connection.stats(createdContainer.container);
+              connection.stats(createdContainer);
           final StatsResponse item = await stream.first;
 
           // verification
@@ -470,37 +443,37 @@ void main([List<String> args]) {
       });
 
       group('resize', () {
-        test('simple', () async {
+        test('should resize the containers TTY', () async {
           // exercise
           final SimpleResponse resizeResponse =
-              await connection.resize(createdContainer.container, 60, 20);
+              await connection.resize(createdContainer, 60, 20);
 
-          await connection.restart(createdContainer.container);
+          await connection.restart(createdContainer);
           final ContainerInfo containerResponse =
-              await connection.container(createdContainer.container);
+              await connection.container(createdContainer);
 
           // verification
           expect(resizeResponse, isNotNull);
           expect(containerResponse.state.running, isTrue);
 
-          // TODO(zoechi) check the current tty size
-        }, skip: 'no way found yet how to check the effect');
+          // TODO(zoechi) find a way to check the tty size
+        });
       });
 
       group('stop', () {
-        test('simple', () async {
+        test('should stop the running container', () async {
           // set up
           final ContainerInfo startedStatus =
-              await connection.container(createdContainer.container);
+              await connection.container(createdContainer);
           expect(startedStatus.state.running, isNotNull);
 
 //          final referenceTime = new DateTime.now().toUtc();
 
           // exercise
           final SimpleResponse stopResponse =
-              await connection.stop(createdContainer.container);
+              await connection.stop(createdContainer);
           final ContainerInfo stoppedStatus =
-              await connection.container(createdContainer.container);
+              await connection.container(createdContainer);
 
 //          print(
 //              'ref: ${referenceTime} finishedAt: ${stoppedStatus.state.finishedAt}');
@@ -519,17 +492,16 @@ void main([List<String> args]) {
       });
 
       group('restart', () {
-        test('simple', () async {
+        test('should stop and start the running container', () async {
           // set up
           final ContainerInfo startedStatus =
-              await connection.container(createdContainer.container);
+              await connection.container(createdContainer);
           expect(startedStatus.state.running, isNotNull);
 
           final expectRestartEvent = expectAsync(() {});
           connection
               .events(
-                  filters: new EventsFilter()
-            ..containers.add(createdContainer.container))
+                  filters: new EventsFilter()..containers.add(createdContainer))
               .listen((event) {
             if (event.status == ContainerEvent.restart) {
               expectRestartEvent();
@@ -538,10 +510,10 @@ void main([List<String> args]) {
 
           // exercise
           final SimpleResponse restartResponse =
-              await connection.restart(createdContainer.container);
-          await new Future.delayed(const Duration(milliseconds: 100), () {});
+              await connection.restart(createdContainer);
+          await utils.waitMilliseconds(500);
           final ContainerInfo restartedStatus =
-              await connection.container(createdContainer.container);
+              await connection.container(createdContainer);
 
           // verification
           expect(restartResponse, isNotNull);
@@ -553,25 +525,25 @@ void main([List<String> args]) {
               greaterThan(
                   startedStatus.state.startedAt.millisecondsSinceEpoch));
 
-          await new Future.delayed(const Duration(milliseconds: 100), () {});
+          await utils.waitMilliseconds(100);
         });
       });
 
       group('kill', () {
-        test('simple', () async {
+        test('should kill the container', () async {
           // set up
           final ContainerInfo startedStatus =
-              await connection.container(createdContainer.container);
+              await connection.container(createdContainer);
           expect(startedStatus.state.running, isNotNull);
 
 //          final referenceTime = new DateTime.now().toUtc();
 
           // exercise
-          final SimpleResponse killResponse = await connection.kill(
-              createdContainer.container, signal: 'SIGKILL');
-          await new Future.delayed(const Duration(milliseconds: 100), () {});
+          final SimpleResponse killResponse =
+              await connection.kill(createdContainer, signal: 'SIGKILL');
+          await utils.waitMilliseconds(100);
           final ContainerInfo killedStatus =
-              await connection.container(createdContainer.container);
+              await connection.container(createdContainer);
 
 //          print(
 //              'ref: ${referenceTime} finishedAt: ${killedStatus.state.finishedAt}');
@@ -589,23 +561,22 @@ void main([List<String> args]) {
       });
 
       group('rename', () {
-        test('simple', () async {
-          final supportedVersion = new Version.fromString('1.17');
-          if (!checkMinVersion(supportedVersion)) {
+        test('should assign a new name to the container', () async {
+          if (!utils.isMinVersion(connection, ApiVersion.v1_17)) {
             return;
           }
 
           // set up
           final ContainerInfo startedStatus =
-              await connection.container(createdContainer.container);
+              await connection.container(createdContainer);
           expect(startedStatus.state.running, isNotNull);
           expect(startedStatus.name, isNot('SomeOtherName'));
 
           // exercise
-          final SimpleResponse renameResponse = await connection.rename(
-              createdContainer.container, 'SomeOtherName');
+          final SimpleResponse renameResponse =
+              await connection.rename(createdContainer, 'SomeOtherName');
           final ContainerInfo renamedStatus =
-              await connection.container(createdContainer.container);
+              await connection.container(createdContainer);
 
           // verification
           expect(renameResponse, isNotNull);
@@ -617,20 +588,21 @@ void main([List<String> args]) {
 
       group('pause', () {
         tearDown(() async {
-          await connection.unpause(createdContainer.container);
-          await new Future.delayed(const Duration(milliseconds: 100), () {});
+          await connection.unpause(createdContainer);
+          await utils.waitMilliseconds(100);
         });
-        test('simple', () async {
+
+        test('should pause the container', () async {
           // set up
           final ContainerInfo startedStatus =
-              await connection.container(createdContainer.container);
+              await connection.container(createdContainer);
           expect(startedStatus.state.running, isNotNull);
 
           // exercise
           final SimpleResponse pauseResponse =
-              await connection.pause(createdContainer.container);
+              await connection.pause(createdContainer);
           final ContainerInfo pausedStatus =
-              await connection.container(createdContainer.container);
+              await connection.container(createdContainer);
 
           // verification
           expect(pauseResponse, isNotNull);
@@ -640,16 +612,16 @@ void main([List<String> args]) {
       });
 
       group('unpause', () {
-        test('simple', () async {
+        test('should set the paused container back to running', () async {
           // set up
           final ContainerInfo startedStatus =
-              await connection.container(createdContainer.container);
+              await connection.container(createdContainer);
           expect(startedStatus.state.running, isNotNull);
 
           final SimpleResponse pauseResponse =
-              await connection.pause(createdContainer.container);
+              await connection.pause(createdContainer);
           final ContainerInfo pausedStatus =
-              await connection.container(createdContainer.container);
+              await connection.container(createdContainer);
 
           expect(pauseResponse, isNotNull);
           expect(pausedStatus.state.paused, isTrue);
@@ -657,9 +629,9 @@ void main([List<String> args]) {
 
           // exercise
           final SimpleResponse unpauseResponse =
-              await connection.unpause(createdContainer.container);
+              await connection.unpause(createdContainer);
           final ContainerInfo unpausedStatus =
-              await connection.container(createdContainer.container);
+              await connection.container(createdContainer);
 
           // verification
           expect(unpauseResponse, isNotNull);
@@ -670,14 +642,13 @@ void main([List<String> args]) {
 
       group('attachWs', () {
         test('simple', () async {
-          final supportedVersion = new Version.fromString('1.17');
-          if (!checkMinVersion(supportedVersion)) {
+          if (!utils.isMinVersion(connection, ApiVersion.v1_17)) {
             return;
           }
 
           // exercise
           final Stream attachResponse = await connection.attachWs(
-              createdContainer.container,
+              createdContainer,
               logs: true,
               stream: true,
               stdin: true,
@@ -706,16 +677,16 @@ void main([List<String> args]) {
       }, skip: 'not yet implemented');
 
       group('wait', () {
-        test('simple', () async {
+        test('should wait until the container stopped', () async {
           // set up
           final ContainerInfo startedStatus =
-              await connection.container(createdContainer.container);
+              await connection.container(createdContainer);
           expect(startedStatus.state.running, isNotNull);
 
           final waitReturned = expectAsync(() {});
 
           // exercise
-          connection.wait(createdContainer.container).then((response) {
+          connection.wait(createdContainer).then((response) {
             // verification
             expect(response, isNotNull);
             expect(response.statusCode, isNot(0));
@@ -723,21 +694,56 @@ void main([List<String> args]) {
           });
 
           // exercise
-          await new Future.delayed(const Duration(milliseconds: 100), () {});
-          await connection.stop(createdContainer.container);
+          await utils.waitMilliseconds(100);
+          await connection.stop(createdContainer);
         }, timeout: const Timeout(const Duration(seconds: 60)));
       });
 
       group('remove', () {
-        test('simple', () async {
+        test('should remove the container from the file system', () async {
           // set up
-          await connection.stop(createdContainer.container);
+          await connection.stop(createdContainer);
 
           // exercise
-          await connection.removeContainer(createdContainer.container);
+          await connection.removeContainer(createdContainer);
 
           // verification
-          expect(connection.container(createdContainer.container), throws);
+          expect(connection.container(createdContainer), throws);
+
+          // tear down
+          createdContainer = null; // prevent removing again in tearDown
+        }, timeout: const Timeout(const Duration(seconds: 60)));
+      });
+
+      group('copy', () {
+        setUp(() async {
+          const entryPoint = const [
+            '/bin/sh',
+            '-c',
+            'echo "some text" > copytest.txt'
+          ];
+
+          // exercise
+          final Exec createResponse =
+              await connection.execCreate(createdContainer, cmd: entryPoint);
+
+          await connection.execStart(createResponse, tty: false, detach: true);
+          await utils.waitMilliseconds(200);
+        });
+
+        test('should retrieve a file from the containers file system',
+            () async {
+          // exercise
+//          print(createdContainer.id);
+          final fileStream =
+              await connection.copy(createdContainer, '/copytest.txt');
+          final StringBuffer buf = new StringBuffer();
+          await for (var data in fileStream) {
+            buf.write(UTF8.decode(data));
+          }
+
+          // verification
+          expect(buf.toString(), contains('some text'));
 
           // tear down
           createdContainer = null; // prevent removing again in tearDown
@@ -747,22 +753,23 @@ void main([List<String> args]) {
 
     group('attach', () {
       setUp(() async {
-        createdContainer = await connection.createContainer(
+        createdContainer = (await connection.createContainer(
             new CreateContainerRequest()
           ..image = imageNameAndTag
           ..openStdin = false
           ..attachStdin = false
-          ..cmd = ['/bin/sh', '-c', 'uptime']);
+          ..cmd = ['/bin/sh', '-c', 'uptime'])).container;
       });
 
-      test('simple', () async {
-        if (!checkMinVersion(ApiVersion.v1_17)) {
+      test(
+          'should attach to the containers stdout and stderr and return a stream of the output',
+          () async {
+        if (!utils.isMinVersion(connection, ApiVersion.v1_17)) {
           return;
         }
 
         // exercise
-        final DeMux attachResponse = await connection.attach(
-            createdContainer.container,
+        final DeMux attachResponse = await connection.attach(createdContainer,
             stream: true, stdout: true, stderr: true);
 
         expect(attachResponse, isNotNull);
@@ -773,9 +780,9 @@ void main([List<String> args]) {
             .take(1000)
             .listen((data) {
           buf.add(data);
-        }, onDone: () => print('done'));
+        });
 
-        await connection.start(createdContainer.container);
+        await connection.start(createdContainer);
         await stdoutSubscription.asFuture();
 
         // verification
@@ -790,7 +797,7 @@ void main([List<String> args]) {
 
   group('images', () {
     group('images', () {
-      test('simple', () async {
+      test('should return a list of images', () async {
         // exercise
         Iterable<ImageInfo> images = await connection.images();
 //        print('Images count: ${images.length}');
@@ -807,7 +814,7 @@ void main([List<String> args]) {
 
       test('all: true', () async {
         // set up
-//        String containerId = createdContainer.container.id;
+//        String containerId = createdContainer.id;
         final Iterable<ImageInfo> images = await connection.images(all: true);
         expect(images, isNotEmpty);
         expect(images.first.id, isNotEmpty);
@@ -833,7 +840,8 @@ void main([List<String> args]) {
     // TODO(zoechi) test build
 
     group('create', () {
-      test('simple', () async {
+      test('should create a new image by pulling it from the registry',
+          () async {
         final Iterable<CreateImageResponse> createImageResponse =
             await connection.createImage(imageNameAndTag);
         if (connection.apiVersion <= ApiVersion.v1_15) {
@@ -847,7 +855,7 @@ void main([List<String> args]) {
     });
 
     group('image', () {
-      test('simple', () async {
+      test('should return detailed information about the image', () async {
         final ImageInfo imageResponse =
             await connection.image(new Image(imageNameAndTag));
         expect(imageResponse.config.cmd, contains(entryPoint));
@@ -855,7 +863,7 @@ void main([List<String> args]) {
     });
 
     group('history', () {
-      test('simple', () async {
+      test('should return the history of the image', () async {
         final Iterable<ImageHistoryResponse> imageHistoryResponse =
             await connection.history(new Image(imageNameAndTag));
         expect(imageHistoryResponse.length, greaterThan(2));
@@ -872,7 +880,7 @@ void main([List<String> args]) {
     });
 
     group('push', () {
-      test('simple', () async {
+      test('should push the image to the registry', () async {
         final Iterable<ImagePushResponse> imagePushResponse =
             await connection.push(new Image(imageName));
         expect(imagePushResponse.length, greaterThan(3));
@@ -885,13 +893,14 @@ void main([List<String> args]) {
             anyElement((e) => e.tags != null && e.tags.isNotEmpty));
         expect(
             imagePushResponse, anyElement((e) => e.size != null && e.size > 0));
-      }, skip: 'complete test when `exec` is working');
+      }, skip: 'don\'t know yet how to test');
     });
 
     group('tag', () {
-      test('simple', () async {
+      test('should tag the image into a repository', () async {
         final SimpleResponse imageTagResponse = await connection.tag(
             new Image(imageNameAndTag), 'SomeRepo', 'SomeTag');
+        // TODO(zoechi) check the tag is set
         expect(imageTagResponse, isNotNull);
       });
 
@@ -903,7 +912,7 @@ void main([List<String> args]) {
     });
 
     group('removeImage', () {
-      test('simple', () async {
+      test('should remove the image from the filesystem', () async {
         final SimpleResponse imageTagResponse = await connection.tag(
             new Image(imageNameAndTag), imageName, 'removeImage');
         expect(imageTagResponse, isNotNull);
@@ -917,7 +926,7 @@ void main([List<String> args]) {
     });
 
     group('search', () {
-      test('simple', () async {
+      test('should return a list of found images', () async {
         final Iterable<SearchResponse> searchResponse =
             await connection.search('sshd');
         expect(searchResponse, isNotNull);
@@ -935,7 +944,7 @@ void main([List<String> args]) {
 
   group('misc', () {
     group('auth', () {
-      test('simple', () async {
+      test('should decline the invalid login credentials', () async {
 //        Succeeds with real password
 //        final AuthResponse authResponse = await connection.auth(
 //            new AuthRequest('zoechi', 'xxxxx', 'guenter@gzoechbauer.com',
@@ -953,7 +962,7 @@ void main([List<String> args]) {
     });
 
     group('info', () {
-      test('simple', () async {
+      test('should return system-wide information', () async {
         final InfoResponse infoResponse = await connection.info();
         expect(infoResponse, isNotNull);
         expect(infoResponse.containers, greaterThan(0));
@@ -977,7 +986,7 @@ void main([List<String> args]) {
     });
 
     group('version', () {
-      test('simple', () async {
+      test('should return Docker version information', () async {
         final VersionResponse versionResponse = await connection.version();
         expect(versionResponse, isNotNull);
         expect(versionResponse.apiVersion.major, greaterThanOrEqualTo(1));
@@ -993,14 +1002,15 @@ void main([List<String> args]) {
     });
 
     group('ping', () {
-      test('simple', () async {
+      test('should not a non-error response', () async {
         final SimpleResponse pingResponse = await connection.ping();
         expect(pingResponse, isNotNull);
       });
     });
 
     group('get', () {
-      test('simple', () async {
+      test('should return a tarball containing all images in the repository',
+          () async {
         // exercise
         final Stream exportResponse =
             await connection.get(new Image(imageNameAndTag));
@@ -1023,12 +1033,13 @@ void main([List<String> args]) {
 
         // verification
         expect(buf.length, greaterThan(1000000));
-        await new Future.delayed(const Duration(milliseconds: 500));
+        await utils.waitMilliseconds(500);
       });
     });
 
     group('getAll', () {
-      test('simple', () async {
+      test('should return a tarball containing all images in all repositories',
+          () async {
         // exercise
         final Stream exportResponse = await connection.getAll();
         final buf = new BytesBuilder(copy: false);
@@ -1050,7 +1061,7 @@ void main([List<String> args]) {
 
         // verification
         expect(buf.length, greaterThan(1000000));
-        await new Future.delayed(const Duration(milliseconds: 500));
+        await utils.waitMilliseconds(500);
       });
     }, skip: 'test not yet working');
 
@@ -1058,53 +1069,105 @@ void main([List<String> args]) {
   });
 
   group('exec', () {
-    group('execCreate', () {
-      test('simple', () async {
-        final supportedVersion = new Version.fromString('1.17');
-        if (!checkMinVersion(supportedVersion)) {
+    group('create', () {
+      test('should set up the exec instance in the running container',
+          () async {
+        if (!utils.isMinVersion(connection, ApiVersion.v1_17)) {
           return;
         }
 
-        createdContainer = await connection.createContainer(
-            new CreateContainerRequest()..image = imageNameAndTag);
-        await connection.start(createdContainer.container);
-        //await new Future.delayed(const Duration(milliseconds: 500));
-        final Exec execResponse = await connection.execCreate(
-            createdContainer.container,
-            attachStdin: true,
-            cmd: ['echo sometext > ~/somefile.txt', 'ls -la']);
-        print(execResponse.id);
-        final startResponse = await connection.execStart(execResponse);
-        expect(startResponse, isNotNull);
-        print('startResponse: ${startResponse}');
-        await for (var v in startResponse.stdin) {
-          print('startResonse: ${v}');
-        }
-        await for (var v in startResponse.stdout) {
-          print('startResonse: ${v}');
-        }
-        await for (var v in startResponse.stderr) {
-          print('startResonse: ${v}');
-        }
-      }, skip: 'Test broken, probably due to a Docker issue.');
+        // set up
+        await createContainer();
+        await connection.start(createdContainer);
+
+        const entryPoint = 'echo sometext > ~/somefile.txt';
+        const args = 'ls -la';
+
+        // exercise
+        final Exec createResponse = await connection.execCreate(
+            createdContainer,
+            attachStdin: false,
+            attachStdout: true,
+            attachStderr: true,
+            cmd: [entryPoint, args]);
+
+        // verify
+        final ExecInfo inspectResponse =
+            await connection.execInspect(createResponse);
+        expect(inspectResponse.container.id, createdContainer.id);
+        expect(inspectResponse.running, isFalse);
+        expect(inspectResponse.processConfig.entrypoint, entryPoint);
+        expect(inspectResponse.processConfig.arguments, [args]);
+        expect(inspectResponse.openStderr, isTrue);
+        expect(inspectResponse.openStdout, isTrue);
+        expect(inspectResponse.openStdin, isFalse);
+      });
     });
 
-    // TODO(zoechi) implement test for execStart()
-    // TODO(zoechi) implement test for execResize()
-
-    group('execInspect', () {
-      test('simple', () async {
-        final supportedVersion = new Version.fromString('1.17');
-        if (!checkMinVersion(supportedVersion)) {
+    group('start', () {
+      test('should start the exec and return the stdout as stream', () async {
+        if (!utils.isMinVersion(connection, ApiVersion.v1_17)) {
           return;
         }
 
-        createdContainer = await connection.createContainer(
-            new CreateContainerRequest()..image = imageNameAndTag);
-        await connection.start(createdContainer.container);
-        //await new Future.delayed(const Duration(milliseconds: 500));
-        final Exec execResponse = await connection.execCreate(
-            createdContainer.container,
+        // set up
+        await createContainer();
+        await connection.start(createdContainer);
+
+        const entryPoint = const ['/bin/sh', '-c', 'tail -f /etc/inittab'];
+
+        // exercise
+        final Exec createResponse = await connection.execCreate(
+            createdContainer,
+            attachStdout: true, attachStderr: true, tty: true, cmd: entryPoint);
+
+        final DeMux startResponse = await connection.execStart(createResponse,
+            tty: false, detach: false);
+
+        final StringBuffer stdoutBuf = new StringBuffer();
+        final stdoutSubscription = startResponse.stdout.listen((data) {
+          stdoutBuf.write(UTF8.decode(data));
+        });
+
+        final StringBuffer stderrBuf = new StringBuffer();
+        final stderrSubscription = startResponse.stderr.listen((data) {
+          stderrBuf.write(UTF8.decode(data));
+        });
+
+        // verify
+        final ExecInfo inspectResponse =
+            await connection.execInspect(createResponse);
+        expect(inspectResponse.container.id, createdContainer.id);
+        expect(inspectResponse.running, isTrue);
+        expect(inspectResponse.processConfig.entrypoint, entryPoint[0]);
+        expect(inspectResponse.processConfig.arguments, entryPoint.sublist(1));
+        expect(inspectResponse.openStdin, isFalse);
+        expect(inspectResponse.openStdout, isTrue);
+        expect(inspectResponse.openStderr, isTrue);
+
+        connection.stop(createdContainer);
+        await Future.wait(
+            [stdoutSubscription.asFuture(), stderrSubscription.asFuture()]);
+
+        expect(stdoutBuf, isNotEmpty);
+        expect(stderrBuf, isEmpty);
+      });
+    });
+
+    // TODO(zoechi) implement test for execResize()
+
+    group('inspect', () {
+      test('should return detail information about the created exec instance',
+          () async {
+        if (!utils.isMinVersion(connection, ApiVersion.v1_17)) {
+          return;
+        }
+
+        await createContainer();
+        await connection.start(createdContainer);
+        //await utils.waitMilliseconds(200);
+
+        final Exec execResponse = await connection.execCreate(createdContainer,
             attachStdin: true,
             cmd: ['echo sometext > ~/somefile.txt', 'ls -la']);
 
@@ -1118,34 +1181,68 @@ void main([List<String> args]) {
         expect(inspectResponse.openStdin, isTrue);
         expect(inspectResponse.openStdout, isFalse);
         expect(inspectResponse.openStderr, isFalse);
-        expect(inspectResponse.container.id, createdContainer.container.id);
+        expect(inspectResponse.container.id, createdContainer.id);
+      });
+
+      test('should return detail information about the started exec instance',
+          () async {
+        if (!utils.isMinVersion(connection, ApiVersion.v1_17)) {
+          return;
+        }
+
+        await createContainer();
+        await connection.start(createdContainer);
+        //await utils.waitMilliseconds(200);
+
+        final Exec execResponse = await connection.execCreate(createdContainer,
+            attachStdin: true,
+            cmd: ['echo sometext > ~/somefile.txt', 'ls -la']);
+
+        final ExecInfo inspectResponse =
+            await connection.execInspect(execResponse);
+        expect(inspectResponse, isNotNull);
+        expect(inspectResponse.id, execResponse.id);
+        expect(inspectResponse.running, isFalse);
+        expect(
+            inspectResponse.processConfig.entrypoint, startsWith('echo some'));
+        expect(inspectResponse.openStdin, isTrue);
+        expect(inspectResponse.openStdout, isFalse);
+        expect(inspectResponse.openStderr, isFalse);
+        expect(inspectResponse.container.id, createdContainer.id);
       });
     });
   });
 
   group('events', () {
-    test('filter die', () async {
-      final CreateResponse createdContainer = await connection.createContainer(
-          new CreateContainerRequest()..image = imageNameAndTag);
+    test('should return events of the container except "die" as a stream',
+        () async {
+      // set up
+      await createContainer();
 
       final startReceived = expectAsync(() {});
       final stopReceived = expectAsync(() {});
 
+      // exercise
       StreamSubscription subscription;
       subscription = connection.events(filters: new EventsFilter()
         ..events.addAll([ContainerEvent.start, ContainerEvent.stop])
-        ..containers.add(createdContainer.container)).listen((event) {
-        if (event.id == createdContainer.container.id &&
+        ..containers.add(createdContainer)).listen((event) {
+
+        // verify
+        if (event.id == createdContainer.id &&
             event.from == imageNameAndTag &&
             event.time.millisecondsSinceEpoch >
                 new DateTime(1, 1, 1).millisecondsSinceEpoch) {
+          //
           if (event.status == ContainerEvent.start) {
             startReceived();
-            connection.stop(createdContainer.container);
+            connection.stop(createdContainer);
+            //
           } else if (event.status == ContainerEvent.die) {
             if (connection.apiVersion >= ApiVersion.v1_17) {
               fail('"die" event was filtered out.');
             }
+            //
           } else if (event.status == ContainerEvent.stop) {
             stopReceived();
             subscription.cancel();
@@ -1153,33 +1250,44 @@ void main([List<String> args]) {
         }
       });
 
-      await new Future.delayed(const Duration(milliseconds: 100));
+      await utils.waitMilliseconds(100);
 
-      await connection.start(createdContainer.container);
+      await connection.start(createdContainer);
     });
 
-    test('container until', () async {
-      final CreateResponse createdContainer = await connection.createContainer(
-          new CreateContainerRequest()..image = imageNameAndTag);
+    test(
+        'should return events of the container occured before the specified time',
+        () async {
+      // set up
+      await createContainer();
+
       final startReceived = expectAsync(() {});
-      //final dieReceived = expectAsync(() {});
+      final dieReceived = expectAsync(() {});
       final stopReceived = expectAsync(() {});
+
+      // exercise
       StreamSubscription subscription;
       subscription = connection
           .events(
               since: new DateTime.now(),
               until: new DateTime.now().add(const Duration(minutes: 2)))
           .listen((event) {
-        if (event.id == createdContainer.container.id &&
+
+        // verify
+        if (event.id == createdContainer.id &&
             event.from == imageNameAndTag &&
             event.time.millisecondsSinceEpoch >
                 new DateTime(1, 1, 1).millisecondsSinceEpoch) {
+          //
           if (event.status == ContainerEvent.start) {
             startReceived();
-            connection.stop(createdContainer.container);
+            connection.stop(createdContainer);
+            //
           } else if (event.status == ContainerEvent.die) {
-            // TODO(zoechi) wasn't able to make filter for events work
-            // fail('"die" event was filtered out.');
+            if (connection.apiVersion >= ApiVersion.v1_17) {
+              dieReceived();
+            }
+            //
           } else if (event.status == ContainerEvent.stop) {
             stopReceived();
             subscription.cancel();
@@ -1187,9 +1295,9 @@ void main([List<String> args]) {
         }
       });
 
-      await new Future.delayed(const Duration(milliseconds: 100));
+      await utils.waitMilliseconds(100);
 
-      await connection.start(createdContainer.container);
+      await connection.start(createdContainer);
     });
   });
 }

@@ -139,8 +139,7 @@ class DockerConnection {
     if (data != null) {
       request.body = data;
     }
-    final http.BaseResponse response =
-        await request.send(); // .then(http.Response.fromStream);
+    final http.BaseResponse response = await request.send();
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw new DockerRemoteApiError(
           response.statusCode, response.reasonPhrase, null);
@@ -195,7 +194,7 @@ class DockerConnection {
 
     final List response =
         await _request(RequestType.get, '/containers/json', query: query);
-    //print(response);
+//    print(response);
     return response.map((e) => new Container.fromJson(e, apiVersion));
   }
 
@@ -384,6 +383,7 @@ class DockerConnection {
     final query = {'t': timeout.toString()};
     final Map response = await _request(
         RequestType.post, '/containers/${container.id}/stop', query: query);
+//    print(response);
     return new SimpleResponse.fromJson(response, apiVersion);
   }
 
@@ -618,7 +618,6 @@ class DockerConnection {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
     final json = new CopyRequestPath(resource).toJson();
-
     return _requestStream(RequestType.post, '/containers/${container.id}/copy',
         body: json);
   }
@@ -1089,6 +1088,7 @@ class DockerConnection {
 
     final response = await _requestStream(
         RequestType.post, '/exec/${exec.id}/start', body: body);
+    //print(response);
     return new DeMux(response);
   }
 
@@ -1120,6 +1120,7 @@ class DockerConnection {
     assert(exec != null && exec.id != null && exec.id.isNotEmpty);
 
     final response = await _request(RequestType.get, '/exec/${exec.id}/json');
+    //print(response);
     return new ExecInfo.fromJson(response, apiVersion);
   }
 }
@@ -1183,7 +1184,7 @@ class DeMux {
           }
         }
         if (byteCountdown > 0) {
-//          print('${UTF8.decode(buf.sublist(0,10))}...'); // TODO(zoechi) remove
+          // print('${UTF8.decode(buf.sublist(0,10))}...'); // TODO(zoechi) remove
           if (buf.length <= byteCountdown) {
             current.add(buf);
             byteCountdown -= buf.length;

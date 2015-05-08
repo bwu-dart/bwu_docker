@@ -23,7 +23,7 @@ main() {
       expect(v3.patch, null);
     });
 
-    test('create invalid', () {
+    test('create invalid should throw', () {
       expect(() => new Version.fromString('1'), throws);
       expect(() => new Version.fromString('.2'), throws);
       expect(() => new Version.fromString('..2'), throws);
@@ -39,7 +39,7 @@ main() {
       expect(() => new Version.fromString('1.2.3-a'), throws);
     });
 
-    test('equals', () {
+    test('two instances created with same version should be equal', () {
       expect(new Version.fromString('1.1.1') == new Version.fromString('1.1.1'),
           true);
       expect(new Version.fromString('1.2.3') == new Version.fromString('1.2.3'),
@@ -64,7 +64,10 @@ main() {
           new Version.fromString('0.1') == new Version.fromString('0.1'), true);
       expect(
           new Version.fromString('0.0') == new Version.fromString('0.0'), true);
+    });
 
+    test('two instances created with different version should not be equal',
+        () {
       expect(new Version.fromString('1.2.3') == new Version.fromString('0.0.0'),
           false);
       expect(new Version.fromString('0.0.0') == new Version.fromString('1.2.3'),
@@ -75,7 +78,7 @@ main() {
           false);
     });
 
-    test('greater than', () {
+    test('bigger > smaller version should be true', () {
       expect(new Version.fromString('0.0.1') > new Version.fromString('0.0.0'),
           true);
       expect(new Version.fromString('0.1.0') > new Version.fromString('0.0.1'),
@@ -90,7 +93,9 @@ main() {
           new Version.fromString('10.0') > new Version.fromString('9.0'), true);
       expect(
           new Version.fromString('0.10') > new Version.fromString('0.9'), true);
+    });
 
+    test('smaller > bigger version should be false', () {
       expect(new Version.fromString('0.0.0') > new Version.fromString('0.0.1'),
           false);
       expect(new Version.fromString('0.0.1') > new Version.fromString('0.1.0'),
@@ -109,7 +114,7 @@ main() {
           false);
     });
 
-    test('less than', () {
+    test('smaller < bigger version should be true', () {
       expect(new Version.fromString('0.0.0') < new Version.fromString('0.0.1'),
           true);
       expect(new Version.fromString('0.0.1') < new Version.fromString('0.1.0'),
@@ -126,21 +131,23 @@ main() {
           new Version.fromString('9.0') < new Version.fromString('10.0'), true);
       expect(
           new Version.fromString('0.9') < new Version.fromString('0.10'), true);
+    });
 
-      expect(new Version.fromString('0.0.1') > new Version.fromString('0.0.0'),
-          true);
-      expect(new Version.fromString('0.1.0') > new Version.fromString('0.0.1'),
-          true);
-      expect(new Version.fromString('1.0.0') > new Version.fromString('0.0.1'),
-          true);
-      expect(new Version.fromString('10.0.0') > new Version.fromString('9.0.0'),
-          true);
-      expect(new Version.fromString('0.10.0') > new Version.fromString('0.9.0'),
-          true);
-      expect(
-          new Version.fromString('10.0') > new Version.fromString('9.0'), true);
-      expect(
-          new Version.fromString('0.10') > new Version.fromString('0.9'), true);
+    test('bigger < smaller version should be false', () {
+      expect(new Version.fromString('0.0.1') < new Version.fromString('0.0.0'),
+          false);
+      expect(new Version.fromString('0.1.0') < new Version.fromString('0.0.1'),
+          false);
+      expect(new Version.fromString('1.0.0') < new Version.fromString('0.0.1'),
+          false);
+      expect(new Version.fromString('10.0.0') < new Version.fromString('9.0.0'),
+          false);
+      expect(new Version.fromString('0.10.0') < new Version.fromString('0.9.0'),
+          false);
+      expect(new Version.fromString('10.0') < new Version.fromString('9.0'),
+          false);
+      expect(new Version.fromString('0.10') < new Version.fromString('0.9'),
+          false);
     });
   });
 }

@@ -1,6 +1,8 @@
 library bwu_docker.tool.grind;
 
 import 'package:grinder/grinder.dart';
+import 'package:bwu_docker/bwu_docker.dart';
+import 'package:bwu_docker/src/tasks.dart';
 
 const sourceDirs = const ['bin', 'lib', 'tool', 'test', 'example'];
 
@@ -29,3 +31,10 @@ formatAll() => new PubApp.global('dart_style').run(['-w']..addAll(sourceDirs),
 @Task('Run lint checks')
 lint() => new PubApp.global('linter')
     .run(['--stats', '-ctool/lintcfg.yaml']..addAll(sourceDirs));
+
+@Task('Clean up DinD')
+dindClean() async {
+  DockerConnection conn = new DockerConnection('localhost', 1234);
+  await conn.init();
+  await purgeAll(conn);
+}

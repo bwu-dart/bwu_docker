@@ -18,7 +18,7 @@ main() {
     mux = new DeMux(sc.stream);
   });
 
-  test('one chunk', () async {
+  test('should receive simple chunk as sent', () async {
     final expectDataReceived = expectAsync(() {}, count: 2);
     var subscription = mux.stdout.listen((e) {
       if (eq(e, sampleString)) {
@@ -35,7 +35,8 @@ main() {
     await subscription.asFuture();
   });
 
-  test('chunks smaller than one block', () async {
+  test('should forward chunks beloning together to the same output stream',
+      () async {
     final expectDataReceived = expectAsync(() {}, count: 4);
 
     var subscription = mux.stderr.listen((e) {
@@ -56,7 +57,8 @@ main() {
     await subscription.asFuture();
   });
 
-  test('chunks bigger than one block', () async {
+  test('should split chunks that contain data for more than one output stream',
+      () async {
     final expectDataReceived = expectAsync(() {});
     final expectChunkedDataReceived = expectAsync(() {});
 
