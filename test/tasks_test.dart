@@ -13,6 +13,8 @@
 @TestOn('vm')
 library bwu_docker.test.tasks;
 
+import 'dart:io' as io;
+import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 import 'package:bwu_docker/bwu_docker.dart';
 import 'package:bwu_docker/tasks.dart';
@@ -22,9 +24,15 @@ const imageName = 'busybox';
 const imageTag = 'buildroot-2014.02';
 const entryPoint = '/bin/sh';
 const runningProcess = '/bin/sh';
-const dockerPort = 1235;
 
 const imageNameAndTag = '${imageName}:${imageTag}';
+
+Uri _uriUpdatePort(Uri uri, int port) {
+  final result = new Uri(
+      scheme: uri.scheme, userInfo: uri.userInfo, host: uri.host, port: port);
+  print('${result}');
+  return result;
+}
 
 main() {
   DockerConnection connection;
@@ -47,7 +55,13 @@ main() {
   };
 
   setUp(() async {
-    connection = new DockerConnection('localhost', dockerPort);
+    /// Use the DinD set up with a higher port than default to not interfere
+    /// with the default test DinD when testing purging all containers and
+    /// images.
+    var uri = Uri.parse(io.Platform.environment[dockerHostFromEnvironment]);
+    uri = _uriUpdatePort(uri, uri.port + 1);
+    connection =
+        new DockerConnection(uri, new http.Client());
     await connection.init();
     assert(connection.dockerVersion != null);
     //await ensureImageExists();

@@ -145,7 +145,7 @@ UnmodifiableListView _toUnmodifiableListView(Iterable list) {
     } else {
       return e;
     }
-  }));
+  }).toList());
 }
 
 /// Error thrown
@@ -472,22 +472,23 @@ class CommitRequest {
 
   Map toJson() {
     final json = {};
-    json['Hostname'] = hostName;
-    json['Domainname'] = domainName;
-    json['User'] = user;
-    json['AttachStdin'] = attachStdin;
-    json['AttachStdout'] = attachStdout;
-    json['AttachStderr'] = attachStderr;
-    json['PortSpecs'] = portSpecs;
-    json['Tty'] = tty;
-    json['OpenStdin'] = openStdin;
-    json['StdinOnce'] = stdinOnce;
-    json['Env'] = env;
-    json['Cmd'] = cmd;
-    json['Volumes'] = volumes.toJson();
-    json['WorkingDir'] = workingDir;
-    json['NetworkDisabled'] = networkingDisabled;
-    json['ExposedPorts'] = name;
+    if (hostName != null) json['Hostname'] = hostName;
+    if (domainName != null) json['Domainname'] = domainName;
+    if (user != null) json['User'] = user;
+    if (attachStdin != null) json['AttachStdin'] = attachStdin;
+    if (attachStdout != null) json['AttachStdout'] = attachStdout;
+    if (attachStderr != null) json['AttachStderr'] = attachStderr;
+    if (portSpecs != null) json['PortSpecs'] = portSpecs;
+    if (tty != null) json['Tty'] = tty;
+    if (openStdin != null) json['OpenStdin'] = openStdin;
+    if (stdinOnce != null) json['StdinOnce'] = stdinOnce;
+    if (env != null) json['Env'] = env;
+    if (cmd != null) json['Cmd'] = cmd;
+    if (volumes != null) json['Volumes'] = volumes.toJson();
+    if (workingDir != null) json['WorkingDir'] = workingDir;
+    if (networkingDisabled != null) json['NetworkDisabled'] =
+        networkingDisabled;
+    if (name != null) json['ExposedPorts'] = name;
     return json;
   }
 }
@@ -1041,10 +1042,8 @@ class ConfigFile {
 
   Map toJson() {
     final json = {};
-    json['auths'] = auths.toJson();
-    if (httpHeaders != null) {
-      json['HttpHeaders'] = _httpHeaders;
-    }
+    if (auths != null) json['auths'] = auths.toJson();
+    if (httpHeaders != null) json['HttpHeaders'] = _httpHeaders;
     return json;
   }
 }
@@ -1070,18 +1069,11 @@ class AuthConfig {
 
   Map toJson() {
     final json = {};
-    if (userName != null) {
-      json['userName'] = userName;
-    }
-    if (password != null) {
-      json['password;'] = password;
-    }
+    if (userName != null) json['userName'] = userName;
+    if (password != null) json['password;'] = password;
     json['auth;'] = auth;
     json['email;'] = email;
-    if (serverAddress != null) {
-      json['serverAddress'] = serverAddress;
-    }
-
+    if (serverAddress != null) json['serverAddress'] = serverAddress;
     return json;
   }
 }
@@ -1583,9 +1575,7 @@ class TopResponse {
     _processes = _toUnmodifiableListView(json['Processes']);
   }
 
-  Map toJson() {
-    return {'Titles': titles, 'Processes': processes};
-  }
+  Map toJson() => {'Titles': titles, 'Processes': processes};
 }
 
 /// The possible running states of a container.
@@ -1748,14 +1738,13 @@ class Container {
 
   Map toJson() {
     final json = {};
-    json['Id'] = id;
-    json['Command'] = command;
-    json['Created'] = created == null ? null : created.toIso8601String();
-    json['Image'] = image;
-    json['Names'] = names;
-    json['Ports'] = ports;
-    json['Status'] = status;
-
+    if (id != null) json['Id'] = id;
+    if (command != null) json['Command'] = command;
+    if (created != null) json['Created'] = created.toIso8601String();
+    if (image != null) json['Image'] = image;
+    if (names != null) json['Names'] = names;
+    if (ports != null) json['Ports'] = ports;
+    if (status != null) json['Status'] = status;
     return json;
   }
 }
@@ -2040,50 +2029,59 @@ class ContainerInfo {
 
   Map toJson() {
     final json = {};
-    json['AppArmorProfile'] = appArmorProfile;
-    json['Args'] = args;
-    json['Config'] = config.toJson();
-    json['Created'] = created == null ? null : _created.toIso8601String();
-    json['Driver'] = driver;
-    json['ExecDriver'] = execDriver;
-    json['HostConfig'] = hostConfig.toJson();
-    json['HostnamePath'] = hostnamePath;
-    json['HostsPath'] = hostsPath;
-    json['Id'] = id;
-    json['Image'] = image;
-    json['MountLabel'] = mountLabel;
-    json['Name'] = name;
-    json['NetworkSettings'] = networkSettings.toJson();
-    json['Path'] = path;
-    json['ProcessLabel'] = processLabel;
-    json['ResolvConfPath'] = resolveConfPath;
-    json['State'] = state.toJson();
-    json['Volumes'] = volumes.toJson();
-    json['VolumesRW'] = volumesRw.toJson();
+    if (appArmorProfile != null) json['AppArmorProfile'] = appArmorProfile;
+    if (args != null) json['Args'] = args;
+    if (config != null) json['Config'] = config.toJson();
+    if (created == null) json['Created'] = _created.toIso8601String();
+    if (driver != null) json['Driver'] = driver;
+    if (execDriver != null) json['ExecDriver'] = execDriver;
+    if (hostConfig != null) json['HostConfig'] = hostConfig.toJson();
+    if (hostnamePath != null) json['HostnamePath'] = hostnamePath;
+    if (hostsPath != null) json['HostsPath'] = hostsPath;
+    if (id != null) json['Id'] = id;
+    if (image != null) json['Image'] = image;
+    if (mountLabel != null) json['MountLabel'] = mountLabel;
+    if (name != null) json['Name'] = name;
+    if (networkSettings != null) json['NetworkSettings'] =
+        networkSettings.toJson();
+    if (path != null) json['Path'] = path;
+    if (processLabel != null) json['ProcessLabel'] = processLabel;
+    if (resolveConfPath != null) json['ResolvConfPath'] = resolveConfPath;
+    if (state != null) json['State'] = state.toJson();
+    if (volumes != null) json['Volumes'] = volumes.toJson();
+    if (volumesRw != null) json['VolumesRW'] = volumesRw.toJson();
     return json;
   }
+}
+
+class PortBindingRequest extends PortBinding {
+  String get port => _port;
+  set port(String val) => _port = val;
+
+  List<HostPort> get hostPorts => _hostPorts;
+  set hostPorts(List<HostPort> val) => _hostPorts = val;
 }
 
 class PortBinding {
   String _port;
   String get port => _port;
 
-  UnmodifiableListView<HostPort> _hostPorts;
-  UnmodifiableListView<HostPort> get hostPorts => _hostPorts;
+  List<HostPort> _hostPorts;
+  List<HostPort> get hostPorts => _toUnmodifiableListView(_hostPorts);
+
+  PortBinding();
 
   PortBinding.fromJson(Map json, Version apiVersion) {
     _port = json['Port'];
     if (json['Values'] != null) {
-      _hostPorts = _toUnmodifiableListView(
-          json['Values'].map((v) => new HostPort.fromJson(v, apiVersion)));
+      _hostPorts =
+          json['Values'].map((v) => new HostPort.fromJson(v, apiVersion)).toList();
     }
     _checkSurplusItems(
         apiVersion, {ApiVersion.v1_15: const ['Port', 'Values',]}, json.keys);
   }
 
-  Map toJson() {
-    return {port: hostPorts.map((hp) => hp.toJson()).toList()};
-  }
+  Map toJson() => {port: hostPorts.map((hp) => hp.toJson()).toList()};
 }
 
 class HostPort {
@@ -2099,20 +2097,19 @@ class HostPort {
         apiVersion, {ApiVersion.v1_15: const ['HostPort',]}, json.keys);
   }
 
-  Map toJson() {
-    return {'HostPort': port};
-  }
+  Map toJson() => {'HostPort': port};
 }
 
+/// See [HostConfigRequest] for documentation of the members.
 class HostConfig {
-  UnmodifiableListView<String> _binds;
-  UnmodifiableListView<String> get binds => _binds;
+  List<String> _binds;
+  List<String> get binds => _toUnmodifiableListView(_binds);
 
-  UnmodifiableListView<String> _capAdd;
-  UnmodifiableListView<String> get capAdd => _capAdd;
+  List<String> _capAdd;
+  List<String> get capAdd => _toUnmodifiableListView(_capAdd);
 
-  UnmodifiableListView<String> _capDrop;
-  UnmodifiableListView<String> get capDrop => _capDrop;
+  List<String> _capDrop;
+  List<String> get capDrop => _toUnmodifiableListView(_capDrop);
 
   String _cGroupParent;
   String get cGroupParent => _cGroupParent;
@@ -2126,29 +2123,29 @@ class HostConfig {
   String _cpusetCpus;
   String get cpusetCpus => _cpusetCpus;
 
-  UnmodifiableListView<String> _devices;
-  UnmodifiableListView<String> get devices => _devices;
+  Map<String, String> _devices;
+  Map<String, String> get devices => _toUnmodifiableMapView(_devices);
 
-  UnmodifiableListView<String> _dns;
-  UnmodifiableListView<String> get dns => _dns;
+  List<String> _dns;
+  List<String> get dns => _toUnmodifiableListView(_dns);
 
-  UnmodifiableListView<String> _dnsSearch;
-  UnmodifiableListView<String> get dnsSearch => _dnsSearch;
+  List<String> _dnsSearch;
+  List<String> get dnsSearch => _toUnmodifiableListView(_dnsSearch);
 
-  UnmodifiableListView<String> _extraHosts;
-  UnmodifiableListView<String> get extraHosts => _extraHosts;
+  List<String> _extraHosts;
+  List<String> get extraHosts => _toUnmodifiableListView(_extraHosts);
 
   String _ipcMode;
   String get ipcMode => _ipcMode;
 
-  UnmodifiableListView<String> _links;
-  UnmodifiableListView<String> get links => _links;
+  List<String> _links;
+  List<String> get links => _toUnmodifiableListView(_links);
 
-  UnmodifiableMapView<String, Config> _logConfig;
-  UnmodifiableMapView<String, Config> get logConfig => _logConfig;
+  Map<String, Config> _logConfig;
+  Map<String, Config> get logConfig => _toUnmodifiableMapView(_logConfig);
 
-  UnmodifiableListView<String> _lxcConf;
-  UnmodifiableListView<String> get lxcConf => _lxcConf;
+  Map<String, String> _lxcConf;
+  Map<String, String> get lxcConf => _toUnmodifiableMapView(_lxcConf);
 
   int _memory;
   int get memory => _memory;
@@ -2162,8 +2159,8 @@ class HostConfig {
   String _pidMode;
   String get pidMode => _pidMode;
 
-  UnmodifiableListView<PortBinding> _portBindings;
-  UnmodifiableListView<PortBinding> get portBindings => _portBindings;
+  List<PortBinding> _portBindings;
+  List<PortBinding> get portBindings => _toUnmodifiableListView(_portBindings);
 
   bool _privileged;
   bool get privileged => _privileged;
@@ -2180,31 +2177,33 @@ class HostConfig {
   String _securityOpt;
   String get securityOpt => _securityOpt;
 
-  int _ulimits;
-  int get ulimits => _ulimits;
+  Map _ulimits;
+  Map get ulimits => _ulimits;
 
-  UnmodifiableListView _volumesFrom;
-  UnmodifiableListView get volumesFrom => _volumesFrom;
+  List _volumesFrom;
+  List get volumesFrom => _toUnmodifiableListView(_volumesFrom);
+
+  HostConfig();
 
   HostConfig.fromJson(Map json, Version apiVersion) {
     if (json == null) {
       return;
     }
-    _binds = _toUnmodifiableListView(json['Binds']);
-    _capAdd = _toUnmodifiableListView(json['CapAdd']);
-    _capDrop = _toUnmodifiableListView(json['CapDrop']);
+    _binds = json['Binds'];
+    _capAdd = json['CapAdd'];
+    _capDrop = json['CapDrop'];
     _cGroupParent = json['CgroupParent'];
     _containerIdFile = json['ContainerIDFile'];
-    _cpuShares = json['CpuShares'];
     _cpusetCpus = json['CpusetCpus'];
-    _devices = _toUnmodifiableListView(json['Devices']);
-    _dns = _toUnmodifiableListView(json['Dns']);
-    _dnsSearch = _toUnmodifiableListView(json['DnsSearch']);
-    _extraHosts = _toUnmodifiableListView(json['ExtraHosts']);
+    _cpuShares = json['CpuShares'];
+    _devices = json['Devices'];
+    _dns = json['Dns'];
+    _dnsSearch = json['DnsSearch'];
+    _extraHosts = json['ExtraHosts'];
     _ipcMode = json['IpcMode'];
-    _links = _toUnmodifiableListView(json['Links']);
-    _logConfig = _toUnmodifiableMapView(json['LogConfig']);
-    _lxcConf = _toUnmodifiableListView(json['LxcConf']);
+    _links = json['Links'];
+    _logConfig = json['LogConfig'];
+    _lxcConf = json['LxcConf'];
     _memory = json['Memory'];
     _memorySwap = json['MemorySwap'];
     _networkMode = json['NetworkMode'];
@@ -2212,9 +2211,8 @@ class HostConfig {
     final Map<String, List<Map<String, String>>> portBindings =
         json['PortBindings'];
     if (portBindings != null) {
-      _portBindings = _toUnmodifiableListView(portBindings.keys.map(
-          (k) => new PortBinding.fromJson(
-              {'Port': k, 'Values': portBindings[k]}, apiVersion)));
+      _portBindings = portBindings.keys.map((k) => new PortBinding.fromJson(
+          {'Port': k, 'Values': portBindings[k]}, apiVersion)).toList();
     }
     _privileged = json['Privileged'];
     _publishAllPorts = json['PublishAllPorts'];
@@ -2223,7 +2221,8 @@ class HostConfig {
         new RestartPolicy.fromJson(json['RestartPolicy'], apiVersion);
     _securityOpt = json['SecurityOpt'];
     _ulimits = json['Ulimits'];
-    _volumesFrom = _toUnmodifiableListView(json['VolumesFrom']);
+    _volumesFrom = json['VolumesFrom'];
+
     _checkSurplusItems(apiVersion, {
       ApiVersion.v1_15: const [
         'Binds',
@@ -2250,8 +2249,8 @@ class HostConfig {
         'CapDrop',
         'CgroupParent',
         'ContainerIDFile',
-        'CpuShares',
         'CpusetCpus',
+        'CpuShares',
         'Devices',
         'Dns',
         'DnsSearch',
@@ -2278,25 +2277,40 @@ class HostConfig {
 
   Map toJson() {
     final json = {};
-    json['Binds'] = binds;
-    json['CapAdd'] = capAdd;
-    json['CapDrop'] = capDrop;
-    json['ContainerIDFile'] = containerIdFile;
-    json['Devices'] = devices;
-    json['Dns'] = dns;
-    json['DnsSearch'] = dnsSearch;
-    json['ExtraHosts'] = extraHosts;
-    json['Links'] = links;
-    json['LxcConf'] = lxcConf;
-    json['NetworkMode'] = networkMode;
-    json['PortBindings'] = new Map.fromIterable(portBindings,
+    if (binds != null) json['Binds'] = binds;
+    if (capAdd != null) json['CapAdd'] = capAdd;
+    if (capDrop != null) json['CapDrop'] = capDrop;
+    if (cGroupParent != null) json['CgroupParent'] = cGroupParent;
+    if (containerIdFile != null) json['ContainerIDFile'] = containerIdFile;
+    if (cpusetCpus != null) json['CpusetCpus'] = cpusetCpus;
+    if (cpuShares != null) json['CpuShares'] = cpuShares;
+    if (devices != null) json['Devices'] = devices;
+    if (dns != null) json['Dns'] = dns;
+    if (dnsSearch != null) json['DnsSearch'] = dnsSearch;
+    if (extraHosts != null) json['ExtraHosts'] = extraHosts;
+    if (ipcMode != null) json['IpcMode'] = ipcMode;
+    if (links != null) json['Links'] = links;
+    if (logConfig != null) json['LogConfig'] = logConfig;
+    if (lxcConf != null) json['LxcConf'] = lxcConf;
+    if (memory != null) json['Memory'] = memory;
+    if (memorySwap != null) {
+      assert(memory > 0);
+      assert(memorySwap > memory);
+      json['MemorySwap'] = memorySwap;
+    }
+    if (networkMode != null) json['NetworkMode'] = networkMode;
+    if (pidMode != null) json['PidMode'] = pidMode;
+    if (portBindings != null) json['PortBindings'] = new Map.fromIterable(
+        portBindings,
         key: (pb) => pb.port,
         value: (pb) => pb.hostPorts.map((hp) => hp.toJson()).toList());
-    json['Privileged'] = privileged;
-    json['PublishAllPorts'] = publishAllPorts;
-    json['RestartPolicy'] = restartPolicy.toJson();
-    json['SecurityOpt'] = securityOpt;
-    json['VolumesFrom'] = volumesFrom;
+    if (privileged != null) json['Privileged'] = privileged;
+    if (publishAllPorts != null) json['PublishAllPorts'] = publishAllPorts;
+    if (readonlyRootFs != null) json['ReadonlyRootfs'] = readonlyRootFs;
+    if (restartPolicy != null) json['RestartPolicy'] = restartPolicy.toJson();
+    if (securityOpt != null) json['SecurityOpt'] = securityOpt;
+    if (ulimits != null) json['Ulimits'] = ulimits;
+    if (volumesFrom != null) json['VolumesFrom'] = volumesFrom;
     return json;
   }
 }
@@ -2383,13 +2397,13 @@ class NetworkSettings {
 
   Map toJson() {
     final json = {};
-    json['Bridge'] = bridge;
-    json['Gateway'] = gateway;
-    json['IPAddress'] = ipAddress;
-    json['IPPrefixLen'] = ipPrefixLen;
-    json['MacAddress'] = macAddress;
-    json['PortMapping'] = portMapping;
-    json['Ports'] = ports;
+    if (bridge != null) json['Bridge'] = bridge;
+    if (gateway != null) json['Gateway'] = gateway;
+    if (ipAddress != null) json['IPAddress'] = ipAddress;
+    if (ipPrefixLen != null) json['IPPrefixLen'] = ipPrefixLen;
+    if (macAddress != null) json['MacAddress'] = macAddress;
+    if (portMapping != null) json['PortMapping'] = portMapping;
+    if (ports != null) json['Ports'] = ports;
     return json;
   }
 }
@@ -2467,14 +2481,13 @@ class State {
 
   Map toJson() {
     final json = {};
-    json['ExitCode'] = exitCode;
-    json['FinishedAt'] = finishedAt;
-    json['Paused'] = paused;
-    json['Pid'] = pid;
-    json['Restarting'] = restarting;
-    json['Running'] = running;
-    json['StartedAt'] = startedAt;
-
+    if (exitCode != null) json['ExitCode'] = exitCode;
+    if (finishedAt != null) json['FinishedAt'] = finishedAt;
+    if (paused != null) json['Paused'] = paused;
+    if (pid != null) json['Pid'] = pid;
+    if (restarting != null) json['Restarting'] = restarting;
+    if (running != null) json['Running'] = running;
+    if (startedAt != null) json['StartedAt'] = startedAt;
     return json;
   }
 }
@@ -2697,29 +2710,29 @@ class Config {
 
   Map toJson() {
     final json = {};
-    json['AttachStderr'] = attachStderr;
-    json['AttachStdin'] = attachStdin;
-    json['AttachStdout'] = attachStdout;
-    json['Cmd'] = cmd;
-    json['CpuShares'] = cpuShares;
-    json['Cpuset'] = cpuSet;
-    json['Domainname'] = domainName;
-    json['Entrypoint'] = entryPoint;
-    json['Env'] = env;
-    json['ExposedPorts'] = exposedPorts;
-    json['Hostname'] = hostName;
-    json['Image'] = image;
-    json['Memory'] = memory;
-    json['MemorySwap'] = memorySwap;
-    json['NetworkDisabled'] = networkDisabled;
-    json['OnBuild'] = onBuild;
-    json['OpenStdin'] = openStdin;
-    json['PortSpecs'] = portSpecs;
-    json['StdinOnce'] = stdinOnce;
-    json['Tty'] = tty;
-    json['User'] = user;
-    json['_volumes'] = volumes;
-    json['WorkingDir'] = workingDir;
+    if (attachStderr != null) json['AttachStderr'] = attachStderr;
+    if (attachStdin != null) json['AttachStdin'] = attachStdin;
+    if (attachStdout != null) json['AttachStdout'] = attachStdout;
+    if (cmd != null) json['Cmd'] = cmd;
+    if (cpuShares != null) json['CpuShares'] = cpuShares;
+    if (cpuSet != null) json['Cpuset'] = cpuSet;
+    if (domainName != null) json['Domainname'] = domainName;
+    if (entryPoint != null) json['Entrypoint'] = entryPoint;
+    if (env != null) json['Env'] = env;
+    if (exposedPorts != null) json['ExposedPorts'] = exposedPorts;
+    if (hostName != null) json['Hostname'] = hostName;
+    if (image != null) json['Image'] = image;
+    if (memory != null) json['Memory'] = memory;
+    if (memorySwap != null) json['MemorySwap'] = memorySwap;
+    if (networkDisabled != null) json['NetworkDisabled'] = networkDisabled;
+    if (onBuild != null) json['OnBuild'] = onBuild;
+    if (openStdin != null) json['OpenStdin'] = openStdin;
+    if (portSpecs != null) json['PortSpecs'] = portSpecs;
+    if (stdinOnce != null) json['StdinOnce'] = stdinOnce;
+    if (tty != null) json['Tty'] = tty;
+    if (user != null) json['User'] = user;
+    if (volumes != null) json['_volumes'] = volumes;
+    if (workingDir != null) json['WorkingDir'] = workingDir;
     return json;
   }
 }
@@ -2793,124 +2806,196 @@ class CreateResponse {
 class CreateContainerRequest {
   /// The desired hostname to use for the container.
   String hostName;
+
   /// The desired domain name to use for the container.
   String domainName;
+
   /// The user to use inside the container.
   String user;
+
   /// Attaches to stdin.
   bool attachStdin;
+
   /// Attaches to stdout.
   bool attachStdout;
+
   /// Attaches to stderr.
   bool attachStderr;
+
   /// Attach standard streams to a tty, including stdin if it is not closed.
   bool tty;
+
   /// Opens stdin.
   bool openStdin;
+
   /// Close stdin after the 1st attached client disconnects.
   bool stdinOnce;
+
   /// A list of environment variables in the form of `VAR=value`
   Map<String, String> env; // = <String,String>{};
+
   /// Command(s) to run.
   List<String> cmd = <String>[];
+
   /// Set the entrypoint for the container.
   String entryPoint;
+
   /// The image name to use for the container.
   String image;
+
   /// Adds a map of labels to a container. To specify a map:
   /// `{"key":"value"[,"key2":"value2"]}`
   Map<String, String> labels = <String, String>{};
+
   /// An object mapping mountpoint paths (strings) inside the container to empty
   /// objects.
   Volumes volumes = new Volumes();
+
   /// The working dir for commands to run in.
   String workingDir;
+
   /// [true] disables networking for the container.
   bool networkDisabled;
+
   String macAddress = '';
+
   /// An object mapping ports to an empty object in the form of:
   /// `"ExposedPorts": { "<port>/<tcp|udp>: {}" }`
   Map<String, Map<String, String>> exposedPorts = <String, Map<String, String>>{
   };
+
   /// Customize labels for MLS systems, such as SELinux.
   List<String> securityOpts = <String>[];
   HostConfigRequest hostConfig = new HostConfigRequest();
 
   Map toJson() {
     final json = {};
-    json['Hostname'] = hostName;
-    json['Domainname'] = domainName;
-    json['User'] = user;
-    json['AttachStdin'] = attachStdin;
-    json['AttachStdout'] = attachStdout;
-    json['AttachStderr'] = attachStderr;
-    json['Tty'] = tty;
-    json['OpenStdin'] = openStdin;
-    json['StdinOnce'] = stdinOnce;
-    json['Env'] = env;
-    json['Cmd'] = cmd;
-    json['Entrypoint'] = entryPoint;
-    json['Image'] = image;
-    json['Labels'] = labels;
-    json['Volumes'] = volumes != null ? volumes.toJson() : null;
-    json['WorkingDir'] = workingDir;
-    json['NetworkDisabled'] = networkDisabled;
-    json['MacAddress'] = macAddress;
-    json['ExposedPorts'] = exposedPorts;
-    json['SecurityOpts'] = securityOpts;
-    json['HostConfig'] = hostConfig != null ? hostConfig.toJson() : null;
+    if (hostName != null) json['Hostname'] = hostName;
+    if (domainName != null) json['Domainname'] = domainName;
+    if (user != null) json['User'] = user;
+    if (attachStdin != null) json['AttachStdin'] = attachStdin;
+    if (attachStdout != null) json['AttachStdout'] = attachStdout;
+    if (attachStderr != null) json['AttachStderr'] = attachStderr;
+    if (tty != null) json['Tty'] = tty;
+    if (openStdin != null) json['OpenStdin'] = openStdin;
+    if (stdinOnce != null) json['StdinOnce'] = stdinOnce;
+    if (env != null) json['Env'] =
+        env.keys.map((k) => '${k}=${env[k]}').toList();
+    if (cmd != null) json['Cmd'] = cmd;
+    if (entryPoint != null) json['Entrypoint'] = entryPoint;
+    if (image != null) json['Image'] = image;
+    if (labels != null) json['Labels'] = labels;
+    if (volumes != null) json['Volumes'] = volumes.toJson();
+    if (workingDir != null) json['WorkingDir'] = workingDir;
+    if (networkDisabled != null) json['NetworkDisabled'] = networkDisabled;
+    if (macAddress != null) json['MacAddress'] = macAddress;
+    if (exposedPorts != null) json['ExposedPorts'] = exposedPorts;
+    if (securityOpts != null) json['SecurityOpts'] = securityOpts;
+    if (hostConfig != null) json['HostConfig'] = hostConfig.toJson();
     return json;
   }
 }
 
+// TODO(zoechi) looks quite the same as [HostConfig]
 /// The [CreateRequest.hostConfig] part of the [create] request configuration.
-class HostConfigRequest {
+class HostConfigRequest extends HostConfig {
   ///  Volume bindings for this container. Each volume binding is a string of
   ///  the form `container_path` (to create a new volume for the container),
   ///  `host_path:container_path` (to bind-mount a host path into the container),
   ///  or `host_path:container_path:ro` (to make the bind-mount read-only inside
   ///  the container).
-  List<String> binds = <String>[];
+  List<String> get binds => _binds;
+  set binds(List<String> val) => _binds = val;
+
+  /// Kernel capabilities to add to the container.
+  List<String> get capAdd => _capAdd;
+  set capAdd(List<String> val) => _capAdd = val;
+
+  /// Kernel capabilities to drop from the container.
+  List<String> get capDrop => _capDrop;
+  set capDrop(List<String> val) => _capDrop = val;
+
+  /// Path to cgroups under which the cgroup for the container will be created.
+  /// If the path is not absolute, the path is considered to be relative to the
+  /// cgroups path of the init process. Cgroups will be created if they do not
+  /// already exist.
+  String get cGroupParent => _cGroupParent;
+  set cGroupParent(String val) => _cGroupParent = val;
+
+  /// The CPU Shares for container (ie. the relative weight vs othercontainers).
+  int get cpuShares => _cpuShares;
+  set cpuShares(int val) => _cpuShares = val;
+
+  /// The cgroups CpusetCpus to use.
+  String get cpusetCpus => _cpusetCpus;
+  set cpusetCpus(String val) => _cpusetCpus = val;
+
+  /// Devices to add to the container specified in the form
+  /// `{ "PathOnHost": "/dev/deviceName", "PathInContainer": "/dev/deviceName", "CgroupPermissions": "mrw"}`
+  Map<String, String> get devices => _devices;
+  set devices(Map<String, String> val) => _devices = val;
+
+  /// A list of dns servers for the container to use.
+  List<String> get dns => _dns;
+  set dns(List<String> val) => _dns = val;
+
+  /// A list of DNS search domains.
+  List<String> get dnsSearch => _dnsSearch;
+  set dnsSearch(List<String> val) => _dnsSearch = val;
+
+  /// A list of hostnames/IP mappings to be added to the container's /etc/hosts
+  /// file. Specified in the form `["hostname:IP"]`.
+  List<String> get extraHosts => _extraHosts;
+  set extraHosts(List<String> val) => _extraHosts = val;
+
   /// Links for the container. Each link entry should be of of the form
   /// "container_name:alias".
-  List<String> links = <String>[];
+  List<String> get links => _links;
+  set links(List<String> val) => _links = val;
+
+  /// Logging configuration for the container in the form
+  /// `{ "Type": "<driver_name>", "Config": {"key1": "val1"}}`
+  /// Available types:`json-file`, `syslog`, `none`.
+  Map<String, Config> get logConfig => _logConfig;
+  set logConfig(Map<String, Config> val) => _logConfig = val;
+
   /// LXC specific configurations. These configurations will only work when
   /// using the lxc execution driver.
-  Map<String, String> lxcConf = <String, String>{};
+  Map<String, String> get lxcConf => _lxcConf;
+  set lxcConf(Map<String, String> val) => _lxcConf = val;
+
   /// Memory limit in bytes.
-  int memory;
+  int get memory => _memory;
+  set memory(int val) => _memory = val;
+
   /// Total memory limit (memory + swap); set -1 to disable swap, always use
   /// this with [memory], and make the value larger than [memory].
-  int memorySwap;
-  /// The CPU Shares for container (ie. the relative weight vs othercontainers).
-  int cpuShares;
-  /// The cgroups CpusetCpus to use.
-  String cpusetCpus;
+  int get memorySwap => _memorySwap;
+  set memorySwap(int val) => _memorySwap = val;
+
+  /// Sets the networking mode for the container. Supported values are:
+  /// [NetworkMode.bridge], [NetworkMode.host], and `container:<name|id>`
+  String get networkMode => _networkMode;
+  set networkMode(String val) => _networkMode = val;
+
   /// Exposed container ports and the host port they should map to. It should be
   /// specified in the form `{ <port>/<protocol>: [{ "HostPort": "<port>" }] }`.
   /// Take note that port is specified as a string and not an integer value.
-  Map<String, Map<String, String>> portBindings = <String, Map<String, String>>{
-  };
+  List<PortBinding> get portBindings => _portBindings;
+  set portBindings(List<PortBinding> val) => _portBindings = val;
+
   /// Allocates a random host port for all of a container's exposed ports.
-  bool publishAllPorts;
+  bool get publishAllPorts => _publishAllPorts;
+  set publishAllPorts(bool val) => _publishAllPorts = val;
+
   /// Gives the container full access to the host.
-  bool privileged;
+  bool get privileged => _privileged;
+  set privileged(bool val) => _privileged = val;
+
   ///  Mount the container's root filesystem as read only.
-  bool readonlyRootFs;
-  /// A list of dns servers for the container to use.
-  List<String> dns = <String>[];
-  /// A list of DNS search domains.
-  List<String> dnsSearch = <String>[];
-  /// A list of hostnames/IP mappings to be added to the container's /etc/hosts
-  /// file. Specified in the form `["hostname:IP"]`.
-  List<String> extraHosts = <String>[];
-  /// A list of volumes to inherit from another container. Specified in the
-  /// form `<container name>[:<ro|rw>]`
-  List<String> volumesFrom = <String>[];
-  /// Kernel capabilities to add to the container.
-  List<String> capAdd = <String>[];
-  /// Kernel capabilities to drop from the container.
-  List<String> capDrop = <String>[];
+  bool get readonlyRootFs => _readonlyRootFs;
+  set readonlyRootFs(bool val) => _readonlyRootFs = val;
+
   /// The behavior to apply when the container exits. The value is an object
   /// with a `Name` property of either `"always"` to always restart or
   /// `"on-failure"` to restart only when the container exit code is non-zero.
@@ -2918,59 +3003,19 @@ class HostConfigRequest {
   /// to retry before giving up. The default is not to restart. (optional) An
   /// ever increasing delay (double the previous delay, starting at 100mS) is
   /// added before each restart to prevent flooding the server.
-  RestartPolicy restartPolicy;
-  /// Sets the networking mode for the container. Supported values are:
-  /// [NetworkMode.bridge], [NetworkMode.host], and `container:<name|id>`
-  String networkMode;
-  /// Devices to add to the container specified in the form
-  /// `{ "PathOnHost": "/dev/deviceName", "PathInContainer": "/dev/deviceName", "CgroupPermissions": "mrw"}`
-  Map<String, String> devices = <String, String>{};
+  RestartPolicy get restartPolicy => _restartPolicy;
+  set restartPolicy(RestartPolicy val) => _restartPolicy = val;
+
   /// Ulimits to be set in the container, specified as
   /// `{ "Name": <name>, "Soft": <soft limit>, "Hard": <hard limit> }`, for example:
   /// `Ulimits: { "Name": "nofile", "Soft": 1024, "Hard", 2048 }`
-  Map uLimits = {};
-  /// Logging configuration for the container in the form
-  /// `{ "Type": "<driver_name>", "Config": {"key1": "val1"}}`
-  /// Available types:`json-file`, `syslog`, `none`.
-  Map<String, Config> logConfig = <String, Config>{};
-  /// Path to cgroups under which the cgroup for the container will be created.
-  /// If the path is not absolute, the path is considered to be relative to the
-  /// cgroups path of the init process. Cgroups will be created if they do not
-  /// already exist.
-  String cGroupParent;
+  Map get ulimits => _ulimits;
+  set ulimits(Map val) => _ulimits = val;
 
-  Map toJson() {
-    final json = {};
-    json['Binds'] = binds;
-    json['Links'] = links;
-    json['LxcConf'] = lxcConf;
-    json['Memory'] = memory;
-    if (memorySwap != null) {
-      assert(memory != null && memory > 0);
-      assert(memorySwap > memory);
-      json['MemorySwap'] = memorySwap;
-    }
-    json['CpuShares'] = cpuShares;
-    json['CpusetCpus'] = cpusetCpus;
-    json['PortBindings'] = portBindings;
-    json['PublishAllPorts'] = publishAllPorts;
-    json['Privileged'] = privileged;
-    json['ReadonlyRootfs'] = readonlyRootFs;
-    json['Dns'] = dns;
-    json['DnsSearch'] = dnsSearch;
-    json['ExtraHosts'] = extraHosts;
-    json['VolumesFrom'] = volumesFrom;
-    json['CapAdd'] = capAdd;
-    json['CapDrop'] = capDrop;
-    json['RestartPolicy'] = restartPolicy;
-    json['NetworkMode'] = networkMode;
-    json['Devices'] = devices;
-    json['Ulimits'] = uLimits;
-    json['LogConfig'] = logConfig;
-    json['CgroupParent'] = cGroupParent;
-
-    return json;
-  }
+  /// A list of volumes to inherit from another container. Specified in the
+  /// form `<container name>[:<ro|rw>]`
+  List<String> get volumesFrom => _volumesFrom;
+  set volumesFrom(List<String> val) => _volumesFrom = val;
 }
 
 class PortArgument {

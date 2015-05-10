@@ -1,9 +1,10 @@
 @TestOn('vm')
 library bwu_docker.test.docker;
 
-import 'dart:io' show BytesBuilder;
+import 'dart:io' as io;
 import 'dart:convert' show JSON, UTF8;
 import 'dart:async' show Completer, Future, Stream, StreamSubscription;
+import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 import 'package:bwu_docker/src/remote_api.dart';
 import 'package:bwu_docker/src/data_structures.dart';
@@ -22,8 +23,6 @@ const imageName = 'busybox';
 const imageTag = 'buildroot-2014.02';
 const entryPoint = '/bin/sh';
 const runningProcess = '/bin/sh';
-const dockerPort = 1234;
-
 const imageNameAndTag = '${imageName}:${imageTag}';
 
 void main([List<String> args]) {
@@ -59,7 +58,8 @@ void main([List<String> args]) {
   };
 
   setUp(() async {
-    connection = new DockerConnection('localhost', dockerPort);
+    connection = new DockerConnection(
+        Uri.parse(io.Platform.environment[dockerHostFromEnvironment]), new http.Client());
     await connection.init();
     assert(connection.dockerVersion != null);
     await ensureImageExists();
@@ -148,7 +148,7 @@ void main([List<String> args]) {
             timestamps: true,
             follow: false,
             tail: 10);
-        final buf = new BytesBuilder(copy: false);
+        final buf = new io.BytesBuilder(copy: false);
         final sub = log.take(100).listen(buf.add);
 
         await sub.asFuture();
@@ -271,10 +271,7 @@ void main([List<String> args]) {
           final Iterable<Container> exitedContainers =
               await connection.containers(filters: {'status': ['exited']});
 
-          expect(exitedContainers, isNotEmpty);
-          expect(exitedContainers.first.image, isNotEmpty);
-          expect(exitedContainers,
-              isNot(anyElement((c) => c.id == createdContainer.id)));
+          expect(exitedContainers, isEmpty);
 
           // exercise
           await connection.stop(createdContainer);
@@ -403,7 +400,7 @@ void main([List<String> args]) {
           // exercise
           final Stream exportResponse =
               await connection.export(createdContainer);
-          final buf = new BytesBuilder(copy: false);
+          final buf = new io.BytesBuilder(copy: false);
           var subscription = exportResponse.take(1000000).listen((data) {
             buf.add(data);
           });
@@ -654,7 +651,7 @@ void main([List<String> args]) {
               stdin: true,
               stdout: true,
               stderr: true);
-          final buf = new BytesBuilder(copy: false);
+          final buf = new io.BytesBuilder(copy: false);
           StreamSubscription sub;
           Completer c = new Completer();
           sub = attachResponse.listen((data) {
@@ -774,7 +771,7 @@ void main([List<String> args]) {
 
         expect(attachResponse, isNotNull);
 
-        final buf = new BytesBuilder(copy: false);
+        final buf = new io.BytesBuilder(copy: false);
 
         final stdoutSubscription = attachResponse.stdout
             .take(1000)
@@ -849,6 +846,7 @@ void main([List<String> args]) {
               'Pulling repository ${imageName}');
         } else {
           expect(createImageResponse.first.status, 'Pulling from ${imageName}');
+//          expect(createImageResponse.first.status, 'Pulling repository ${imageName}');
         }
         expect(createImageResponse.length, greaterThan(5));
       });
@@ -938,7 +936,7 @@ void main([List<String> args]) {
         expect(searchResponse, anyElement((e) => e.isAutomated != null));
         expect(searchResponse,
             anyElement((e) => e.starCount != null && e.starCount > 0));
-      });
+      }, timeout: const Timeout(const Duration(seconds: 60)));
     });
   });
 
@@ -1014,7 +1012,7 @@ void main([List<String> args]) {
         // exercise
         final Stream exportResponse =
             await connection.get(new Image(imageNameAndTag));
-        final buf = new BytesBuilder(copy: false);
+        final buf = new io.BytesBuilder(copy: false);
         StreamSubscription sub;
         Completer c = new Completer();
         sub = exportResponse.listen((data) {
@@ -1042,7 +1040,7 @@ void main([List<String> args]) {
           () async {
         // exercise
         final Stream exportResponse = await connection.getAll();
-        final buf = new BytesBuilder(copy: false);
+        final buf = new io.BytesBuilder(copy: false);
         StreamSubscription sub;
         Completer c = new Completer();
         sub = exportResponse.listen((data) {

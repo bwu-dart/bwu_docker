@@ -23,21 +23,25 @@ class RequestType {
 }
 
 class ServerReference {
-  final String scheme;
-  final String host;
-  final int port;
+  final Uri uri;
   http.Client client;
-  ServerReference(this.host, this.port, this.client, {this.scheme: 'http'});
-  Uri buildUri(String path, Map<String, String> query) {
+  ServerReference(this.uri, [this.client]);
+  Uri buildUri(String path, Map<String, String> queryParameters) {
     return new Uri(
-        scheme: scheme,
-        host: host,
-        port: port,
+        scheme: uri.scheme,
+        userInfo: uri.userInfo,
+        host: uri.host,
+        port: uri.port,
         path: path,
-        queryParameters: query);
+        queryParameters: queryParameters);
   }
 }
 
+/// The OS environment variable to get the Uri for the Docker host.
+String dockerHostFromEnvironment = 'DOCKER_HOST_REMOTE_API';
+
+/// The primary API class to initialize a connection to a Docker hosts remote
+/// API and send any number of commands to this Docker service.
 class DockerConnection {
   final Map headersJson = {'Content-Type': 'application/json'};
   final Map headersTar = {'Content-Type': 'application/tar'};
@@ -65,9 +69,11 @@ class DockerConnection {
   ServerReference _serverReference;
   ServerReference get serverReference => _serverReference;
 
-  DockerConnection(String host, int port, {String scheme: 'http'}) {
-    _serverReference =
-        new ServerReference(host, port, new http.Client(), scheme: scheme);
+  DockerConnection(Uri uri, http.Client client) {
+    assert(uri != null);
+    assert(client != null);
+    _serverReference = new ServerReference(uri, client);
+//    print('Uri: ${uri}');
   }
 
   String _jsonifyConcatenatedJson(String s) {
@@ -86,6 +92,7 @@ class DockerConnection {
     Map<String, String> _headers = headers != null ? headers : headersJson;
 
     final url = serverReference.buildUri(path, query);
+//    print('Uri: ${url}');
 
     http.Response response;
     switch (requestType) {
@@ -207,6 +214,7 @@ class DockerConnection {
   /// 500 – server error
   Future<CreateResponse> createContainer(CreateContainerRequest request,
       {String name}) async {
+    assert(request != null);
     Map query;
     if (name != null) {
       assert(containerNameRegex.hasMatch(name));
@@ -214,6 +222,7 @@ class DockerConnection {
     }
     final Map response = await _request(RequestType.post, '/containers/create',
         body: request.toJson(), query: query);
+//    print(response);
     return new CreateResponse.fromJson(response, apiVersion);
   }
 
@@ -361,11 +370,14 @@ class DockerConnection {
   /// 404 - no such container
   /// 500 - server error
   // TODO(zoechi) find out which options can be sent in the body
-  Future<SimpleResponse> start(Container container) async {
+  Future<SimpleResponse> start(Container container,
+      {HostConfigRequest hostConfig}) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
-    final Map response =
-        await _request(RequestType.post, '/containers/${container.id}/start');
+    final body = hostConfig == null ? null : hostConfig.toJson();
+    final Map response = await _request(
+        RequestType.post, '/containers/${container.id}/start',
+        body: body);
     return new SimpleResponse.fromJson(response, apiVersion);
   }
 

@@ -35,7 +35,7 @@ main() {
     await subscription.asFuture();
   });
 
-  test('should forward chunks beloning together to the same output stream',
+  test('should forward chunks belonging together to the same output stream',
       () async {
     final expectDataReceived = expectAsync(() {}, count: 4);
 
