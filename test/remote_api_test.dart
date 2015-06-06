@@ -59,7 +59,8 @@ void main([List<String> args]) {
 
   setUp(() async {
     connection = new DockerConnection(
-        Uri.parse(io.Platform.environment[dockerHostFromEnvironment]), new http.Client());
+        Uri.parse(io.Platform.environment[dockerHostFromEnvironment]),
+        new http.Client());
     await connection.init();
     assert(connection.dockerVersion != null);
     await ensureImageExists();

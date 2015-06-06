@@ -10,7 +10,7 @@ Future ensureImageExists(DockerConnection connection, imageName) async {
     await connection.image(new Image(imageName));
   } on DockerRemoteApiError {
 //    final Iterable<CreateImageResponse> createResponse =
-        await connection.createImage(imageName);
+    await connection.createImage(imageName);
 //    for (var e in createResponse) {
 //      print('${e.status} - ${e.progressDetail}');
 //    }

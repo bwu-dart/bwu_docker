@@ -1,4 +1,4 @@
-library bwu_docker.src.remote_api.dart;
+library bwu_docker.src.remote_api;
 
 import 'dart:async' show Future, Stream, Completer, StreamController;
 import 'dart:convert' show JSON, UTF8;
@@ -37,7 +37,10 @@ class ServerReference {
   }
 }
 
-/// The OS environment variable to get the Uri for the Docker host.
+/// The OS environment variable pointing to the Uri Docker remote API service.
+/// `DOCKER_HOST` might be set to `tcp://localhost:2375` which is not supported
+/// by bwu_docker because Dart doesn't support unix sockets (tcp) yet.
+/// `DOCKER_HOST_REMOTE_API` should be something like `http://localhost:2375`
 String dockerHostFromEnvironment = 'DOCKER_HOST_REMOTE_API';
 
 /// The primary API class to initialize a connection to a Docker hosts remote
@@ -376,8 +379,7 @@ class DockerConnection {
         container != null && container.id != null && container.id.isNotEmpty);
     final body = hostConfig == null ? null : hostConfig.toJson();
     final Map response = await _request(
-        RequestType.post, '/containers/${container.id}/start',
-        body: body);
+        RequestType.post, '/containers/${container.id}/start', body: body);
     return new SimpleResponse.fromJson(response, apiVersion);
   }
 

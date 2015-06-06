@@ -2074,8 +2074,9 @@ class PortBinding {
   PortBinding.fromJson(Map json, Version apiVersion) {
     _port = json['Port'];
     if (json['Values'] != null) {
-      _hostPorts =
-          json['Values'].map((v) => new HostPort.fromJson(v, apiVersion)).toList();
+      _hostPorts = json['Values']
+          .map((v) => new HostPort.fromJson(v, apiVersion))
+          .toList();
     }
     _checkSurplusItems(
         apiVersion, {ApiVersion.v1_15: const ['Port', 'Values',]}, json.keys);
@@ -2211,8 +2212,10 @@ class HostConfig {
     final Map<String, List<Map<String, String>>> portBindings =
         json['PortBindings'];
     if (portBindings != null) {
-      _portBindings = portBindings.keys.map((k) => new PortBinding.fromJson(
-          {'Port': k, 'Values': portBindings[k]}, apiVersion)).toList();
+      _portBindings = portBindings.keys
+          .map((k) => new PortBinding.fromJson(
+              {'Port': k, 'Values': portBindings[k]}, apiVersion))
+          .toList();
     }
     _privileged = json['Privileged'];
     _publishAllPorts = json['PublishAllPorts'];

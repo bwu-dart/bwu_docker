@@ -1,38 +1,21 @@
 library bwu_docker.tool.grind;
 
-import 'dart:io' as io;
-import 'package:http/http.dart' as http;
-import 'package:grinder/grinder.dart';
-import 'package:bwu_docker/bwu_docker.dart';
 import 'dart:async' show Future;
+import 'dart:io' as io;
+import 'package:bwu_docker/bwu_docker.dart';
+export 'package:bwu_utils_dev/grinder/default_tasks.dart' hide main, testWeb;
+import 'package:bwu_utils_dev/grinder/default_tasks.dart'
+    show doInstallContentShell, grind, testTask;
+import 'package:grinder/grinder.dart';
+import 'package:http/http.dart' as http;
 
-const sourceDirs = const ['bin', 'lib', 'tool', 'test', 'example'];
 const dindPort = 3375;
 
-main(List<String> args) => grind(args);
-
-@Task('Run analyzer')
-analyze() => _analyze();
-
-@Task('Runn all tests')
-test() => _test();
-
-@Task('Check everything')
-@Depends(analyze, /*checkFormat,*/ lint, test)
-check() => _check();
-
-// TODO(zoechi) fix when it's possible the check the outcome
-//@Task('Check source code format')
-//checkFormat() => checkFormatTask(['.']);
-
-/// format-all - fix all formatting issues
-@Task('Fix all source format issues')
-formatAll() => _formatAll();
-
-@Task('Run lint checks')
-lint() => _lint();
-
-_analyze() => new PubApp.global('tuneup').run(['check']);
+main(List<String> args) {
+  doInstallContentShell = false;
+  testTask = ([_]) => _testTaskImpl();
+  grind(args);
+}
 
 Container _dindRemoteApiTest;
 Container _dindTasksTest;
@@ -44,7 +27,7 @@ Uri _uriUpdatePort(Uri uri, int port) {
   return result;
 }
 
-_test() async {
+_testTaskImpl() async {
   final dockerHostStr = io.Platform.environment[dockerHostFromEnvironment];
   assert(dockerHostStr != null && dockerHostStr.isNotEmpty);
   final dockerHost = Uri.parse(dockerHostStr);
@@ -56,35 +39,29 @@ _test() async {
   try {
     await _dindStartForTest(docker);
     try {
-      Pub.downgrade();
+//      Pub.downgrade();
       new PubApp.local('test').run(['-rexpanded'],
-          environment: {
+          runOptions: new RunOptions(
+              environment: {
         dockerHostFromEnvironment:
             _uriUpdatePort(dockerHost, dindPort).toString()
-      });
+      }));
     } catch (_) {
       rethrow;
     } finally {
-      Pub.upgrade();
+//      Pub.upgrade();
     }
     new PubApp.local('test').run(['-rexpanded'],
-        environment: {
+        runOptions: new RunOptions(
+            environment: {
       dockerHostFromEnvironment: _uriUpdatePort(dockerHost, dindPort).toString()
-    });
+    }));
   } catch (_) {
     rethrow;
   } finally {
     await _dindCleanupAfterTest(docker);
   }
 }
-
-_check() => run('pub', arguments: ['publish', '-n']);
-
-_formatAll() => new PubApp.global('dart_style').run(['-w']..addAll(sourceDirs),
-    script: 'format');
-
-_lint() => new PubApp.global('linter')
-    .run(['--stats', '-ctool/lintcfg.yaml']..addAll(sourceDirs));
 
 /// Prepare Docker-in-Docker instances for running tests.
 Future _dindStartForTest(DockerConnection docker) {
