@@ -5,7 +5,12 @@ import 'dart:io' as io;
 import 'package:bwu_docker/bwu_docker.dart';
 export 'package:bwu_utils_dev/grinder/default_tasks.dart' hide main, testWeb;
 import 'package:bwu_utils_dev/grinder/default_tasks.dart'
-    show doInstallContentShell, grind, testTask;
+    show
+        doInstallContentShell,
+        grind,
+        coverageTask,
+        testTask,
+        travisPrepareTask;
 import 'package:grinder/grinder.dart';
 import 'package:http/http.dart' as http;
 
@@ -14,6 +19,11 @@ const dindPort = 3375;
 main(List<String> args) {
   doInstallContentShell = false;
   testTask = ([_]) => _testTaskImpl();
+  // Disable coverage because Travis doesn't provide Docker and tests can't be
+  // run without Docker.
+  coverageTask = () {};
+  // Disable test when run on Travis
+  travisPrepareTask = () => testTask = ([_]) {};
   grind(args);
 }
 
