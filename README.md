@@ -2,8 +2,8 @@
 
 [![Star this Repo](https://img.shields.io/github/stars/bwu-dart/bwu_docker.svg?style=flat)](https://github.com/bwu-dart/bwu_docker)
 [![Pub Package](https://img.shields.io/pub/v/bwu_docker.svg?style=flat)](https://pub.dartlang.org/packages/bwu_docker)
-[![Build Status](https://travis-ci.org/bwu-dart/bwu_docker.svg?branch=travis)](https://travis-ci.org/bwu-dart/bwu_docker)
-[![Coverage Status](https://coveralls.io/repos/bwu-dart/bwu_docker/badge.svg)](https://coveralls.io/r/bwu-dart/bwu_docker)
+[![Build Status](https://travis-ci.org/bwu-dart/bwu_docker.svg?branch=master)](https://travis-ci.org/bwu-dart/bwu_docker)
+[![Coverage Status](https://coveralls.io/repos/bwu-dart/bwu_docker/badge.svg?branch=master)](https://coveralls.io/r/bwu-dart/bwu_docker)
 
 See [Docker Remote API v1.18](https://docs.docker.com/reference/api/docker_remote_api_v1.18/#image-tarball-format) 
 for more details.
