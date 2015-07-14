@@ -787,7 +787,7 @@ void main([List<String> args]) {
         expect(buf.length, greaterThan(50));
         final s = UTF8.decode(buf.toBytes());
         expect(s, contains('up'));
-        expect(s, contains('days'));
+        expect(s, contains(' day'));
         expect(s, contains('load average'));
       });
     });

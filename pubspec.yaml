@@ -18,12 +18,9 @@ dependencies:
   stack_trace: '>= 1.2.1 <2.0.0'
 
 dev_dependencies:
-  test: '>=0.12.0 < 0.13.0'
+  bwu_grinder_tasks: '^0.1.0'
   grinder: '^0.7.0'
-  bwu_utils_dev: '^0.1.0-dev.9'
-
-
-dependency_overrides:
+  test: '>=0.12.0 < 0.13.0'
 
 transformers:
 - test/pub_serve:
