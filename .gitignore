@@ -4,3 +4,4 @@ packages
 .pub/
 .idea/
 
+pubspec.lock
