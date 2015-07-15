@@ -14,13 +14,12 @@ dependencies:
   collection: '^1.1.0'
   crypto: '^0.9.0'
   http: '^0.11.2'
-#  quiver: '^0.21.3'
-  stack_trace: '>= 1.2.1 <2.0.0'
+  stack_trace: '^1.2.1'
 
 dev_dependencies:
   bwu_grinder_tasks: '^0.1.0'
   grinder: '^0.7.0'
-  test: '>=0.12.0 < 0.13.0'
+  test: '^0.12.0'
 
 transformers:
 - test/pub_serve:

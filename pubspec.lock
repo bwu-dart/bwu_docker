@@ -4,7 +4,7 @@ packages:
   analyzer:
     description: analyzer
     source: hosted
-    version: "0.25.1"
+    version: "0.25.2"
   ansicolor:
     description: ansicolor
     source: hosted
