@@ -97,16 +97,21 @@ create a pull request.
 
 ## Example
 
+Run `docker pull busybox` before runing the example to ensure the used image
+is available.
+
 ```dart
 library bwu_docker.example.images;
 
+import 'dart:io' as io;
+import 'package:http/http.dart' as http;
 import 'package:bwu_docker/bwu_docker.dart';
-
-const dockerPort = 2375;
 
 main() async {
   // initialize the connection to the Docker service
-  final conn = new DockerConnection('localhost', dockerPort);
+  final conn = new DockerConnection(
+      Uri.parse(io.Platform.environment[dockerHostFromEnvironment]),
+      new http.Client());
   await conn.init();
 
   // create a container from an image

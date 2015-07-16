@@ -2186,8 +2186,7 @@ class ContainerInfo {
     if (id != null) json['Id'] = id;
     if (image != null) json['Image'] = image;
     if (mountLabel != null) json['MountLabel'] = mountLabel;
-    if (mountPoints != null) json['MountPoints'] =
-        mountPoints.toJson(); // TODO check with actual data
+    if (mountPoints != null) json['MountPoints'] = mountPoints;
     if (name != null) json['Name'] = name;
     if (networkSettings != null) json['NetworkSettings'] =
         networkSettings.toJson();

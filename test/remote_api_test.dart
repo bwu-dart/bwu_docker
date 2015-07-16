@@ -159,6 +159,41 @@ void main([List<String> args]) {
         // verification
         expect(buf, isNotEmpty);
       });
+
+      test('should receive log output after a specific time', () async {
+        if (!utils.isMinVersion(connection, ApiVersion.v1_19)) {
+          return;
+        }
+        // set up
+        Stream log = await connection.logs(createdContainer,
+            stdout: true,
+            stderr: true,
+            timestamps: true,
+            follow: false,
+            tail: 10);
+        final buf = new io.BytesBuilder(copy: false);
+        final sub = log.take(100).listen(buf.add);
+
+        await sub.asFuture();
+
+        expect(buf.isNotEmpty, isTrue);
+
+        // exercise
+        Stream logSince = await connection.logs(createdContainer,
+            stdout: true,
+            stderr: true,
+            since: new DateTime.now(),
+            timestamps: true,
+            follow: false,
+            tail: 10);
+        final bufSince = new io.BytesBuilder(copy: false);
+        final subSince = logSince.take(100).listen(bufSince.add);
+
+        await subSince.asFuture();
+
+        // verification
+        expect(bufSince.isEmpty, isTrue);
+      });
     });
 
     group('start', () {
@@ -370,20 +405,23 @@ void main([List<String> args]) {
               attachStderr: true,
               tty: true,
               cmd: [
-            '/bin/sh', '-c', 'echo sometext > /tmp/somefile.txt',
-            '/bin/sh', '-c', 'ls -la'
+            '/bin/sh',
+            '-c',
+            'echo sometext > /tmp/somefile.txt',
+            '/bin/sh',
+            '-c',
+            'ls -la'
           ]);
           //cmd: ['echo hallo']);
           final startResponse = await connection.execStart(createdExec);
 
-
-          await for (var x in startResponse.stdout) {
+          await for (var _ in startResponse.stdout) {
 // only for debugging purposes (otherwise spams the test log output)
-//            print('stdout: ${UTF8.decode(x)}');
+//            print('stdout: ${UTF8.decode(_)}');
           }
-          await for (var x in startResponse.stderr) {
+          await for (var _ in startResponse.stderr) {
 // only for debugging purposes (otherwise spams the test log output)
-//            print('stderr: ${UTF8.decode(x)}');
+//            print('stderr: ${UTF8.decode(_)}');
           }
 
           await utils.waitMilliseconds(1500); // TODO(zoechi) check if necessary
@@ -438,7 +476,31 @@ void main([List<String> args]) {
 
           // exercise
           final Stream<StatsResponse> stream =
-              connection.stats(createdContainer);
+              connection.stats(createdContainer).take(5);
+
+          final List<StatsResponse> items = await stream.toList();
+
+          // verification
+          for (final item in items) {
+            expect(item.read, isNotNull);
+            expect(item.read.millisecondsSinceEpoch,
+                greaterThan(new DateTime(1, 1, 1).millisecondsSinceEpoch));
+            expect(item.network.rxBytes, greaterThan(0));
+            expect(item.cpuStats.cupUsage.totalUsage, greaterThan(0));
+            expect(item.memoryStats.limit, greaterThan(0));
+          }
+        });
+
+        test(
+            'should return a single event of a containers resource usage statistics',
+            () async {
+          if (!utils.isMinVersion(connection, ApiVersion.v1_19)) {
+            return;
+          }
+
+          // exercise
+          final Stream<StatsResponse> stream =
+              connection.stats(createdContainer, stream: false);
           final StatsResponse item = await stream.first;
 
           // verification

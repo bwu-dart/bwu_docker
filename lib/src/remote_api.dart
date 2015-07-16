@@ -270,6 +270,8 @@ class DockerConnection {
   /// [follow] - Return stream. Default [:false:]
   /// [stdout] - Show stdout log. Default [:false:]
   /// [stderr] - Show stderr log. Default [:false:]
+  /// [since] - Specifying a timestamp will only output log-entries since that
+  ///   timestamp. Default: unfiltered
   /// [timestamps] - Print timestamps for every log line. Default [:false:]
   /// [tail] - Output specified number of lines at the end of logs: all or
   /// <number>. Default all
@@ -280,7 +282,7 @@ class DockerConnection {
   /// 404 – no such container
   /// 500 – server error
   Future<Stream> logs(Container container, {bool follow, bool stdout,
-      bool stderr, bool timestamps, dynamic tail}) async {
+      bool stderr, DateTime since, bool timestamps, dynamic tail}) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
     assert(stdout == true || stderr == true);
@@ -288,6 +290,8 @@ class DockerConnection {
     if (follow != null) query['follow'] = follow.toString();
     if (stdout != null) query['stdout'] = stdout.toString();
     if (stderr != null) query['stderr'] = stderr.toString();
+    if (since != null) query['since'] =
+        (since.toUtc().millisecondsSinceEpoch ~/ 1000).toString();
     if (timestamps != null) query['timestamps'] = timestamps.toString();
     if (tail != null) {
       assert(tail == 'all' || tail is int);
@@ -327,6 +331,8 @@ class DockerConnection {
   /// This endpoint returns a live stream of a [container]'s resource usage
   /// statistics.
   ///
+  /// [stream] - If `false` pull stats once then disconnect. Default [:true:]
+  ///
   /// Note: this functionality currently only works when using the libcontainer
   /// exec-driver.
   ///
@@ -334,17 +340,18 @@ class DockerConnection {
   /// 200 - no error
   /// 404 - no such container
   /// 500 - server error
-  Stream<StatsResponse> stats(Container container) async* {
+  Stream<StatsResponse> stats(Container container, {bool stream: true}) async* {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
-//    final Map response =
-//        await _request(RequestType.get, '/containers/${container.id}/stats');
-    final stream = await _requestStream(
-        RequestType.get, '/containers/${container.id}/stats');
-    await for (var v in stream) {
+    assert(stream != null);
+    final query = {};
+    if (!stream) query['stream'] = stream.toString();
+
+    final responseStream = await _requestStream(
+        RequestType.get, '/containers/${container.id}/stats', query: query);
+    await for (var v in responseStream) {
       yield new StatsResponse.fromJson(JSON.decode(UTF8.decode(v)), apiVersion);
     }
-    //return new StatsResponse.fromJson(response, apiVersion);
   }
 
   /// Resize the TTY for [container].
