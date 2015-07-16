@@ -363,22 +363,31 @@ void main([List<String> args]) {
 
       group('changes', () {
         test('should return a list of changes in the container', () async {
+          // set up
           final Exec createdExec = await connection.execCreate(createdContainer,
-              attachStdin: true,
+              attachStdin: false,
+              attachStdout: true,
+              attachStderr: true,
               tty: true,
               cmd: [
-            '/bin/sh -c "echo sometext > /tmp/somefile.txt"',
-            '/bin/sh -c ls -la'
+            '/bin/sh', '-c', 'echo sometext > /tmp/somefile.txt',
+            '/bin/sh', '-c', 'ls -la'
           ]);
           //cmd: ['echo hallo']);
           final startResponse = await connection.execStart(createdExec);
 
-          await for (var _ in startResponse.stdout) {
-            //print('x: ${UTF8.decode(x)}');
-          }
-          await utils.waitMilliseconds(500); // TODO(zoechi) check if necessary
 
-//          print('4');
+          await for (var x in startResponse.stdout) {
+// only for debugging purposes (otherwise spams the test log output)
+//            print('stdout: ${UTF8.decode(x)}');
+          }
+          await for (var x in startResponse.stderr) {
+// only for debugging purposes (otherwise spams the test log output)
+//            print('stderr: ${UTF8.decode(x)}');
+          }
+
+          await utils.waitMilliseconds(1500); // TODO(zoechi) check if necessary
+
           // exercise
           final ChangesResponse changesResponse =
               await connection.changes(createdContainer);
@@ -977,7 +986,7 @@ void main([List<String> args]) {
         expect(infoResponse.images, greaterThan(0));
         expect(infoResponse.indexServerAddress.length, greaterThan(0));
         expect(infoResponse.initPath, isNotEmpty);
-        expect(infoResponse.initSha1, isNotEmpty);
+        expect(infoResponse.initSha1, isNotNull);
         expect(infoResponse.ipv4Forwarding, isNotNull);
         expect(infoResponse.kernelVersion, isNotEmpty);
         expect(infoResponse.memoryLimit, isNotNull);

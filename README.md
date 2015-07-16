@@ -5,7 +5,7 @@
 [![Build Status](https://travis-ci.org/bwu-dart/bwu_docker.svg?branch=master)](https://travis-ci.org/bwu-dart/bwu_docker)
 [![Coverage Status](https://coveralls.io/repos/bwu-dart/bwu_docker/badge.svg?branch=master)](https://coveralls.io/r/bwu-dart/bwu_docker)
 
-See [Docker Remote API v1.18](https://docs.docker.com/reference/api/docker_remote_api_v1.18/#image-tarball-format) 
+See [Docker Remote API v1.19](https://docs.docker.com/reference/api/docker_remote_api_v1.19/#image-tarball-format) 
 for more details.
 
 This package provides a typed interface to the Docker REST API and deserializes
@@ -23,7 +23,8 @@ See example below or the
 Ensure you have Docker listening on a TCP port (for more details see 
 [Bind Docker to another host/port or a Unix socket](https://docs.docker.com/articles/basics/#bind-docker-to-another-hostport-or-a-unix-socket)),
 because Dart currently can't communicate using Unix sockets (see 
-[Dart Issue 21403 - Support Unix Sockets in dart:io](http://dartbug.com/21403) for details).
+[Dart Issue 21403 - Support Unix Sockets in dart:io](http://dartbug.com/21403) 
+for details).
 
 
 ## Supported commands

@@ -1,5 +1,6 @@
 ## UNRELEASED
-!! example changed !!
+!! example changed - update README!!
+- Support for Docker API v 1.19 
 - DockerConnection now takes an Uri instead of parts
 - Test and grinder read DOCKER_HOST_REMOTE environment variable to find the 
 Docker service

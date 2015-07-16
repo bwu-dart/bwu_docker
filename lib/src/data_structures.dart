@@ -10,6 +10,7 @@ class ApiVersion {
   static final v1_15 = new Version(1, 15, null);
   static final v1_17 = new Version(1, 17, null);
   static final v1_18 = new Version(1, 18, null);
+  static final v1_19 = new Version(1, 19, null);
 
   final ApiVersion value;
 
@@ -648,8 +649,17 @@ class InfoResponse {
   int _containers;
   int get containers => _containers;
 
-  int _images;
-  int get images => _images;
+  bool _cpuCfsPeriod;
+  bool get cpuCfsPeriod => _cpuCfsPeriod;
+
+  bool _cpuCfsQuota;
+  bool get cpuCfsQuota => _cpuCfsQuota;
+
+  bool _debug;
+  bool get debug => _debug;
+
+  String _dockerRootDir;
+  String get dockerRootDir => _dockerRootDir;
 
   String _driver;
   String get driver => _driver;
@@ -660,23 +670,8 @@ class InfoResponse {
   String _executionDriver;
   String get executionDriver => _executionDriver;
 
-  String _kernelVersion;
-  String get kernelVersion => _kernelVersion;
-
-  int _cpuCount;
-  int get cpuCount => _cpuCount;
-
-  int _memTotal;
-  int get memTotal => _memTotal;
-
-  String _name;
-  String get name => _name;
-
-  String _id;
-  String get id => _id;
-
-  bool _debug;
-  bool get debug => _debug;
+  bool _experimentalBuild;
+  bool get experimentalBuild => _experimentalBuild;
 
   int _fdCount;
   int get fdCount => _fdCount;
@@ -684,11 +679,20 @@ class InfoResponse {
   int _goroutinesCount;
   int get goroutinesCount => _goroutinesCount;
 
-  DateTime _systemTime;
-  DateTime get systemTime => _systemTime;
+  String _httpProxy;
+  String get httpProxy => _httpProxy;
 
-  int _eventsListenersCount;
-  int get eventsListenersCount => _eventsListenersCount;
+  String _httpsProxy;
+  String get httpsProxy => _httpsProxy;
+
+  String _id;
+  String get id => _id;
+
+  int _images;
+  int get images => _images;
+
+  UnmodifiableListView<String> _indexServerAddress;
+  UnmodifiableListView<String> get indexServerAddress => _indexServerAddress;
 
   String _initPath;
   String get initPath => _initPath;
@@ -696,32 +700,38 @@ class InfoResponse {
   String _initSha1;
   String get initSha1 => _initSha1;
 
-  UnmodifiableListView<String> _indexServerAddress;
-  UnmodifiableListView<String> get indexServerAddress => _indexServerAddress;
-
-  bool _memoryLimit;
-  bool get memoryLimit => _memoryLimit;
-
-  bool _swapLimit;
-  bool get swapLimit => _swapLimit;
-
   bool _ipv4Forwarding;
   bool get ipv4Forwarding => _ipv4Forwarding;
+
+  String _kernelVersion;
+  String get kernelVersion => _kernelVersion;
 
   UnmodifiableMapView<String, String> _labels;
   UnmodifiableMapView<String, String> get labels => _labels;
 
-  String _dockerRootDir;
-  String get dockerRootDir => _dockerRootDir;
+  String _loggingDriver;
+  String get loggingDriver => _loggingDriver;
 
-  String _httpProxy;
-  String get httpProxy => _httpProxy;
+  bool _memoryLimit;
+  bool get memoryLimit => _memoryLimit;
 
-  String _httpsProxy;
-  String get httpsProxy => _httpsProxy;
+  int _memTotal;
+  int get memTotal => _memTotal;
+
+  String _name;
+  String get name => _name;
+
+  int _cpuCount;
+  int get cpuCount => _cpuCount;
+
+  int _eventsListenersCount;
+  int get eventsListenersCount => _eventsListenersCount;
 
   String _noProxy;
   String get noProxy => _noProxy;
+
+  bool _oomKillDisable;
+  bool get oomKillDisable => _oomKillDisable;
 
   String _operatingSystem;
   String get operatingSystem => _operatingSystem;
@@ -729,38 +739,49 @@ class InfoResponse {
   RegistryConfigs _registryConfigs;
   RegistryConfigs get registryConfigs => _registryConfigs;
 
+  bool _swapLimit;
+  bool get swapLimit => _swapLimit;
+
+  DateTime _systemTime;
+  DateTime get systemTime => _systemTime;
+
   InfoResponse.fromJson(Map json, Version apiVersion) {
     _containers = json['Containers'];
-    _images = json['Images'];
+    _cpuCfsPeriod = json['CpuCfsPeriod'];
+    _cpuCfsQuota = json['CpuCfsQuota'];
+    _debug = _parseBool(json['Debug']);
+    _dockerRootDir = json['DockerRootDir'];
     _driver = json['Driver'];
     _driverStatus = _toUnmodifiableListView(json['DriverStatus']);
     _executionDriver = json['ExecutionDriver'];
-    _kernelVersion = json['KernelVersion'];
-    _cpuCount = json['NCPU'];
-    _memTotal = json['MemTotal'];
-    _name = json['Name'];
+    _experimentalBuild = json['ExperimentalBuild'];
+    _httpProxy = json['HttpProxy'];
+    _httpsProxy = json['HttpsProxy'];
     _id = json['ID'];
-    _debug = _parseBool(json['Debug']);
-    _fdCount = json['NFd'];
-    _goroutinesCount = json['NGoroutines'];
-    _systemTime = _parseDate(json['SystemTime']);
-    _eventsListenersCount = json['NEventsListener'];
-    _initPath = json['InitPath'];
-    _initSha1 = json['InitSha1'];
+    _images = json['Images'];
     _indexServerAddress = json['IndexServerAddress'] is String
         ? _toUnmodifiableListView([json['IndexServerAddress']])
         : _toUnmodifiableListView(json['IndexServerAddress']);
-    _memoryLimit = _parseBool(json['MemoryLimit']);
-    _swapLimit = _parseBool(json['SwapLimit']);
+    _initPath = json['InitPath'];
+    _initSha1 = json['InitSha1'];
     _ipv4Forwarding = _parseBool(json['IPv4Forwarding']);
+    _kernelVersion = json['KernelVersion'];
     _labels = _parseLabels(json['Labels']);
-    _dockerRootDir = json['DockerRootDir'];
-    _httpProxy = json['HttpProxy'];
-    _httpsProxy = json['HttpsProxy'];
+    _loggingDriver = json['LoggingDriver'];
+    _memoryLimit = _parseBool(json['MemoryLimit']);
+    _memTotal = json['MemTotal'];
+    _name = json['Name'];
+    _cpuCount = json['NCPU'];
+    _eventsListenersCount = json['NEventsListener'];
+    _fdCount = json['NFd'];
+    _goroutinesCount = json['NGoroutines'];
     _noProxy = json['NoProxy'];
+    _oomKillDisable = json['OomKillDisable'];
     _operatingSystem = json['OperatingSystem'];
     _registryConfigs =
         new RegistryConfigs.fromJson(json['RegistryConfigs'], apiVersion);
+    _swapLimit = _parseBool(json['SwapLimit']);
+    _systemTime = _parseDate(json['SystemTime']);
 
     _checkSurplusItems(apiVersion, {
       ApiVersion.v1_15: const [
@@ -782,8 +803,8 @@ class InfoResponse {
         'Labels',
         'MemoryLimit',
         'MemTotal',
-        'NCPU',
         'Name',
+        'NCPU',
         'NEventsListener',
         'NFd',
         'NGoroutines',
@@ -810,8 +831,8 @@ class InfoResponse {
         'Labels',
         'MemoryLimit',
         'MemTotal',
-        'NCPU',
         'Name',
+        'NCPU',
         'NEventsListener',
         'NFd',
         'NGoroutines',
@@ -819,7 +840,42 @@ class InfoResponse {
         'RegistryConfig',
         'SwapLimit',
         'SystemTime'
-      ]
+      ],
+      ApiVersion.v1_19: const [
+        'Containers',
+        'CpuCfsPeriod',
+        'CpuCfsQuota',
+        'Debug',
+        'DockerRootDir',
+        'Driver',
+        'DriverStatus',
+        'ExecutionDriver',
+        'ExperimentalBuild',
+        'HttpProxy',
+        'HttpsProxy',
+        'ID',
+        'Images',
+        'IndexServerAddress',
+        'InitPath',
+        'InitSha1',
+        'IPv4Forwarding',
+        'KernelVersion',
+        'Labels',
+        'LoggingDriver',
+        'MemoryLimit',
+        'MemTotal',
+        'Name',
+        'NCPU',
+        'NEventsListener',
+        'NFd',
+        'NGoroutines',
+        'NoProxy',
+        'OomKillDisable',
+        'OperatingSystem',
+        'RegistryConfig',
+        'SwapLimit',
+        'SystemTime'
+      ],
     }, json.keys);
   }
 }
@@ -967,6 +1023,9 @@ class ImageHistoryResponse {
   String _id;
   String get id => _id;
 
+  String _comment;
+  String get comment => _comment;
+
   DateTime _created;
   DateTime get created => _created;
 
@@ -981,12 +1040,21 @@ class ImageHistoryResponse {
 
   ImageHistoryResponse.fromJson(Map json, Version apiVersion) {
     _id = json['Id'];
+    _comment = json['Comment'];
     _created = _parseDate(json['Created']);
     _createdBy = json['CreatedBy'];
     _size = json['Size'];
     _tags = _toUnmodifiableListView(json['Tags']);
     _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const ['Id', 'Created', 'CreatedBy', 'Size', 'Tags']
+      ApiVersion.v1_15: const ['Id', 'Created', 'CreatedBy', 'Size', 'Tags'],
+      ApiVersion.v1_19: const [
+        'Id',
+        'Comment',
+        'Created',
+        'CreatedBy',
+        'Size',
+        'Tags'
+      ],
     }, json.keys);
   }
 }
@@ -1422,37 +1490,50 @@ class ThrottlingData {
 
 /// The response to a logs request.
 class StatsResponse {
-  DateTime _read;
-  DateTime get read => _read;
-
-  StatsResponseNetwork _network;
-  StatsResponseNetwork get network => _network;
-
-  StatsResponseMemoryStats _memoryStats;
-  StatsResponseMemoryStats get memoryStats => _memoryStats;
-
   BlkIoStats _blkIoStats;
   BlkIoStats get blkIoStats => _blkIoStats;
 
   StatsResponseCpuStats _cpuStats;
   StatsResponseCpuStats get cpuStats => _cpuStats;
 
+  StatsResponseMemoryStats _memoryStats;
+  StatsResponseMemoryStats get memoryStats => _memoryStats;
+
+  StatsResponseNetwork _network;
+  StatsResponseNetwork get network => _network;
+
+  StatsResponseCpuStats _preCpuStats;
+  StatsResponseCpuStats get preCpuStats => _preCpuStats;
+
+  DateTime _read;
+  DateTime get read => _read;
+
   StatsResponse.fromJson(Map json, Version apiVersion) {
-    _read = _parseDate(json['read']);
-    _network = new StatsResponseNetwork.fromJson(json['network'], apiVersion);
-    _memoryStats =
-        new StatsResponseMemoryStats.fromJson(json['memory_stats'], apiVersion);
     _blkIoStats = new BlkIoStats.fromJson(json['blkio_stats'], apiVersion);
     _cpuStats =
         new StatsResponseCpuStats.fromJson(json['cpu_stats'], apiVersion);
+    _memoryStats =
+        new StatsResponseMemoryStats.fromJson(json['memory_stats'], apiVersion);
+    _network = new StatsResponseNetwork.fromJson(json['network'], apiVersion);
+    _preCpuStats =
+        new StatsResponseCpuStats.fromJson(json['precpu_stats'], apiVersion);
+    _read = _parseDate(json['read']);
     _checkSurplusItems(apiVersion, {
       ApiVersion.v1_15: const [
-        'read',
-        'network',
-        'memory_stats',
         'blkio_stats',
-        'cpu_stats'
-      ]
+        'cpu_stats',
+        'memory_stats',
+        'network',
+        'read',
+      ],
+      ApiVersion.v1_19: const [
+        'blkio_stats',
+        'cpu_stats',
+        'memory_stats',
+        'network',
+        'precpu_stats',
+        'read',
+      ],
     }, json.keys);
   }
 }
@@ -1732,7 +1813,17 @@ class Container {
         'Names',
         'Ports',
         'Status'
-      ]
+      ],
+      ApiVersion.v1_19: [
+        'Id',
+        'Command',
+        'Created',
+        'Labels',
+        'Image',
+        'Names',
+        'Ports',
+        'Status'
+      ],
     }, json.keys);
   }
 
@@ -1858,7 +1949,26 @@ class ImageInfo {
         'VirtualSize',
         'RepoDigests',
         'RepoTags',
-      ]
+      ],
+      ApiVersion.v1_19: const [
+        'Architecture',
+        'Author',
+        'Comment',
+        'Config',
+        'Container',
+        'ContainerConfig',
+        'Created',
+        'DockerVersion',
+        'Id',
+        'Labels',
+        'Os',
+        'Parent',
+        'ParentId',
+        'Size',
+        'VirtualSize',
+        'RepoDigests',
+        'RepoTags',
+      ],
     }, json.keys);
   }
 }
@@ -1908,6 +2018,10 @@ class ContainerInfo {
 
   String _mountLabel;
   String get mountLabel => _mountLabel;
+
+  UnmodifiableMapView<String, UnmodifiableListView<String>> _mountPoints; // TODO add generic type with actual data
+  UnmodifiableMapView<String, UnmodifiableListView<String>> get mountPoints =>
+      _mountPoints;
 
   String _name;
   String get name => _name;
@@ -1959,6 +2073,8 @@ class ContainerInfo {
     _image = json['Image'];
     _logPath = json['LogPath'];
     _mountLabel = json['MountLabel'];
+    _mountPoints = _toUnmodifiableMapView(
+        json['MountPoints']); // TODO check with actual data
     _name = json['Name'];
     _networkSettings =
         new NetworkSettings.fromJson(json['NetworkSettings'], apiVersion);
@@ -2023,7 +2139,36 @@ class ContainerInfo {
         'UpdateDns',
         'Volumes',
         'VolumesRW'
-      ]
+      ],
+      ApiVersion.v1_19: const [
+        'AppArmorProfile',
+        'AppliedVolumesFrom', // ExecInfo
+        'Args',
+        'Config',
+        'Created',
+        'Driver',
+        'ExecDriver',
+        'ExecIDs',
+        'HostConfig',
+        'HostnamePath',
+        'HostsPath',
+        'Id',
+        'ID',
+        'Image',
+        'LogPath',
+        'MountLabel',
+        'MountPoints',
+        'Name',
+        'NetworkSettings',
+        'Path',
+        'ProcessLabel',
+        'ResolvConfPath',
+        'RestartCount',
+        'State',
+        'UpdateDns',
+        'Volumes',
+        'VolumesRW'
+      ],
     }, json.keys);
   }
 
@@ -2041,6 +2186,8 @@ class ContainerInfo {
     if (id != null) json['Id'] = id;
     if (image != null) json['Image'] = image;
     if (mountLabel != null) json['MountLabel'] = mountLabel;
+    if (mountPoints != null) json['MountPoints'] =
+        mountPoints.toJson(); // TODO check with actual data
     if (name != null) json['Name'] = name;
     if (networkSettings != null) json['NetworkSettings'] =
         networkSettings.toJson();
@@ -2106,6 +2253,9 @@ class HostConfig {
   List<String> _binds;
   List<String> get binds => _toUnmodifiableListView(_binds);
 
+  int _blkioWeight;
+  int get blkioWeight => _blkioWeight;
+
   List<String> _capAdd;
   List<String> get capAdd => _toUnmodifiableListView(_capAdd);
 
@@ -2118,11 +2268,20 @@ class HostConfig {
   String _containerIdFile;
   String get containerIdFile => _containerIdFile;
 
+  int _cpuPeriod;
+  int get cpuPeriod => _cpuPeriod;
+
+  int _cpuQuota;
+  int get cpuQuota => _cpuQuota;
+
   int _cpuShares;
   int get cpuShares => _cpuShares;
 
   String _cpusetCpus;
   String get cpusetCpus => _cpusetCpus;
+
+  String _cpusetMems;
+  String get cpusetMems => _cpusetMems;
 
   Map<String, String> _devices;
   Map<String, String> get devices => _toUnmodifiableMapView(_devices);
@@ -2157,6 +2316,9 @@ class HostConfig {
   String _networkMode;
   String get networkMode => _networkMode;
 
+  bool _oomKillDisable;
+  bool get oomKillDisable => _oomKillDisable;
+
   String _pidMode;
   String get pidMode => _pidMode;
 
@@ -2181,6 +2343,9 @@ class HostConfig {
   Map _ulimits;
   Map get ulimits => _ulimits;
 
+  String _utsMode;
+  String get utsMode => _utsMode;
+
   List _volumesFrom;
   List get volumesFrom => _toUnmodifiableListView(_volumesFrom);
 
@@ -2191,11 +2356,14 @@ class HostConfig {
       return;
     }
     _binds = json['Binds'];
+    _blkioWeight = json['BlkioWeight'];
     _capAdd = json['CapAdd'];
     _capDrop = json['CapDrop'];
     _cGroupParent = json['CgroupParent'];
     _containerIdFile = json['ContainerIDFile'];
+    _cpuPeriod = json['CpuPeriod'];
     _cpusetCpus = json['CpusetCpus'];
+    _cpusetMems = json['CpusetMems'];
     _cpuShares = json['CpuShares'];
     _devices = json['Devices'];
     _dns = json['Dns'];
@@ -2208,6 +2376,7 @@ class HostConfig {
     _memory = json['Memory'];
     _memorySwap = json['MemorySwap'];
     _networkMode = json['NetworkMode'];
+    _oomKillDisable = json['OomKillDisable'];
     _pidMode = json['PidMode'];
     final Map<String, List<Map<String, String>>> portBindings =
         json['PortBindings'];
@@ -2224,6 +2393,7 @@ class HostConfig {
         new RestartPolicy.fromJson(json['RestartPolicy'], apiVersion);
     _securityOpt = json['SecurityOpt'];
     _ulimits = json['Ulimits'];
+    _utsMode = json['UTSMode'];
     _volumesFrom = json['VolumesFrom'];
 
     _checkSurplusItems(apiVersion, {
@@ -2244,7 +2414,7 @@ class HostConfig {
         'PublishAllPorts',
         'RestartPolicy',
         'SecurityOpt',
-        'VolumesFrom'
+        'VolumesFrom',
       ],
       ApiVersion.v1_18: const [
         'Binds',
@@ -2273,7 +2443,42 @@ class HostConfig {
         'RestartPolicy',
         'SecurityOpt',
         'Ulimits',
-        'VolumesFrom'
+        'VolumesFrom',
+      ],
+      ApiVersion.v1_19: const [
+        'Binds',
+        'BlkioWeight',
+        'CapAdd',
+        'CapDrop',
+        'CgroupParent',
+        'ContainerIDFile',
+        'CpusetCpus',
+        'CpusetMems',
+        'CpuPeriod',
+        'CpuQuota',
+        'CpuShares',
+        'Devices',
+        'Dns',
+        'DnsSearch',
+        'ExtraHosts',
+        'IpcMode',
+        'Links',
+        'LogConfig',
+        'LxcConf',
+        'Memory',
+        'MemorySwap',
+        'NetworkMode',
+        'OomKillDisable',
+        'PidMode',
+        'PortBindings',
+        'Privileged',
+        'PublishAllPorts',
+        'ReadonlyRootfs',
+        'RestartPolicy',
+        'SecurityOpt',
+        'Ulimits',
+        'UTSMode',
+        'VolumesFrom',
       ]
     }, json.keys);
   }
@@ -2285,7 +2490,10 @@ class HostConfig {
     if (capDrop != null) json['CapDrop'] = capDrop;
     if (cGroupParent != null) json['CgroupParent'] = cGroupParent;
     if (containerIdFile != null) json['ContainerIDFile'] = containerIdFile;
+    if (cpuPeriod != null) json['CpuPeriod'] = cpuPeriod;
     if (cpusetCpus != null) json['CpusetCpus'] = cpusetCpus;
+    if (cpusetMems != null) json['CpusetMems'] = cpusetMems;
+    if (cpuQuota != null) json['CpuQuota'] = cpuShares;
     if (cpuShares != null) json['CpuShares'] = cpuShares;
     if (devices != null) json['Devices'] = devices;
     if (dns != null) json['Dns'] = dns;
@@ -2302,6 +2510,7 @@ class HostConfig {
       json['MemorySwap'] = memorySwap;
     }
     if (networkMode != null) json['NetworkMode'] = networkMode;
+    if (oomKillDisable != null) json['OomKillDisable'] = oomKillDisable;
     if (pidMode != null) json['PidMode'] = pidMode;
     if (portBindings != null) json['PortBindings'] = new Map.fromIterable(
         portBindings,
@@ -2313,6 +2522,7 @@ class HostConfig {
     if (restartPolicy != null) json['RestartPolicy'] = restartPolicy.toJson();
     if (securityOpt != null) json['SecurityOpt'] = securityOpt;
     if (ulimits != null) json['Ulimits'] = ulimits;
+    if (utsMode != null) json['UTSMode'] = utsMode;
     if (volumesFrom != null) json['VolumesFrom'] = volumesFrom;
     return json;
   }
@@ -2322,6 +2532,9 @@ class NetworkSettings {
   String _bridge;
   String get bridge => _bridge;
 
+  String _endpointId;
+  String get endpointId => _endpointId;
+
   String _gateway;
   String get gateway => _gateway;
 
@@ -2330,6 +2543,9 @@ class NetworkSettings {
 
   int _globalIPv6PrefixLen;
   int get globalIPv6PrefixLen => _globalIPv6PrefixLen;
+
+  bool _hairpinMode;
+  bool get hairpinMode => _hairpinMode;
 
   String _ipAddress;
   String get ipAddress => _ipAddress;
@@ -2349,28 +2565,49 @@ class NetworkSettings {
   String _macAddress;
   String get macAddress => _macAddress;
 
+  String _networkId;
+  String get networkId => _networkId;
+
   UnmodifiableMapView _portMapping;
   UnmodifiableMapView get portMapping => _portMapping;
 
   UnmodifiableMapView _ports;
   UnmodifiableMapView get ports => _ports;
 
+  String _sandboxKey;
+  String get sandboxKey => _sandboxKey;
+
+  UnmodifiableListView _secondaryIPAddresses;
+  UnmodifiableListView get secondaryIPAddresses => _secondaryIPAddresses;
+
+  UnmodifiableListView _secondaryIPv6Addresses;
+  UnmodifiableListView get secondaryIPv6Addresses => _secondaryIPv6Addresses;
+
   NetworkSettings.fromJson(Map json, Version apiVersion) {
     if (json == null) {
       return;
     }
     _bridge = json['Bridge'];
+    _endpointId = json['EndpointID'];
     _gateway = json['Gateway'];
     _globalIPv6Address = json['GlobalIPv6Address'];
     _globalIPv6PrefixLen = json['GlobalIPv6PrefixLen'];
+    _hairpinMode = json['HairpinMode'];
     _ipAddress = json['IPAddress'];
     _ipPrefixLen = json['IPPrefixLen'];
     _ipv6Gateway = json['IPv6Gateway'];
     _linkLocalIPv6Address = json['LinkLocalIPv6Address'];
     _linkLocalIPv6PrefixLen = json['LinkLocalIPv6PrefixLen'];
     _macAddress = json['MacAddress'];
+    _networkId = json['NetworkID'];
     _portMapping = _toUnmodifiableMapView(json['PortMapping']);
     _ports = _toUnmodifiableMapView(json['Ports']);
+    _sandboxKey = json['SandboxKey'];
+    _secondaryIPAddresses =
+        _toUnmodifiableListView(json['SecondaryIPAddresses']);
+    _secondaryIPv6Addresses =
+        _toUnmodifiableListView(json['SecondaryIPv6Addresses']);
+
     _checkSurplusItems(apiVersion, {
       ApiVersion.v1_15: const [
         'Bridge',
@@ -2379,7 +2616,7 @@ class NetworkSettings {
         'IPPrefixLen',
         'MacAddress',
         'PortMapping',
-        'Ports'
+        'Ports',
       ],
       ApiVersion.v1_18: const [
         'Bridge',
@@ -2393,17 +2630,48 @@ class NetworkSettings {
         'LinkLocalIPv6PrefixLen',
         'MacAddress',
         'PortMapping',
-        'Ports'
-      ]
+        'Ports',
+      ],
+      ApiVersion.v1_19: const [
+        'Bridge',
+        'EndpointID',
+        'Gateway',
+        'GlobalIPv6Address',
+        'GlobalIPv6PrefixLen',
+        'HairpinMode',
+        'IPAddress',
+        'IPPrefixLen',
+        'IPv6Gateway',
+        'LinkLocalIPv6Address',
+        'LinkLocalIPv6PrefixLen',
+        'MacAddress',
+        'NetworkID',
+        'PortMapping',
+        'Ports',
+        'SandboxKey',
+        'SecondaryIPAddresses',
+        'SecondaryIPv6Addresses',
+      ],
     }, json.keys);
   }
 
   Map toJson() {
     final json = {};
     if (bridge != null) json['Bridge'] = bridge;
+    if (endpointId != null) json['EndpointID'] = endpointId;
     if (gateway != null) json['Gateway'] = gateway;
+    if (globalIPv6Address != null) json['GlobalIPv6Address'] =
+        globalIPv6Address;
+    if (globalIPv6PrefixLen != null) json['GlobalIPv6PrefixLen'] =
+        globalIPv6PrefixLen;
+    if (hairpinMode != null) json['HairpinMode'] = hairpinMode;
     if (ipAddress != null) json['IPAddress'] = ipAddress;
     if (ipPrefixLen != null) json['IPPrefixLen'] = ipPrefixLen;
+    if (ipv6Gateway != null) json['IPv6Gateway'] = ipv6Gateway;
+    if (linkLocalIPv6Address != null) json['LinkLocalIPv6Address'] =
+        linkLocalIPv6Address;
+    if (linkLocalIPv6PrefixLen != null) json['LinkLocalIPv6PrefixLen'] =
+        linkLocalIPv6PrefixLen;
     if (macAddress != null) json['MacAddress'] = macAddress;
     if (portMapping != null) json['PortMapping'] = portMapping;
     if (ports != null) json['Ports'] = ports;
@@ -2614,6 +2882,9 @@ class Config {
   String _user;
   String get user => _user;
 
+  String _volumeDriver;
+  String get volumeDriver => _volumeDriver;
+
   Volumes _volumes;
   Volumes get volumes => _volumes;
 
@@ -2652,6 +2923,7 @@ class Config {
     _stdinOnce = json['StdinOnce'];
     _tty = json['Tty'];
     _user = json['User'];
+    _volumeDriver = json['VolumeDriver'];
     _volumes = new Volumes.fromJson(json['Volumes'], apiVersion);
     _workingDir = json['WorkingDir'];
 
@@ -2707,7 +2979,35 @@ class Config {
         'User',
         'Volumes',
         'WorkingDir',
-      ]
+      ],
+      ApiVersion.v1_19: const [
+        'AttachStderr',
+        'AttachStdin',
+        'AttachStdout',
+        'Cmd',
+        'CpuShares',
+        'Cpuset',
+        'Domainname',
+        'Entrypoint',
+        'Env',
+        'ExposedPorts',
+        'Hostname',
+        'Image',
+        'Labels',
+        'MacAddress',
+        'Memory',
+        'MemorySwap',
+        'NetworkDisabled',
+        'OnBuild',
+        'OpenStdin',
+        'PortSpecs',
+        'StdinOnce',
+        'Tty',
+        'User',
+        'VolumeDriver',
+        'Volumes',
+        'WorkingDir'
+      ],
     }, json.keys);
   }
 
@@ -2734,7 +3034,8 @@ class Config {
     if (stdinOnce != null) json['StdinOnce'] = stdinOnce;
     if (tty != null) json['Tty'] = tty;
     if (user != null) json['User'] = user;
-    if (volumes != null) json['_volumes'] = volumes;
+    if (volumeDriver != null) json['VolumeDriver'] = volumeDriver;
+    if (volumes != null) json['Volumes'] = volumes;
     if (workingDir != null) json['WorkingDir'] = workingDir;
     return json;
   }
