@@ -500,8 +500,15 @@ class Version implements Comparable {
   final int patch;
 
   Version(this.major, this.minor, this.patch) {
-    assert(major != null);
-    assert(minor != null);
+    if (major == null || major < 0) {
+      throw new ArgumentError('"major" must not be null and must not be < 0.');
+    }
+    if (minor == null || minor < 0) {
+      throw new ArgumentError('"minor" must not be null and must not be < 0.');
+    }
+    if (patch != null && patch < 0) {
+      throw new ArgumentError('If "patch" is provided the value must be >= 0.');
+    }
   }
 
   factory Version.fromString(String version) {
@@ -517,15 +524,12 @@ class Version implements Comparable {
 
     if (parts.length >= 1) {
       major = int.parse(parts[0]);
-      assert(major >= 0);
     }
     if (parts.length >= 2) {
       minor = int.parse(parts[1]);
-      assert(minor >= 0);
     }
     if (parts.length >= 3) {
       patch = int.parse(parts[2]);
-      assert(patch >= 0);
     }
     if (parts.length >= 4) {
       throw 'Unsupported version string format "${version}".';

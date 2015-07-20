@@ -182,7 +182,7 @@ void main([List<String> args]) {
         Stream logSince = await connection.logs(createdContainer,
             stdout: true,
             stderr: true,
-            since: new DateTime.now(),
+            since: new DateTime.now()..add(const Duration(seconds: 1)),
             timestamps: true,
             follow: false,
             tail: 10);
@@ -192,6 +192,11 @@ void main([List<String> args]) {
         await subSince.asFuture();
 
         // verification
+//        if (bufSince.isNotEmpty) {
+// TODO(zoechi) this check is flaky. Find out why it sometimes contains log output
+// when it shouldn't
+//          print('x');
+//        }
         expect(bufSince.isEmpty, isTrue);
       });
     });

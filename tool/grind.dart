@@ -19,9 +19,6 @@ const dindPort = 3375;
 main(List<String> args) {
   doInstallContentShell = false;
   testTask = ([_]) => _testTaskImpl();
-  // Disable coverage because Travis doesn't provide Docker and tests can't be
-  // run without Docker.
-  coverageTask = () {};
   // Disable test when run on Travis
   travisPrepareTask = () => testTask = ([_]) {};
   grind(args);
