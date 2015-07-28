@@ -137,5 +137,36 @@ main() {
           await connection.images(all: true);
       expect(imagesAfter, isEmpty);
     }, timeout: new Timeout.factor(2));
+  }, skip: true);
+
+  group('run', () {
+    test('should parse single port', () {
+      final Map<String, List<PortBinding>> singlePortBindings =
+          parsePublishArgument(['1000:2000']);
+      expect(singlePortBindings.containsKey('2000/tcp'), isTrue);
+      expect(singlePortBindings['2000/tcp'].length, 1);
+      expect(singlePortBindings['2000/tcp'][0].hostIp, isNull);
+      expect(singlePortBindings['2000/tcp'][0].hostPort, '1000');
+    });
+
+    test('should parse a port range', () {
+      final Map<String, List<PortBinding>> rangePortBindings =
+          parsePublishArgument(['1000-1005:2000-2005']);
+      [1000, 1001, 1002, 1003, 1004, 1005].forEach((k) {
+        final key = '${k + 1000}/tcp';
+        expect(rangePortBindings.containsKey(key), isTrue);
+        expect(rangePortBindings[key].length, 1);
+        expect(rangePortBindings[key][0].hostIp, isNull);
+        expect(rangePortBindings[key][0].hostPort, '${k}');
+      });
+    });
+
+    test('run', () async {
+      await run(connection, imageNameAndTag,
+          detach: true,
+          publish: const <String>['4444:4444'],
+          name: 'run-dummy',
+          command: ['tail', '-f', '/etc/resolv.conf']);
+    }, timeout: const Timeout(const Duration(seconds: 180)));
   });
 }

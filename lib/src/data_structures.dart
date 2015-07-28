@@ -2205,50 +2205,34 @@ class ContainerInfo {
 }
 
 class PortBindingRequest extends PortBinding {
-  String get port => _port;
-  set port(String val) => _port = val;
+  String get hostIp => _hostIp;
+  set hostIp(String val) => _hostIp = val;
 
-  List<HostPort> get hostPorts => _hostPorts;
-  set hostPorts(List<HostPort> val) => _hostPorts = val;
+  String get hostPort => _hostPort;
+  set hostPort(String val) => _hostPort = val;
 }
 
 class PortBinding {
-  String _port;
-  String get port => _port;
+  String _hostIp;
+  String get hostIp => _hostIp;
 
-  List<HostPort> _hostPorts;
-  List<HostPort> get hostPorts => _toUnmodifiableListView(_hostPorts);
+  String _hostPort;
+  String get hostPort => _hostPort;
 
   PortBinding();
 
   PortBinding.fromJson(Map json, Version apiVersion) {
-    _port = json['Port'];
-    if (json['Values'] != null) {
-      _hostPorts = json['Values']
-          .map((v) => new HostPort.fromJson(v, apiVersion))
-          .toList();
+    _hostIp = json['HostIp'];
+    _hostPort = json['HostPort'];
+  }
+
+  Map toJson() {
+    final result = {'HostPort': hostPort};
+    if (hostIp != null) {
+      result['HostIp'] = hostIp;
     }
-    _checkSurplusItems(
-        apiVersion, {ApiVersion.v1_15: const ['Port', 'Values',]}, json.keys);
+    return result;
   }
-
-  Map toJson() => {port: hostPorts.map((hp) => hp.toJson()).toList()};
-}
-
-class HostPort {
-  String _port;
-  String get port => _port;
-
-  HostPort(this._port);
-
-  HostPort.fromJson(Map json, Version apiVersion) {
-    _port = json['HostPort'];
-
-    _checkSurplusItems(
-        apiVersion, {ApiVersion.v1_15: const ['HostPort',]}, json.keys);
-  }
-
-  Map toJson() => {'HostPort': port};
 }
 
 /// See [HostConfigRequest] for documentation of the members.
@@ -2325,8 +2309,9 @@ class HostConfig {
   String _pidMode;
   String get pidMode => _pidMode;
 
-  List<PortBinding> _portBindings;
-  List<PortBinding> get portBindings => _toUnmodifiableListView(_portBindings);
+  Map<String, List<PortBinding>> _portBindings;
+  Map<String, List<PortBinding>> get portBindings =>
+      _toUnmodifiableMapView(_portBindings);
 
   bool _privileged;
   bool get privileged => _privileged;
@@ -2384,10 +2369,12 @@ class HostConfig {
     final Map<String, List<Map<String, String>>> portBindings =
         json['PortBindings'];
     if (portBindings != null) {
-      _portBindings = portBindings.keys
-          .map((k) => new PortBinding.fromJson(
-              {'Port': k, 'Values': portBindings[k]}, apiVersion))
-          .toList();
+      _portBindings = new Map<String, List<PortBinding>>.fromIterable(
+          portBindings.keys,
+          key: (k) => k,
+          value: (k) => portBindings[k]
+              .map((pb) => new PortBinding.fromJson(pb, apiVersion))
+              .toList());
     }
     _privileged = json['Privileged'];
     _publishAllPorts = json['PublishAllPorts'];
@@ -2515,10 +2502,11 @@ class HostConfig {
     if (networkMode != null) json['NetworkMode'] = networkMode;
     if (oomKillDisable != null) json['OomKillDisable'] = oomKillDisable;
     if (pidMode != null) json['PidMode'] = pidMode;
+//    if (portBindings != null) json['PortBindings'] = portBindings;
     if (portBindings != null) json['PortBindings'] = new Map.fromIterable(
-        portBindings,
-        key: (pb) => pb.port,
-        value: (pb) => pb.hostPorts.map((hp) => hp.toJson()).toList());
+        portBindings.keys,
+        key: (k) => k,
+        value: (k) => portBindings[k].map((pb) => pb.toJson()).toList());
     if (privileged != null) json['Privileged'] = privileged;
     if (publishAllPorts != null) json['PublishAllPorts'] = publishAllPorts;
     if (readonlyRootFs != null) json['ReadonlyRootfs'] = readonlyRootFs;
@@ -3288,8 +3276,8 @@ class HostConfigRequest extends HostConfig {
   /// Exposed container ports and the host port they should map to. It should be
   /// specified in the form `{ <port>/<protocol>: [{ "HostPort": "<port>" }] }`.
   /// Take note that port is specified as a string and not an integer value.
-  List<PortBinding> get portBindings => _portBindings;
-  set portBindings(List<PortBinding> val) => _portBindings = val;
+  Map<String, List<PortBinding>> get portBindings => _portBindings;
+  set portBindings(Map<String, List<PortBinding>> val) => _portBindings = val;
 
   /// Allocates a random host port for all of a container's exposed ports.
   bool get publishAllPorts => _publishAllPorts;

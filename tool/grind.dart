@@ -36,7 +36,11 @@ Uri _uriUpdatePort(Uri uri, int port) {
 
 _testTaskImpl() async {
   final dockerHostStr = io.Platform.environment[dockerHostFromEnvironment];
-  assert(dockerHostStr != null && dockerHostStr.isNotEmpty);
+  if(dockerHostStr == null || dockerHostStr.isEmpty) {
+    fail('To run the tests the environment variable "${dockerHostFromEnvironment}" '
+    'must point to a Docker instance which exposes an HTTP port. \n'
+    'For example "export DOCKER_HOST_REMOTE_API=http://localhost:2375".');
+  }
   final dockerHost = Uri.parse(dockerHostStr);
 
   DockerConnection docker = new DockerConnection(
@@ -94,11 +98,10 @@ Future<Container> _dindCreateContainer(
   final hostConfig = new HostConfigRequest()
     ..privileged = true
     ..publishAllPorts = false
-    ..portBindings = [
-      new PortBindingRequest()
-        ..port = '${port}/tcp'
-        ..hostPorts = [new HostPort('${port}')]
-    ];
+    ..portBindings = {
+      '${port}/tcp': [new PortBindingRequest()..hostPort = '${port}']
+    };
+
   return docker.createContainer(new CreateContainerRequest()
     ..hostName = 'remote_api_test'
     ..image = 'jpetazzo/dind'

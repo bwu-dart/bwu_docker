@@ -51,7 +51,7 @@ void main([List<String> args]) {
       ..hostConfig.logConfig = {'Type': 'json-file'})).container;
   };
 
-  /// teatDown helper to remove the container created in setUp
+  /// tearDown helper to remove the container created in setUp
   final removeContainer = () async {
     await utils.removeContainer(connection, createdContainer);
     createdContainer = null;

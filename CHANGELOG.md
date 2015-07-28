@@ -1,3 +1,8 @@
+## UNRELEASED
+- Started implementation of a `run` task
+- Breaking change:
+  - Changed the `PortBindings` structure and implementation (fromJson/toJson)
+
 ## 0.2.1
 - Support for Docker API v 1.19 
 - DockerConnection now takes an Uri instead of parts

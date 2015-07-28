@@ -18,13 +18,10 @@ main() {
       final hc2 = new HostConfig.fromJson(json2, ApiVersion.v1_17);
 
       expect(hc2.portBindings.length, hc.portBindings.length);
-      expect(hc2.portBindings[0].port, hc.portBindings[0].port);
-      expect(hc2.portBindings[0].hostPorts.length,
-          hc.portBindings[0].hostPorts.length);
-      expect(hc2.portBindings[0].hostPorts[0].port,
-          hc.portBindings[0].hostPorts[0].port);
-      expect(hc2.portBindings[0].hostPorts[0].port,
-          hc.portBindings[0].hostPorts[0].port);
+      expect(hc2.portBindings.keys.first, hc.portBindings.keys.first);
+      expect(hc2.portBindings.values.first[0].hostPort,
+          hc.portBindings.values.first[0].hostPort);
+      expect(hc2.portBindings.values.first[0].hostIp, isNull);
     });
   });
 }
