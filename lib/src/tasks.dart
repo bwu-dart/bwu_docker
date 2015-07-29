@@ -1,6 +1,6 @@
 library bwu_docker.src.tasks;
 
-import 'dart:async' show Future;
+import 'dart:async' show Future, StreamSubscription;
 
 import 'package:bwu_docker/bwu_docker.dart';
 import 'dart:collection';
@@ -80,15 +80,16 @@ Future<Iterable<ImageInfo>> removeAllImages(DockerConnection connection) async {
 /// Provides a "run" command similar to the Docker command line client.
 /// TODO(zoechi) This implementation is incomplete and supports only a very
 /// limited set of arguments.
-Future run(DockerConnection connection, String image,
+Future<CreateResponse> run(DockerConnection connection, String image,
     {List<String> attach: const [], bool detach: false, String name,
-    List<String> publish, List<String> command}) async {
+    List<String> publish, bool rm: false, List<String> command}) async {
   assert(connection != null);
   assert(image != null && image.isNotEmpty);
   assert(attach != null);
   assert(detach != null);
   attach = attach.map((e) => e.toLowerCase()).toList();
   assert(attach.every((e) => const ['stdin', 'stdout', 'stderr'].contains(e)));
+  assert(rm != null);
 
   final portBindings = parsePublishArgument(publish);
   final createContainerRequest = new CreateContainerRequest()
@@ -113,7 +114,28 @@ Future run(DockerConnection connection, String image,
 
   final CreateResponse createdResponse =
       await connection.createContainer(createContainerRequest, name: name);
+
+  // If `rm` is `true` listen for events which indicate the container was
+  // stopped. Check again after some delay and then remove the container.
+  if (rm) {
+    StreamSubscription eventsSubscription;
+    eventsSubscription = connection.events(filters: new EventsFilter()
+      ..events.addAll(
+          [ContainerEvent.stop, ContainerEvent.kill, ContainerEvent.die])
+      ..containers.add(createdResponse.container)).listen((event) {
+      new Future.delayed(const Duration(milliseconds: 200), () async {
+        final Iterable<Container> containers = await connection.containers(
+            filters: {'status': [ContainerStatus.exited.toString()]});
+        if (containers.any((c) => c.id == createdResponse.container.id)) {
+          await connection.removeContainer(createdResponse.container);
+          eventsSubscription.cancel();
+        }
+      });
+    });
+  }
+
   await connection.start(createdResponse.container);
+  return createdResponse;
 }
 
 /// Creates a [PortBindings] map from a "publish" argument supported by the

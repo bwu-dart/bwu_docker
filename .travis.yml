@@ -10,10 +10,9 @@ env:
 #    - DOCKER_HOST=tcp://$HOST_IP:2375
 #    - DOCKER_PORT_RANGE=2400:2500
 #    - SLIRP_PORTS=$(seq 2375 2500)
-  matrix:
-    - PUB=DOWNGRADE
-    - PUB=UPGRADE
-
+#  matrix:
+#    - PUB=DOWNGRADE
+#    - PUB=UPGRADE
 
 script: dart -c tool/grind.dart travis
 

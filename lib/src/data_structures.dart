@@ -268,6 +268,7 @@ abstract class DockerEventBase {
 }
 
 /// Container related Docker events
+/// [More details about container events](https://docs.docker.com/reference/api/images/event_state.png)
 class ContainerEvent extends DockerEventBase {
   static const create = const ContainerEvent._(1, 'create');
   static const destroy = const ContainerEvent._(2, 'destroy');

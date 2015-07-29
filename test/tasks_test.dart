@@ -14,6 +14,7 @@
 library bwu_docker.test.tasks;
 
 import 'dart:io' as io;
+import 'dart:async' show Future, Stream;
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 import 'package:bwu_docker/bwu_docker.dart';
@@ -140,7 +141,7 @@ main() {
   }, skip: true);
 
   group('run', () {
-    test('should parse single port', () {
+    test('should parse single port from `publish` argument', () {
       final Map<String, List<PortBinding>> singlePortBindings =
           parsePublishArgument(['1000:2000']);
       expect(singlePortBindings.containsKey('2000/tcp'), isTrue);
@@ -149,7 +150,7 @@ main() {
       expect(singlePortBindings['2000/tcp'][0].hostPort, '1000');
     });
 
-    test('should parse a port range', () {
+    test('should parse a port range from `publish` argument', () {
       final Map<String, List<PortBinding>> rangePortBindings =
           parsePublishArgument(['1000-1005:2000-2005']);
       [1000, 1001, 1002, 1003, 1004, 1005].forEach((k) {
@@ -161,12 +162,36 @@ main() {
       });
     });
 
-    test('run', () async {
-      await run(connection, imageNameAndTag,
+    test('rm=true should remove the container after it stopped', () async {
+      // set up
+      // exercise
+      final CreateResponse createResponse = await run(
+          connection, imageNameAndTag,
           detach: true,
           publish: const <String>['4444:4444'],
+          rm: true,
           name: 'run-dummy',
           command: ['tail', '-f', '/etc/resolv.conf']);
+
+      // verification
+      await new Future.delayed(const Duration(milliseconds: 200), () async {
+        final Iterable<Container> containers = await connection.containers(
+            filters: {'status': [ContainerStatus.running.toString()]});
+        expect(
+            containers, anyElement((c) => c.id == createResponse.container.id));
+      });
+
+      // exercise
+      await new Future.delayed(const Duration(milliseconds: 500), () async {
+        await connection.stop(createResponse.container);
+
+        // verification
+        await new Future.delayed(const Duration(milliseconds: 500), () async {
+          final Iterable<Container> containers = await connection.containers();
+          expect(containers,
+              isNot(anyElement((c) => c.id == createResponse.container.id)));
+        });
+      });
     }, timeout: const Timeout(const Duration(seconds: 180)));
   });
 }

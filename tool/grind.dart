@@ -36,10 +36,11 @@ Uri _uriUpdatePort(Uri uri, int port) {
 
 _testTaskImpl() async {
   final dockerHostStr = io.Platform.environment[dockerHostFromEnvironment];
-  if(dockerHostStr == null || dockerHostStr.isEmpty) {
-    fail('To run the tests the environment variable "${dockerHostFromEnvironment}" '
-    'must point to a Docker instance which exposes an HTTP port. \n'
-    'For example "export DOCKER_HOST_REMOTE_API=http://localhost:2375".');
+  if (dockerHostStr == null || dockerHostStr.isEmpty) {
+    fail(
+        'To run the tests the environment variable "${dockerHostFromEnvironment}" '
+        'must point to a Docker instance which exposes an HTTP port. \n'
+        'For example "export DOCKER_HOST_REMOTE_API=http://localhost:2375".');
   }
   final dockerHost = Uri.parse(dockerHostStr);
 

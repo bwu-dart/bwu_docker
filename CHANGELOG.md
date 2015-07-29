@@ -1,5 +1,7 @@
 ## UNRELEASED
 - Started implementation of a `run` task
+  - add `publish` parameter
+  - add `rm` parameter
 - Breaking change:
   - Changed the `PortBindings` structure and implementation (fromJson/toJson)
 
