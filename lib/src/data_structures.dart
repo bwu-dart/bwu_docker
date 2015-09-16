@@ -6,15 +6,29 @@ import 'dart:collection';
 final containerNameRegex = new RegExp(r'^/?[a-zA-Z0-9_-]+$');
 
 /// Enum of API versions currently considered for API differences.
-class ApiVersion {
-  static final v1_15 = new Version(1, 15, null);
-  static final v1_17 = new Version(1, 17, null);
-  static final v1_18 = new Version(1, 18, null);
-  static final v1_19 = new Version(1, 19, null);
+class RemoteApiVersion extends Version {
+  static final v1_15 = new RemoteApiVersion(1, 15, null);
+  static final v1_16 = new RemoteApiVersion(1, 16, null);
+  static final v1_17 = new RemoteApiVersion(1, 17, null);
+  static final v1_18 = new RemoteApiVersion(1, 18, null);
+  static final v1_19 = new RemoteApiVersion(1, 19, null);
+  static final v1_20 = new RemoteApiVersion(1, 20, null);
 
-  final ApiVersion value;
+  static final versions = [v1_15, v1_16, v1_17, v1_18, v1_19, v1_20];
 
-  ApiVersion(this.value);
+  RemoteApiVersion(int major, int minor, int patch)
+      : super(major, minor, patch);
+
+  factory RemoteApiVersion.fromVersion(Version version) => versions.firstWhere(
+      (v) => v == version,
+      orElse: () =>
+          new RemoteApiVersion(version.major, version.minor, version.patch));
+
+  bool get isSupported => versions.contains(this);
+
+  /// Add this to the request Uri to use a specific version of the remote API.
+  String get asDirectory =>
+      '/v${major}.${minor}${patch == null ? '' : '.${patch}'}';
 }
 
 /// Ensure all provided JSON keys are actually supported.
@@ -115,8 +129,8 @@ UnmodifiableMapView _toUnmodifiableMapView(Map map) {
   if (map == null) {
     return null;
   }
-  return new UnmodifiableMapView(new Map.fromIterable(map.keys,
-      key: (k) => k, value: (k) {
+  return new UnmodifiableMapView(
+      new Map.fromIterable(map.keys, key: (k) => k, value: (k) {
     if (map == null) {
       return null;
     }
@@ -154,12 +168,14 @@ class DockerRemoteApiError {
   final int statusCode;
   final String reason;
   final String body;
+  final String message;
 
-  DockerRemoteApiError(this.statusCode, this.reason, this.body);
+  DockerRemoteApiError(this.statusCode, this.reason, this.body, {this.message});
 
   @override
   String toString() =>
-      '${super.toString()} - StatusCode: ${statusCode}, Reason: ${reason}, Body: ${body}';
+      '${super.toString()} - StatusCode: ${statusCode}, Reason: ${reason}, '
+      'Body: ${body}, Message: ${message}';
 }
 
 /// The response to the inspectExec command
@@ -199,18 +215,21 @@ class ExecInfo {
     _openStdout = json['OpenStdout'];
     _container = new ContainerInfo.fromJson(json['Container'], apiVersion);
 
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const [
-        'ID',
-        'Running',
-        'ProcessConfig',
-        'ExitCode',
-        'OpenStdin',
-        'OpenStderr',
-        'OpenStdout',
-        'Container',
-      ]
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'ID',
+            'Running',
+            'ProcessConfig',
+            'ExitCode',
+            'OpenStdin',
+            'OpenStderr',
+            'OpenStdout',
+            'Container',
+          ]
+        },
+        json.keys);
   }
 }
 
@@ -236,15 +255,18 @@ class ProcessConfig {
     _tty = json['tty'];
     _entrypoint = json['entrypoint'];
     _arguments = _toUnmodifiableListView(json['arguments']);
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const [
-        'privileged',
-        'user',
-        'tty',
-        'entrypoint',
-        'arguments'
-      ]
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'privileged',
+            'user',
+            'tty',
+            'entrypoint',
+            'arguments'
+          ]
+        },
+        json.keys);
   }
 }
 
@@ -258,7 +280,12 @@ class Exec {
       return;
     }
     _id = json['Id'];
-    _checkSurplusItems(apiVersion, {ApiVersion.v1_15: const ['Id']}, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const ['Id']
+        },
+        json.keys);
   }
 }
 
@@ -393,9 +420,12 @@ class EventsResponse {
     _id = json['id'];
     _from = json['from'];
     _time = _parseDate(json['time']);
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const ['status', 'id', 'from', 'time']
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const ['status', 'id', 'from', 'time']
+        },
+        json.keys);
   }
 }
 
@@ -432,7 +462,11 @@ class CommitResponse {
     _id = json['Id'];
     _warnings = _toUnmodifiableListView(json['Warnings']);
     _checkSurplusItems(
-        apiVersion, {ApiVersion.v1_15: const ['Id', 'Warnings']}, json.keys);
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const ['Id', 'Warnings']
+        },
+        json.keys);
   }
 }
 
@@ -462,10 +496,22 @@ class CommitRequest {
   UnmodifiableMapView<String, Map> _name;
   UnmodifiableMapView<String, Map> get name => _name;
 
-  CommitRequest({this.hostName, this.domainName, this.user, this.attachStdin,
-      this.attachStdout, this.attachStderr, List<PortArgument> portSpecs,
-      this.tty, this.openStdin, this.stdinOnce, Map<String, String> env,
-      List<String> cmd, this.volumes, this.workingDir, this.networkingDisabled,
+  CommitRequest(
+      {this.hostName,
+      this.domainName,
+      this.user,
+      this.attachStdin,
+      this.attachStdout,
+      this.attachStderr,
+      List<PortArgument> portSpecs,
+      this.tty,
+      this.openStdin,
+      this.stdinOnce,
+      Map<String, String> env,
+      List<String> cmd,
+      this.volumes,
+      this.workingDir,
+      this.networkingDisabled,
       Map<String, Map> exposedPorts}) {
     _portSpecs = _toUnmodifiableListView(portSpecs);
     _env = _toUnmodifiableMapView(env);
@@ -635,17 +681,20 @@ class VersionResponse {
     _gitCommit = json['GitCommit'];
     _architecture = json['Arch'];
     _apiVersion = new Version.fromString(json['ApiVersion']);
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const [
-        'Version',
-        'Os',
-        'KernelVersion',
-        'GoVersion',
-        'GitCommit',
-        'Arch',
-        'ApiVersion'
-      ]
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'Version',
+            'Os',
+            'KernelVersion',
+            'GoVersion',
+            'GitCommit',
+            'Arch',
+            'ApiVersion'
+          ]
+        },
+        json.keys);
   }
 }
 
@@ -788,100 +837,103 @@ class InfoResponse {
     _swapLimit = _parseBool(json['SwapLimit']);
     _systemTime = _parseDate(json['SystemTime']);
 
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const [
-        'Containers',
-        'Debug',
-        'DockerRootDir',
-        'Driver',
-        'DriverStatus',
-        'ExecutionDriver',
-        'HttpProxy',
-        'HttpsProxy',
-        'ID',
-        'Images',
-        'IndexServerAddress',
-        'InitPath',
-        'InitSha1',
-        'IPv4Forwarding',
-        'KernelVersion',
-        'Labels',
-        'MemoryLimit',
-        'MemTotal',
-        'Name',
-        'NCPU',
-        'NEventsListener',
-        'NFd',
-        'NGoroutines',
-        'OperatingSystem',
-        'SwapLimit',
-        'SystemTime'
-      ],
-      ApiVersion.v1_18: const [
-        'Containers',
-        'Debug',
-        'DockerRootDir',
-        'Driver',
-        'DriverStatus',
-        'ExecutionDriver',
-        'HttpProxy',
-        'HttpsProxy',
-        'ID',
-        'Images',
-        'IndexServerAddress',
-        'InitPath',
-        'InitSha1',
-        'IPv4Forwarding',
-        'KernelVersion',
-        'Labels',
-        'MemoryLimit',
-        'MemTotal',
-        'Name',
-        'NCPU',
-        'NEventsListener',
-        'NFd',
-        'NGoroutines',
-        'OperatingSystem',
-        'RegistryConfig',
-        'SwapLimit',
-        'SystemTime'
-      ],
-      ApiVersion.v1_19: const [
-        'Containers',
-        'CpuCfsPeriod',
-        'CpuCfsQuota',
-        'Debug',
-        'DockerRootDir',
-        'Driver',
-        'DriverStatus',
-        'ExecutionDriver',
-        'ExperimentalBuild',
-        'HttpProxy',
-        'HttpsProxy',
-        'ID',
-        'Images',
-        'IndexServerAddress',
-        'InitPath',
-        'InitSha1',
-        'IPv4Forwarding',
-        'KernelVersion',
-        'Labels',
-        'LoggingDriver',
-        'MemoryLimit',
-        'MemTotal',
-        'Name',
-        'NCPU',
-        'NEventsListener',
-        'NFd',
-        'NGoroutines',
-        'NoProxy',
-        'OomKillDisable',
-        'OperatingSystem',
-        'RegistryConfig',
-        'SwapLimit',
-        'SystemTime'
-      ],
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'Containers',
+            'Debug',
+            'DockerRootDir',
+            'Driver',
+            'DriverStatus',
+            'ExecutionDriver',
+            'HttpProxy',
+            'HttpsProxy',
+            'ID',
+            'Images',
+            'IndexServerAddress',
+            'InitPath',
+            'InitSha1',
+            'IPv4Forwarding',
+            'KernelVersion',
+            'Labels',
+            'MemoryLimit',
+            'MemTotal',
+            'Name',
+            'NCPU',
+            'NEventsListener',
+            'NFd',
+            'NGoroutines',
+            'OperatingSystem',
+            'SwapLimit',
+            'SystemTime'
+          ],
+          RemoteApiVersion.v1_18: const [
+            'Containers',
+            'Debug',
+            'DockerRootDir',
+            'Driver',
+            'DriverStatus',
+            'ExecutionDriver',
+            'HttpProxy',
+            'HttpsProxy',
+            'ID',
+            'Images',
+            'IndexServerAddress',
+            'InitPath',
+            'InitSha1',
+            'IPv4Forwarding',
+            'KernelVersion',
+            'Labels',
+            'MemoryLimit',
+            'MemTotal',
+            'Name',
+            'NCPU',
+            'NEventsListener',
+            'NFd',
+            'NGoroutines',
+            'OperatingSystem',
+            'RegistryConfig',
+            'SwapLimit',
+            'SystemTime'
+          ],
+          RemoteApiVersion.v1_19: const [
+            'Containers',
+            'CpuCfsPeriod',
+            'CpuCfsQuota',
+            'Debug',
+            'DockerRootDir',
+            'Driver',
+            'DriverStatus',
+            'ExecutionDriver',
+            'ExperimentalBuild',
+            'HttpProxy',
+            'HttpsProxy',
+            'ID',
+            'Images',
+            'IndexServerAddress',
+            'InitPath',
+            'InitSha1',
+            'IPv4Forwarding',
+            'KernelVersion',
+            'Labels',
+            'LoggingDriver',
+            'MemoryLimit',
+            'MemTotal',
+            'Name',
+            'NCPU',
+            'NEventsListener',
+            'NFd',
+            'NGoroutines',
+            'NoProxy',
+            'OomKillDisable',
+            'OperatingSystem',
+            'RegistryConfig',
+            'SwapLimit',
+            'SystemTime'
+          ],
+        },
+        json.keys);
   }
 }
 
@@ -902,9 +954,15 @@ class RegistryConfigs {
     _insecureRegistryCidrs =
         _toUnmodifiableListView(json['InsecureRegistryCIDRs']);
 
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_18: const ['IndexConfigs', 'InsecureRegistryCIDRs']
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_18: const [
+            'IndexConfigs',
+            'InsecureRegistryCIDRs'
+          ]
+        },
+        json.keys);
   }
 }
 
@@ -967,16 +1025,19 @@ class SearchResponse {
     }
     _name = json['name'];
     _starCount = json['star_count'];
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const [
-        'description',
-        'is_official',
-        'is_trusted',
-        'is_automated',
-        'name',
-        'star_count'
-      ]
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'description',
+            'is_official',
+            'is_trusted',
+            'is_automated',
+            'name',
+            'star_count'
+          ]
+        },
+        json.keys);
   }
 }
 
@@ -991,9 +1052,12 @@ class ImageRemoveResponse {
   ImageRemoveResponse.fromJson(Map json, Version apiVersion) {
     _untagged = json['Untagged'];
     _deleted = json['Deleted'];
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const ['Untagged', 'Deleted']
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const ['Untagged', 'Deleted']
+        },
+        json.keys);
   }
 }
 
@@ -1017,9 +1081,17 @@ class ImagePushResponse {
     _progress = json['progress'];
     _progressDetail = _toUnmodifiableMapView(json['progressDetail']);
     _error = json['error'];
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const ['status', 'progress', 'progressDetail', 'error']
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'status',
+            'progress',
+            'progressDetail',
+            'error'
+          ]
+        },
+        json.keys);
   }
 }
 
@@ -1050,17 +1122,26 @@ class ImageHistoryResponse {
     _createdBy = json['CreatedBy'];
     _size = json['Size'];
     _tags = _toUnmodifiableListView(json['Tags']);
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const ['Id', 'Created', 'CreatedBy', 'Size', 'Tags'],
-      ApiVersion.v1_19: const [
-        'Id',
-        'Comment',
-        'Created',
-        'CreatedBy',
-        'Size',
-        'Tags'
-      ],
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'Id',
+            'Created',
+            'CreatedBy',
+            'Size',
+            'Tags'
+          ],
+          RemoteApiVersion.v1_19: const [
+            'Id',
+            'Comment',
+            'Created',
+            'CreatedBy',
+            'Size',
+            'Tags'
+          ],
+        },
+        json.keys);
   }
 }
 
@@ -1092,9 +1173,17 @@ class CreateImageResponse {
     _progressDetail = _toUnmodifiableMapView(json['progressDetail']);
     _id = json['id'];
     _progress = json['progress'];
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const ['status', 'progressDetail', 'id', 'progress'],
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'status',
+            'progressDetail',
+            'id',
+            'progress'
+          ],
+        },
+        json.keys);
   }
 }
 
@@ -1137,7 +1226,11 @@ class AuthConfig {
   final String auth;
   final String email;
   final String serverAddress;
-  const AuthConfig({this.userName, this.password, this.auth, this.email,
+  const AuthConfig(
+      {this.userName,
+      this.password,
+      this.auth,
+      this.email,
       this.serverAddress});
 
   Map toJson() {
@@ -1209,18 +1302,21 @@ class StatsResponseNetwork {
     _rxPackets = json['rx_packets'];
     _txErrors = json['tx_errors'];
     _txBytes = json['tx_bytes'];
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const [
-        'rx_dropped',
-        'rx_bytes',
-        'rx_errors',
-        'tx_packets',
-        'tx_dropped',
-        'rx_packets',
-        'tx_errors',
-        'tx_bytes'
-      ]
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'rx_dropped',
+            'rx_bytes',
+            'rx_errors',
+            'tx_packets',
+            'tx_dropped',
+            'rx_packets',
+            'tx_errors',
+            'tx_bytes'
+          ]
+        },
+        json.keys);
   }
 }
 
@@ -1247,15 +1343,18 @@ class StatsResponseMemoryStats {
     _usage = json['usage'];
     _failCount = json['failcnt'];
     _limit = json['limit'];
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const [
-        'stats',
-        'max_usage',
-        'usage',
-        'failcnt',
-        'limit'
-      ]
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'stats',
+            'max_usage',
+            'usage',
+            'failcnt',
+            'limit'
+          ]
+        },
+        json.keys);
   }
 }
 
@@ -1380,39 +1479,42 @@ class StatsResponseMemoryStatsStats {
     _pgFault = json['pgfault'];
     _inactiveFile = json['inactive_file'];
     _totalPgpgIn = json['total_pgpgin'];
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const [
-        'total_pgmajfault',
-        'cache',
-        'mapped_file',
-        'total_inactive_file',
-        'pgpgout',
-        'rss',
-        'total_mapped_file',
-        'writeback',
-        'unevictable',
-        'pgpgin',
-        'total_unevictable',
-        'pgmajfault',
-        'total_rss',
-        'total_rss_huge',
-        'total_writeback',
-        'total_inactive_anon',
-        'rss_huge',
-        'hierarchical_memory_limit',
-        'total_pgfault',
-        'total_active_file',
-        'active_anon',
-        'total_active_anon',
-        'total_pgpgout',
-        'total_cache',
-        'inactive_anon',
-        'active_file',
-        'pgfault',
-        'inactive_file',
-        'total_pgpgin'
-      ]
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'total_pgmajfault',
+            'cache',
+            'mapped_file',
+            'total_inactive_file',
+            'pgpgout',
+            'rss',
+            'total_mapped_file',
+            'writeback',
+            'unevictable',
+            'pgpgin',
+            'total_unevictable',
+            'pgmajfault',
+            'total_rss',
+            'total_rss_huge',
+            'total_writeback',
+            'total_inactive_anon',
+            'rss_huge',
+            'hierarchical_memory_limit',
+            'total_pgfault',
+            'total_active_file',
+            'active_anon',
+            'total_active_anon',
+            'total_pgpgout',
+            'total_cache',
+            'inactive_anon',
+            'active_file',
+            'pgfault',
+            'inactive_file',
+            'total_pgpgin'
+          ]
+        },
+        json.keys);
   }
 }
 
@@ -1435,14 +1537,17 @@ class StatsResponseCpuUsage {
     _totalUsage = json['total_usage'];
     _usageInKernelMode = json['usage_in_kernelmode'];
 
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_17: const [
-        'percpu_usage',
-        'usage_in_usermode',
-        'total_usage',
-        'usage_in_kernelmode',
-      ]
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_17: const [
+            'percpu_usage',
+            'usage_in_usermode',
+            'total_usage',
+            'usage_in_kernelmode',
+          ]
+        },
+        json.keys);
   }
 }
 
@@ -1462,13 +1567,16 @@ class StatsResponseCpuStats {
     _systemCpuUsage = json['system_cpu_usage'];
     _throttlingData =
         new ThrottlingData.fromJson(json['throttling_data'], apiVersion);
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const [
-        'cpu_usage',
-        'system_cpu_usage',
-        'throttling_data'
-      ]
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'cpu_usage',
+            'system_cpu_usage',
+            'throttling_data'
+          ]
+        },
+        json.keys);
   }
 }
 
@@ -1487,9 +1595,16 @@ class ThrottlingData {
     _throttledPeriods = json['throttled_periods'];
     _throttledTime = json['throttled_time'];
 
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const ['periods', 'throttled_periods', 'throttled_time']
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'periods',
+            'throttled_periods',
+            'throttled_time'
+          ]
+        },
+        json.keys);
   }
 }
 
@@ -1523,23 +1638,26 @@ class StatsResponse {
     _preCpuStats =
         new StatsResponseCpuStats.fromJson(json['precpu_stats'], apiVersion);
     _read = _parseDate(json['read']);
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const [
-        'blkio_stats',
-        'cpu_stats',
-        'memory_stats',
-        'network',
-        'read',
-      ],
-      ApiVersion.v1_19: const [
-        'blkio_stats',
-        'cpu_stats',
-        'memory_stats',
-        'network',
-        'precpu_stats',
-        'read',
-      ],
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'blkio_stats',
+            'cpu_stats',
+            'memory_stats',
+            'network',
+            'read',
+          ],
+          RemoteApiVersion.v1_19: const [
+            'blkio_stats',
+            'cpu_stats',
+            'memory_stats',
+            'network',
+            'precpu_stats',
+            'read',
+          ],
+        },
+        json.keys);
   }
 }
 
@@ -1587,18 +1705,21 @@ class BlkIoStats {
     _ioTimeRecursive = _toUnmodifiableListView(json['io_time_recursive']);
     _sectorsRecursive = _toUnmodifiableListView(json['sectors_recursive']);
 
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const [
-        'io_service_bytes_recursive',
-        'io_serviced_recursive',
-        'io_queue_recursive',
-        'io_service_time_recursive',
-        'io_wait_time_recursive',
-        'io_merged_recursive',
-        'io_time_recursive',
-        'sectors_recursive',
-      ]
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'io_service_bytes_recursive',
+            'io_serviced_recursive',
+            'io_queue_recursive',
+            'io_service_time_recursive',
+            'io_wait_time_recursive',
+            'io_merged_recursive',
+            'io_time_recursive',
+            'sectors_recursive',
+          ]
+        },
+        json.keys);
   }
 }
 
@@ -1799,37 +1920,40 @@ class Container {
             .toList();
     _status = json['Status'];
 
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const [
-        'Id',
-        'Command',
-        'Created',
-        'Image',
-        'Names',
-        'Ports',
-        'Status'
-      ],
-      ApiVersion.v1_18: [
-        'Id',
-        'Command',
-        'Created',
-        'Labels',
-        'Image',
-        'Names',
-        'Ports',
-        'Status'
-      ],
-      ApiVersion.v1_19: [
-        'Id',
-        'Command',
-        'Created',
-        'Labels',
-        'Image',
-        'Names',
-        'Ports',
-        'Status'
-      ],
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'Id',
+            'Command',
+            'Created',
+            'Image',
+            'Names',
+            'Ports',
+            'Status'
+          ],
+          RemoteApiVersion.v1_18: [
+            'Id',
+            'Command',
+            'Created',
+            'Labels',
+            'Image',
+            'Names',
+            'Ports',
+            'Status'
+          ],
+          RemoteApiVersion.v1_19: [
+            'Id',
+            'Command',
+            'Created',
+            'Labels',
+            'Image',
+            'Names',
+            'Ports',
+            'Status'
+          ],
+        },
+        json.keys);
   }
 
   Map toJson() {
@@ -1918,63 +2042,66 @@ class ImageInfo {
     _repoDigests = _toUnmodifiableListView(json['RepoDigests']);
     _repoTags = _toUnmodifiableListView(json['RepoTags']);
 
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const [
-        'Architecture',
-        'Author',
-        'Comment',
-        'Config',
-        'Container',
-        'ContainerConfig',
-        'Created',
-        'DockerVersion',
-        'Id',
-        'Os',
-        'Parent',
-        'ParentId',
-        'Size',
-        'VirtualSize',
-        'RepoTags'
-      ],
-      ApiVersion.v1_18: const [
-        'Architecture',
-        'Author',
-        'Comment',
-        'Config',
-        'Container',
-        'ContainerConfig',
-        'Created',
-        'DockerVersion',
-        'Id',
-        'Labels',
-        'Os',
-        'Parent',
-        'ParentId',
-        'Size',
-        'VirtualSize',
-        'RepoDigests',
-        'RepoTags',
-      ],
-      ApiVersion.v1_19: const [
-        'Architecture',
-        'Author',
-        'Comment',
-        'Config',
-        'Container',
-        'ContainerConfig',
-        'Created',
-        'DockerVersion',
-        'Id',
-        'Labels',
-        'Os',
-        'Parent',
-        'ParentId',
-        'Size',
-        'VirtualSize',
-        'RepoDigests',
-        'RepoTags',
-      ],
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'Architecture',
+            'Author',
+            'Comment',
+            'Config',
+            'Container',
+            'ContainerConfig',
+            'Created',
+            'DockerVersion',
+            'Id',
+            'Os',
+            'Parent',
+            'ParentId',
+            'Size',
+            'VirtualSize',
+            'RepoTags'
+          ],
+          RemoteApiVersion.v1_18: const [
+            'Architecture',
+            'Author',
+            'Comment',
+            'Config',
+            'Container',
+            'ContainerConfig',
+            'Created',
+            'DockerVersion',
+            'Id',
+            'Labels',
+            'Os',
+            'Parent',
+            'ParentId',
+            'Size',
+            'VirtualSize',
+            'RepoDigests',
+            'RepoTags',
+          ],
+          RemoteApiVersion.v1_19: const [
+            'Architecture',
+            'Author',
+            'Comment',
+            'Config',
+            'Container',
+            'ContainerConfig',
+            'Created',
+            'DockerVersion',
+            'Id',
+            'Labels',
+            'Os',
+            'Parent',
+            'ParentId',
+            'Size',
+            'VirtualSize',
+            'RepoDigests',
+            'RepoTags',
+          ],
+        },
+        json.keys);
   }
 }
 
@@ -2024,7 +2151,10 @@ class ContainerInfo {
   String _mountLabel;
   String get mountLabel => _mountLabel;
 
-  UnmodifiableMapView<String, UnmodifiableListView<String>> _mountPoints; // TODO add generic type with actual data
+  UnmodifiableMapView<
+      String,
+      UnmodifiableListView<
+          String>> _mountPoints; // TODO check generic type with actual data
   UnmodifiableMapView<String, UnmodifiableListView<String>> get mountPoints =>
       _mountPoints;
 
@@ -2092,89 +2222,92 @@ class ContainerInfo {
     _volumes = new Volumes.fromJson(json['Volumes'], apiVersion);
     _volumesRw = new VolumesRw.fromJson(json['VolumesRW'], apiVersion);
 
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const [
-        'AppArmorProfile',
-        'AppliedVolumesFrom', // ExecInfo
-        'Args',
-        'Config',
-        'Created',
-        'Driver',
-        'ExecDriver',
-        'HostConfig',
-        'HostnamePath',
-        'HostsPath',
-        'Id',
-        'ID',
-        'Image',
-        'MountLabel',
-        'Name',
-        'NetworkSettings',
-        'Path',
-        'ProcessLabel',
-        'ResolvConfPath',
-        'State',
-        'Volumes',
-        'VolumesRW'
-      ],
-      ApiVersion.v1_18: const [
-        'AppArmorProfile',
-        'AppliedVolumesFrom', // ExecInfo
-        'Args',
-        'Config',
-        'Created',
-        'Driver',
-        'ExecDriver',
-        'ExecIDs',
-        'HostConfig',
-        'HostnamePath',
-        'HostsPath',
-        'Id',
-        'ID',
-        'Image',
-        'LogPath',
-        'MountLabel',
-        'Name',
-        'NetworkSettings',
-        'Path',
-        'ProcessLabel',
-        'ResolvConfPath',
-        'RestartCount',
-        'State',
-        'UpdateDns',
-        'Volumes',
-        'VolumesRW'
-      ],
-      ApiVersion.v1_19: const [
-        'AppArmorProfile',
-        'AppliedVolumesFrom', // ExecInfo
-        'Args',
-        'Config',
-        'Created',
-        'Driver',
-        'ExecDriver',
-        'ExecIDs',
-        'HostConfig',
-        'HostnamePath',
-        'HostsPath',
-        'Id',
-        'ID',
-        'Image',
-        'LogPath',
-        'MountLabel',
-        'MountPoints',
-        'Name',
-        'NetworkSettings',
-        'Path',
-        'ProcessLabel',
-        'ResolvConfPath',
-        'RestartCount',
-        'State',
-        'UpdateDns',
-        'Volumes',
-        'VolumesRW'
-      ],
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'AppArmorProfile',
+            'AppliedVolumesFrom', // ExecInfo
+            'Args',
+            'Config',
+            'Created',
+            'Driver',
+            'ExecDriver',
+            'HostConfig',
+            'HostnamePath',
+            'HostsPath',
+            'Id',
+            'ID',
+            'Image',
+            'MountLabel',
+            'Name',
+            'NetworkSettings',
+            'Path',
+            'ProcessLabel',
+            'ResolvConfPath',
+            'State',
+            'Volumes',
+            'VolumesRW'
+          ],
+          RemoteApiVersion.v1_18: const [
+            'AppArmorProfile',
+            'AppliedVolumesFrom', // ExecInfo
+            'Args',
+            'Config',
+            'Created',
+            'Driver',
+            'ExecDriver',
+            'ExecIDs',
+            'HostConfig',
+            'HostnamePath',
+            'HostsPath',
+            'Id',
+            'ID',
+            'Image',
+            'LogPath',
+            'MountLabel',
+            'Name',
+            'NetworkSettings',
+            'Path',
+            'ProcessLabel',
+            'ResolvConfPath',
+            'RestartCount',
+            'State',
+            'UpdateDns',
+            'Volumes',
+            'VolumesRW'
+          ],
+          RemoteApiVersion.v1_19: const [
+            'AppArmorProfile',
+            'AppliedVolumesFrom', // ExecInfo
+            'Args',
+            'Config',
+            'Created',
+            'Driver',
+            'ExecDriver',
+            'ExecIDs',
+            'HostConfig',
+            'HostnamePath',
+            'HostsPath',
+            'Id',
+            'ID',
+            'Image',
+            'LogPath',
+            'MountLabel',
+            'MountPoints',
+            'Name',
+            'NetworkSettings',
+            'Path',
+            'ProcessLabel',
+            'ResolvConfPath',
+            'RestartCount',
+            'State',
+            'UpdateDns',
+            'Volumes',
+            'VolumesRW'
+          ],
+        },
+        json.keys);
   }
 
   Map toJson() {
@@ -2387,91 +2520,94 @@ class HostConfig {
     _utsMode = json['UTSMode'];
     _volumesFrom = json['VolumesFrom'];
 
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const [
-        'Binds',
-        'CapAdd',
-        'CapDrop',
-        'ContainerIDFile',
-        'Devices',
-        'Dns',
-        'DnsSearch',
-        'ExtraHosts',
-        'Links',
-        'LxcConf',
-        'NetworkMode',
-        'PortBindings',
-        'Privileged',
-        'PublishAllPorts',
-        'RestartPolicy',
-        'SecurityOpt',
-        'VolumesFrom',
-      ],
-      ApiVersion.v1_18: const [
-        'Binds',
-        'CapAdd',
-        'CapDrop',
-        'CgroupParent',
-        'ContainerIDFile',
-        'CpusetCpus',
-        'CpuShares',
-        'Devices',
-        'Dns',
-        'DnsSearch',
-        'ExtraHosts',
-        'IpcMode',
-        'Links',
-        'LogConfig',
-        'LxcConf',
-        'Memory',
-        'MemorySwap',
-        'NetworkMode',
-        'PidMode',
-        'PortBindings',
-        'Privileged',
-        'PublishAllPorts',
-        'ReadonlyRootfs',
-        'RestartPolicy',
-        'SecurityOpt',
-        'Ulimits',
-        'VolumesFrom',
-      ],
-      ApiVersion.v1_19: const [
-        'Binds',
-        'BlkioWeight',
-        'CapAdd',
-        'CapDrop',
-        'CgroupParent',
-        'ContainerIDFile',
-        'CpusetCpus',
-        'CpusetMems',
-        'CpuPeriod',
-        'CpuQuota',
-        'CpuShares',
-        'Devices',
-        'Dns',
-        'DnsSearch',
-        'ExtraHosts',
-        'IpcMode',
-        'Links',
-        'LogConfig',
-        'LxcConf',
-        'Memory',
-        'MemorySwap',
-        'NetworkMode',
-        'OomKillDisable',
-        'PidMode',
-        'PortBindings',
-        'Privileged',
-        'PublishAllPorts',
-        'ReadonlyRootfs',
-        'RestartPolicy',
-        'SecurityOpt',
-        'Ulimits',
-        'UTSMode',
-        'VolumesFrom',
-      ]
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'Binds',
+            'CapAdd',
+            'CapDrop',
+            'ContainerIDFile',
+            'Devices',
+            'Dns',
+            'DnsSearch',
+            'ExtraHosts',
+            'Links',
+            'LxcConf',
+            'NetworkMode',
+            'PortBindings',
+            'Privileged',
+            'PublishAllPorts',
+            'RestartPolicy',
+            'SecurityOpt',
+            'VolumesFrom',
+          ],
+          RemoteApiVersion.v1_18: const [
+            'Binds',
+            'CapAdd',
+            'CapDrop',
+            'CgroupParent',
+            'ContainerIDFile',
+            'CpusetCpus',
+            'CpuShares',
+            'Devices',
+            'Dns',
+            'DnsSearch',
+            'ExtraHosts',
+            'IpcMode',
+            'Links',
+            'LogConfig',
+            'LxcConf',
+            'Memory',
+            'MemorySwap',
+            'NetworkMode',
+            'PidMode',
+            'PortBindings',
+            'Privileged',
+            'PublishAllPorts',
+            'ReadonlyRootfs',
+            'RestartPolicy',
+            'SecurityOpt',
+            'Ulimits',
+            'VolumesFrom',
+          ],
+          RemoteApiVersion.v1_19: const [
+            'Binds',
+            'BlkioWeight',
+            'CapAdd',
+            'CapDrop',
+            'CgroupParent',
+            'ContainerIDFile',
+            'CpusetCpus',
+            'CpusetMems',
+            'CpuPeriod',
+            'CpuQuota',
+            'CpuShares',
+            'Devices',
+            'Dns',
+            'DnsSearch',
+            'ExtraHosts',
+            'IpcMode',
+            'Links',
+            'LogConfig',
+            'LxcConf',
+            'Memory',
+            'MemorySwap',
+            'NetworkMode',
+            'OomKillDisable',
+            'PidMode',
+            'PortBindings',
+            'Privileged',
+            'PublishAllPorts',
+            'ReadonlyRootfs',
+            'RestartPolicy',
+            'SecurityOpt',
+            'Ulimits',
+            'UTSMode',
+            'VolumesFrom',
+          ]
+        },
+        json.keys);
   }
 
   Map toJson() {
@@ -2600,51 +2736,54 @@ class NetworkSettings {
     _secondaryIPv6Addresses =
         _toUnmodifiableListView(json['SecondaryIPv6Addresses']);
 
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const [
-        'Bridge',
-        'Gateway',
-        'IPAddress',
-        'IPPrefixLen',
-        'MacAddress',
-        'PortMapping',
-        'Ports',
-      ],
-      ApiVersion.v1_18: const [
-        'Bridge',
-        'Gateway',
-        'GlobalIPv6Address',
-        'GlobalIPv6PrefixLen',
-        'IPAddress',
-        'IPPrefixLen',
-        'IPv6Gateway',
-        'LinkLocalIPv6Address',
-        'LinkLocalIPv6PrefixLen',
-        'MacAddress',
-        'PortMapping',
-        'Ports',
-      ],
-      ApiVersion.v1_19: const [
-        'Bridge',
-        'EndpointID',
-        'Gateway',
-        'GlobalIPv6Address',
-        'GlobalIPv6PrefixLen',
-        'HairpinMode',
-        'IPAddress',
-        'IPPrefixLen',
-        'IPv6Gateway',
-        'LinkLocalIPv6Address',
-        'LinkLocalIPv6PrefixLen',
-        'MacAddress',
-        'NetworkID',
-        'PortMapping',
-        'Ports',
-        'SandboxKey',
-        'SecondaryIPAddresses',
-        'SecondaryIPv6Addresses',
-      ],
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'Bridge',
+            'Gateway',
+            'IPAddress',
+            'IPPrefixLen',
+            'MacAddress',
+            'PortMapping',
+            'Ports',
+          ],
+          RemoteApiVersion.v1_18: const [
+            'Bridge',
+            'Gateway',
+            'GlobalIPv6Address',
+            'GlobalIPv6PrefixLen',
+            'IPAddress',
+            'IPPrefixLen',
+            'IPv6Gateway',
+            'LinkLocalIPv6Address',
+            'LinkLocalIPv6PrefixLen',
+            'MacAddress',
+            'PortMapping',
+            'Ports',
+          ],
+          RemoteApiVersion.v1_19: const [
+            'Bridge',
+            'EndpointID',
+            'Gateway',
+            'GlobalIPv6Address',
+            'GlobalIPv6PrefixLen',
+            'HairpinMode',
+            'IPAddress',
+            'IPPrefixLen',
+            'IPv6Gateway',
+            'LinkLocalIPv6Address',
+            'LinkLocalIPv6PrefixLen',
+            'MacAddress',
+            'NetworkID',
+            'PortMapping',
+            'Ports',
+            'SandboxKey',
+            'SecondaryIPAddresses',
+            'SecondaryIPv6Addresses',
+          ],
+        },
+        json.keys);
   }
 
   Map toJson() {
@@ -2717,29 +2856,32 @@ class State {
     _restarting = json['Restarting'];
     _running = json['Running'];
     _startedAt = _parseDate(json['StartedAt']);
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const [
-        'ExitCode',
-        'FinishedAt',
-        'Paused',
-        'Pid',
-        'Restarting',
-        'Running',
-        'StartedAt',
-      ],
-      ApiVersion.v1_15: const [
-        'Dead',
-        'Error',
-        'ExitCode',
-        'FinishedAt',
-        'OOMKilled',
-        'Paused',
-        'Pid',
-        'Restarting',
-        'Running',
-        'StartedAt',
-      ]
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'ExitCode',
+            'FinishedAt',
+            'Paused',
+            'Pid',
+            'Restarting',
+            'Running',
+            'StartedAt',
+          ],
+          RemoteApiVersion.v1_15: const [
+            'Dead',
+            'Error',
+            'ExitCode',
+            'FinishedAt',
+            'OOMKilled',
+            'Paused',
+            'Pid',
+            'Restarting',
+            'Running',
+            'StartedAt',
+          ]
+        },
+        json.keys);
   }
 
   Map toJson() {
@@ -2762,13 +2904,17 @@ class Volumes {
 
   Volumes();
 
+  void add(String path, Map to) {
+    assert(path != null && path.isNotEmpty);
+    assert(to != null);
+    _volumes[path] = to;
+  }
+
   Volumes.fromJson(Map json, Version apiVersion) {
     if (json == null) {
       return;
     }
-    json.keys.forEach((k) => add(k, json[k]));
-//    print(json);
-    //assert(json.keys.length <= 0); // ensure all keys were read
+    _volumes.addAll(json);
   }
 
   Map toJson() {
@@ -2778,25 +2924,35 @@ class Volumes {
       return volumes;
     }
   }
+}
 
-  // TODO(zoechi) better name for other when I figured out what it is
-  void add(String path, Map other) {
-    _volumes[path] = other;
+class VolumesRequest extends Volumes {
+  void add(String name, Map value) {
+    _volumes[name] = value;
   }
+
+  Map remove(String name) => _volumes.remove(name);
 }
 
 class VolumesRw {
+  Map<String, bool> _volumes = {};
+  UnmodifiableMapView<String, bool> get volumes =>
+      _toUnmodifiableMapView(_volumes);
+
   VolumesRw.fromJson(Map json, Version apiVersion) {
     if (json == null) {
       return;
     }
-    _checkSurplusItems(apiVersion, {ApiVersion.v1_15: const []}, json.keys);
+    _volumes.addAll(json);
+//    _checkSurplusItems(apiVersion, {ApiVersion.v1_15: const []}, json.keys);
   }
 
   Map toJson() {
-    return null;
-//    final json = {};
-//    return json;
+    if (_volumes.isEmpty) {
+      return null;
+    } else {
+      return volumes;
+    }
   }
 }
 
@@ -2828,9 +2984,10 @@ class Config {
   UnmodifiableMapView<String, String> _env;
   UnmodifiableMapView<String, String> get env => _env;
 
-  UnmodifiableMapView<String, UnmodifiableMapView<String, String>> _exposedPorts;
-  UnmodifiableMapView<String, UnmodifiableMapView<String, String>> get exposedPorts =>
-      _exposedPorts;
+  UnmodifiableMapView<String,
+      UnmodifiableMapView<String, String>> _exposedPorts;
+  UnmodifiableMapView<String,
+      UnmodifiableMapView<String, String>> get exposedPorts => _exposedPorts;
 
   String _hostName;
   String get hostName => _hostName;
@@ -2899,7 +3056,8 @@ class Config {
     if (e != null) {
       _env = _toUnmodifiableMapView(new Map<String, String>.fromIterable(
           e.map((i) => i.split('=')),
-          key: (i) => i[0], value: (i) => i.length == 2 ? i[1] : null));
+          key: (i) => i[0],
+          value: (i) => i.length == 2 ? i[1] : null));
     }
     _exposedPorts = _toUnmodifiableMapView(json['ExposedPorts']);
     _hostName = json['Hostname'];
@@ -2919,88 +3077,91 @@ class Config {
     _volumes = new Volumes.fromJson(json['Volumes'], apiVersion);
     _workingDir = json['WorkingDir'];
 
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const [
-        'AttachStderr',
-        'AttachStdin',
-        'AttachStdout',
-        'Cmd',
-        'CpuShares',
-        'Cpuset',
-        'Domainname',
-        'Entrypoint',
-        'Env',
-        'ExposedPorts',
-        'Hostname',
-        'Image',
-        'Memory',
-        'MemorySwap',
-        'NetworkDisabled',
-        'OnBuild',
-        'OpenStdin',
-        'PortSpecs',
-        'StdinOnce',
-        'Tty',
-        'User',
-        'Volumes',
-        'WorkingDir',
-      ],
-      ApiVersion.v1_18: const [
-        'AttachStderr',
-        'AttachStdin',
-        'AttachStdout',
-        'Cmd',
-        'CpuShares',
-        'Cpuset',
-        'Domainname',
-        'Entrypoint',
-        'Env',
-        'ExposedPorts',
-        'Hostname',
-        'Image',
-        'Labels',
-        'MacAddress',
-        'Memory',
-        'MemorySwap',
-        'NetworkDisabled',
-        'OnBuild',
-        'OpenStdin',
-        'PortSpecs',
-        'StdinOnce',
-        'Tty',
-        'User',
-        'Volumes',
-        'WorkingDir',
-      ],
-      ApiVersion.v1_19: const [
-        'AttachStderr',
-        'AttachStdin',
-        'AttachStdout',
-        'Cmd',
-        'CpuShares',
-        'Cpuset',
-        'Domainname',
-        'Entrypoint',
-        'Env',
-        'ExposedPorts',
-        'Hostname',
-        'Image',
-        'Labels',
-        'MacAddress',
-        'Memory',
-        'MemorySwap',
-        'NetworkDisabled',
-        'OnBuild',
-        'OpenStdin',
-        'PortSpecs',
-        'StdinOnce',
-        'Tty',
-        'User',
-        'VolumeDriver',
-        'Volumes',
-        'WorkingDir'
-      ],
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'AttachStderr',
+            'AttachStdin',
+            'AttachStdout',
+            'Cmd',
+            'CpuShares',
+            'Cpuset',
+            'Domainname',
+            'Entrypoint',
+            'Env',
+            'ExposedPorts',
+            'Hostname',
+            'Image',
+            'Memory',
+            'MemorySwap',
+            'NetworkDisabled',
+            'OnBuild',
+            'OpenStdin',
+            'PortSpecs',
+            'StdinOnce',
+            'Tty',
+            'User',
+            'Volumes',
+            'WorkingDir',
+          ],
+          RemoteApiVersion.v1_18: const [
+            'AttachStderr',
+            'AttachStdin',
+            'AttachStdout',
+            'Cmd',
+            'CpuShares',
+            'Cpuset',
+            'Domainname',
+            'Entrypoint',
+            'Env',
+            'ExposedPorts',
+            'Hostname',
+            'Image',
+            'Labels',
+            'MacAddress',
+            'Memory',
+            'MemorySwap',
+            'NetworkDisabled',
+            'OnBuild',
+            'OpenStdin',
+            'PortSpecs',
+            'StdinOnce',
+            'Tty',
+            'User',
+            'Volumes',
+            'WorkingDir',
+          ],
+          RemoteApiVersion.v1_19: const [
+            'AttachStderr',
+            'AttachStdin',
+            'AttachStdout',
+            'Cmd',
+            'CpuShares',
+            'Cpuset',
+            'Domainname',
+            'Entrypoint',
+            'Env',
+            'ExposedPorts',
+            'Hostname',
+            'Image',
+            'Labels',
+            'MacAddress',
+            'Memory',
+            'MemorySwap',
+            'NetworkDisabled',
+            'OnBuild',
+            'OpenStdin',
+            'PortSpecs',
+            'StdinOnce',
+            'Tty',
+            'User',
+            'VolumeDriver',
+            'Volumes',
+            'WorkingDir'
+          ],
+        },
+        json.keys);
   }
 
   Map toJson() {
@@ -3054,9 +3215,17 @@ class PortResponse {
     _privatePort = json['PrivatePort'];
     _publicPort = json['PublicPort'];
     _type = json['Type'];
-    _checkSurplusItems(apiVersion, {
-      ApiVersion.v1_15: const ['IP', 'PrivatePort', 'PublicPort', 'Type',]
-    }, json.keys);
+    _checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const [
+            'IP',
+            'PrivatePort',
+            'PublicPort',
+            'Type',
+          ]
+        },
+        json.keys);
   }
 }
 
@@ -3068,7 +3237,11 @@ class AuthResponse {
   AuthResponse.fromJson(Map json, Version apiVersion) {
     _status = json['Status'];
     _checkSurplusItems(
-        apiVersion, {ApiVersion.v1_15: const ['Status']}, json.keys);
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const ['Status']
+        },
+        json.keys);
   }
 }
 
@@ -3094,7 +3267,11 @@ class CreateResponse {
       throw json['Warnings'];
     }
     _checkSurplusItems(
-        apiVersion, {ApiVersion.v1_15: const ['Id', 'Warnings']}, json.keys);
+        apiVersion,
+        {
+          RemoteApiVersion.v1_15: const ['Id', 'Warnings']
+        },
+        json.keys);
   }
 }
 
@@ -3157,8 +3334,8 @@ class CreateContainerRequest {
 
   /// An object mapping ports to an empty object in the form of:
   /// `"ExposedPorts": { "<port>/<tcp|udp>: {}" }`
-  Map<String, Map<String, String>> exposedPorts = <String, Map<String, String>>{
-  };
+  Map<String, Map<String, String>> exposedPorts =
+      <String, Map<String, String>>{};
 
   /// Customize labels for MLS systems, such as SELinux.
   List<String> securityOpts = <String>[];

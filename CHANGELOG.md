@@ -1,7 +1,13 @@
 ## UNRELEASED
+- Support for Docker API v 1.20 # TODO (zoechi) implement new features
+- support in `DockerConnection` to use a specific remote API version
+- improve Docker container creation for running tests
+- apply new dartformat
+- update config for linter (Grinder task)
 - Started implementation of a `run` task
   - add `publish` parameter
   - add `rm` parameter
+  - add `link` parameter
 - Breaking change:
   - Changed the `PortBindings` structure and implementation (fromJson/toJson)
 

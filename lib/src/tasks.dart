@@ -24,7 +24,8 @@ import 'dart:collection';
 /// - containers which were removed
 /// - images which were removed
 Future<PurgeAllResult> purgeAll(DockerConnection connection) async {
-  return new PurgeAllResult(await stopAllContainers(connection),
+  return new PurgeAllResult(
+      await stopAllContainers(connection),
       await removeAllExitedContainers(connection),
       await removeAllImages(connection));
 }
@@ -40,7 +41,8 @@ class PurgeAllResult {
   UnmodifiableListView<ImageInfo> _removedImages;
   UnmodifiableListView<ImageInfo> get removedImages => _removedImages;
 
-  PurgeAllResult(Iterable<Container> stoppedContainers,
+  PurgeAllResult(
+      Iterable<Container> stoppedContainers,
       Iterable<Container> removedContainers,
       Iterable<ImageInfo> removedImages) {
     _stoppedContainers = new UnmodifiableListView<Container>(stoppedContainers);
@@ -62,7 +64,9 @@ Future<Iterable<Container>> stopAllContainers(
 Future<Iterable<Container>> removeAllExitedContainers(
     DockerConnection connection) async {
   final Iterable<Container> stoppedContainers =
-      await connection.containers(filters: {'status': ['exited']});
+      await connection.containers(filters: {
+    'status': ['exited']
+  });
 
   await Future
       .wait(stoppedContainers.map((c) => connection.removeContainer(c)));
@@ -81,29 +85,65 @@ Future<Iterable<ImageInfo>> removeAllImages(DockerConnection connection) async {
 /// TODO(zoechi) This implementation is incomplete and supports only a very
 /// limited set of arguments.
 Future<CreateResponse> run(DockerConnection connection, String image,
-    {List<String> attach: const [], bool detach: false, String name,
-    List<String> publish, bool rm: false, List<String> command}) async {
+    {List<String> attach: const [],
+    List<String> addHost,
+    List<String> command,
+    bool detach: false,
+    List<String> link,
+    String name,
+    bool privileged: false,
+    bool publishAll: false,
+    List<String> publish,
+    bool rm: false,
+    List<String> volume
+    }) async {
   assert(connection != null);
   assert(image != null && image.isNotEmpty);
+
   assert(attach != null);
-  assert(detach != null);
   attach = attach.map((e) => e.toLowerCase()).toList();
   assert(attach.every((e) => const ['stdin', 'stdout', 'stderr'].contains(e)));
+  assert(detach != null);
+  assert(publishAll != null);
+  assert(privileged != null);
   assert(rm != null);
 
-  final portBindings = parsePublishArgument(publish);
   final createContainerRequest = new CreateContainerRequest()
     ..image = image
-    ..hostConfig = (new HostConfigRequest()..portBindings = portBindings);
+    ..hostConfig = new HostConfigRequest();
 
-  if (publish != null && publish.isNotEmpty) {
-    assert(publish.every((p) => p != null && p.isNotEmpty));
-    createContainerRequest.exposedPorts.addAll(new Map.fromIterable(
-        portBindings.keys, key: (k) => k, value: (_) => const {}));
+  if (addHost != null && addHost.isNotEmpty) {
+    createContainerRequest.hostConfig.extraHosts = addHost;
   }
 
   if (command != null && command.isNotEmpty) {
     createContainerRequest.cmd = command;
+  }
+
+  if (link != null && link.isNotEmpty) {
+    createContainerRequest.hostConfig.links = link;
+  }
+
+  if(privileged) {
+    createContainerRequest.hostConfig.privileged = privileged;
+  }
+
+  if (publishAll) {
+    createContainerRequest.hostConfig.publishAllPorts = publishAll;
+  }
+
+  if (publish != null && publish.isNotEmpty) {
+    assert(publish.every((p) => p != null && p.isNotEmpty));
+    final portBindings = parsePublishArgument(publish);
+    createContainerRequest.hostConfig.portBindings = portBindings;
+    createContainerRequest.exposedPorts.addAll(new Map.fromIterable(
+        portBindings.keys,
+        key: (k) => k,
+        value: (_) => const {}));
+  }
+
+  if(volume != null && volume.isNotEmpty) {
+    createContainerRequest.hostConfig.binds = volume;
   }
 
   createContainerRequest.attachStdin = attach.contains('stdin') && !detach;
@@ -120,14 +160,19 @@ Future<CreateResponse> run(DockerConnection connection, String image,
   if (rm) {
     StreamSubscription eventsSubscription;
     eventsSubscription = connection.events(filters: new EventsFilter()
-      ..events.addAll(
-          [ContainerEvent.stop, ContainerEvent.kill, ContainerEvent.die])
+      ..events.addAll([ContainerEvent.stop, ContainerEvent.kill, ContainerEvent.die])
       ..containers.add(createdResponse.container)).listen((event) {
       new Future.delayed(const Duration(milliseconds: 200), () async {
-        final Iterable<Container> containers = await connection.containers(
-            filters: {'status': [ContainerStatus.exited.toString()]});
+        final Iterable<Container> containers =
+            await connection.containers(filters: {
+          'status': [ContainerStatus.exited.toString()]
+        });
         if (containers.any((c) => c.id == createdResponse.container.id)) {
-          await connection.removeContainer(createdResponse.container);
+          try {
+            await connection.removeContainer(createdResponse.container);
+          } catch (e) {
+            print(e);
+          }
           eventsSubscription.cancel();
         }
       });
@@ -167,7 +212,7 @@ Map<String, List<PortBinding>> parsePublishArgument(List<String> publish) {
 
     if (containerPort == null ||
         containerPort.isEmpty) throw new ArgumentError.value(
-            p, 'publish', 'Invalid value.');
+        p, 'publish', 'Invalid value.');
     if (containerPort.contains('-')) {
       final containerPortsRange = containerPort.split('-');
       if (containerPortsRange.length != 2 ||

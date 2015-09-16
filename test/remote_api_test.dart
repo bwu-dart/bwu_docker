@@ -17,7 +17,9 @@ import 'utils.dart' as utils;
 //const dockerPort = 2375;
 
 // Docker-in-Docker to allow to test with different Docker version
-// docker run --privileged -d -p 1234:1234 -e PORT=1234 jpetazzo/dind
+// docker run --privileged -d -p 1234:1234 -e PORT=1234 docker
+// jpetazzo/dind became docker
+// // docker run --privileged -d -p 1234:1234 -e PORT=1234 jpetazzo/dind
 // See also https://github.com/bwu-dart/bwu_docker/wiki/Development-tips-&-tricks#run-docker-inside-docker
 const imageName = 'busybox';
 const imageTag = 'buildroot-2014.02';
@@ -25,9 +27,29 @@ const entryPoint = '/bin/sh';
 const runningProcess = '/bin/sh';
 const imageNameAndTag = '${imageName}:${imageTag}';
 
-void main([List<String> args]) {
-  //initLogging(args);
+String envDockerHost;
 
+main([List<String> args]) async {
+  envDockerHost = io.Platform.environment[dockerHostFromEnvironment];
+  if (envDockerHost == null) {
+    throw '$dockerHostFromEnvironment must be set in ENV';
+  }
+
+  DockerConnection connection =
+      new DockerConnection(Uri.parse(envDockerHost), new http.Client());
+  await connection.init();
+
+  // Run tests for each [RemoteApiVersion] supported by this package and
+  // supported by the Docker service.
+  for (RemoteApiVersion remoteApiVersion in RemoteApiVersion.versions) {
+    group(remoteApiVersion.toString(), () => tests(remoteApiVersion),
+        skip: remoteApiVersion > connection.remoteApiVersion
+            ? remoteApiVersion.toString()
+            : false);
+  }
+}
+
+void tests(RemoteApiVersion remoteApiVersion) {
   DockerConnection connection;
   Container createdContainer;
 
@@ -38,17 +60,17 @@ void main([List<String> args]) {
 
   /// setUp helper to create a container from the image used in tests.
   final createContainer = () async {
-    createdContainer = (await connection.createContainer(
-        new CreateContainerRequest()
-      ..image = imageNameAndTag
-      ..cmd = ['/bin/sh']
-      ..attachStdin = false
-      ..attachStdout = true
-      ..attachStderr = true
-      ..openStdin = false
-      ..stdinOnce = false
-      ..tty = true
-      ..hostConfig.logConfig = {'Type': 'json-file'})).container;
+    createdContainer =
+        (await connection.createContainer(new CreateContainerRequest()
+          ..image = imageNameAndTag
+          ..cmd = ['/bin/sh']
+          ..attachStdin = false
+          ..attachStdout = true
+          ..attachStderr = true
+          ..openStdin = false
+          ..stdinOnce = false
+          ..tty = true
+          ..hostConfig.logConfig = {'Type': 'json-file'})).container;
   };
 
   /// tearDown helper to remove the container created in setUp
@@ -58,11 +80,8 @@ void main([List<String> args]) {
   };
 
   setUp(() async {
-    var envDockerHost = io.Platform.environment[dockerHostFromEnvironment];
-    expect(envDockerHost, isNotNull,
-        reason: '$dockerHostFromEnvironment must be set in ENV');
-    connection =
-        new DockerConnection(Uri.parse(envDockerHost), new http.Client());
+    connection = new DockerConnection.useRemoteApiVersion(
+        Uri.parse(envDockerHost), remoteApiVersion, new http.Client());
     await connection.init();
     assert(connection.dockerVersion != null);
     await ensureImageExists();
@@ -73,12 +92,12 @@ void main([List<String> args]) {
   });
 
   /// If the used Docker image is not available the download takes some time and
-  /// makes the first test time out
+  /// makes the first test time out. This is just to prevent this timeout.
   group('((prevent timeout))', () {
     setUp(() => ensureImageExists());
 
-    test('((dummy))', () {},
-        timeout: const Timeout(const Duration(seconds: 300)));
+    test('((dummy))', () {
+    }, timeout: const Timeout(const Duration(seconds: 300)));
   });
 
   group('containers', () {
@@ -94,14 +113,12 @@ void main([List<String> args]) {
 
       test('should create a new container with an assigned name', () async {
         // set up
-        if (!utils.isMinVersion(connection, ApiVersion.v1_17)) {
-          return;
-        }
-
         const containerName = '/dummy_name';
 
-        final Iterable<Container> alreadyExisting = await connection.containers(
-            filters: {'name': [containerName]}, all: true);
+        final Iterable<Container> alreadyExisting =
+            await connection.containers(filters: {
+          'name': [containerName]
+        }, all: true);
         alreadyExisting
             .where((c) => c.names.contains(containerName))
             .forEach((c) {
@@ -120,13 +137,18 @@ void main([List<String> args]) {
         expect(createdContainer, new isInstanceOf<Container>());
         expect(createdContainer.id, isNotEmpty);
 
-        final Iterable<Container> containers = await connection.containers(
-            filters: {'name': [containerName]}, all: true);
+        final Iterable<Container> containers =
+            await connection.containers(filters: {
+          'name': [containerName]
+        }, all: true);
 
         expect(containers.length, greaterThan(0));
         expect(
             containers, everyElement((c) => c.names.contains(containerName)));
-      });
+      },
+          skip: remoteApiVersion < RemoteApiVersion.v1_17
+              ? remoteApiVersion.toString()
+              : false);
     });
 
     group('logs', () {
@@ -143,7 +165,6 @@ void main([List<String> args]) {
       });
 
       test('should receive log output', () async {
-
         // exercise
         Stream log = await connection.logs(createdContainer,
             stdout: true,
@@ -161,9 +182,6 @@ void main([List<String> args]) {
       });
 
       test('should receive log output after a specific time', () async {
-        if (!utils.isMinVersion(connection, ApiVersion.v1_19)) {
-          return;
-        }
         // set up
         Stream log = await connection.logs(createdContainer,
             stdout: true,
@@ -198,7 +216,10 @@ void main([List<String> args]) {
 //          print('x');
 //        }
         expect(bufSince.isEmpty, isTrue);
-      });
+      },
+          skip: remoteApiVersion < RemoteApiVersion.v1_19
+              ? remoteApiVersion.toString()
+              : false);
     });
 
     group('start', () {
@@ -215,8 +236,10 @@ void main([List<String> args]) {
 
         // verification
         expect(startedContainer, isNotNull);
-        final Iterable<Container> containers = await connection.containers(
-            filters: {'status': [ContainerStatus.running.toString()]});
+        final Iterable<Container> containers =
+            await connection.containers(filters: {
+          'status': [ContainerStatus.running.toString()]
+        });
 
         expect(containers, anyElement((c) => c.id == createdContainer.id));
       }, timeout: const Timeout(const Duration(seconds: 100)));
@@ -240,8 +263,11 @@ void main([List<String> args]) {
                 attachStdout: true,
                 cmd: ['date'],
                 volumes: new Volumes()..add('/tmp', {}),
-                exposedPorts: {'22/tcp': {}}), createdContainer,
-            tag: 'commitTest', comment: 'remove', author: 'someAuthor');
+                exposedPorts: {'22/tcp': {}}),
+            createdContainer,
+            tag: 'commitTest',
+            comment: 'remove',
+            author: 'someAuthor');
 
         // verification
         expect(commitResponse.id, isNotEmpty);
@@ -312,7 +338,9 @@ void main([List<String> args]) {
           await utils.waitMilliseconds(100);
 
           final Iterable<Container> exitedContainers =
-              await connection.containers(filters: {'status': ['exited']});
+              await connection.containers(filters: {
+            'status': ['exited']
+          });
 
           expect(exitedContainers, isEmpty);
 
@@ -322,7 +350,9 @@ void main([List<String> args]) {
           await utils.waitMilliseconds(100);
 
           final Iterable<Container> updatedContainers =
-              await connection.containers(filters: {'status': ['exited']});
+              await connection.containers(filters: {
+            'status': ['exited']
+          });
 
           // verification
           expect(updatedContainers, isNotEmpty);
@@ -410,13 +440,13 @@ void main([List<String> args]) {
               attachStderr: true,
               tty: true,
               cmd: [
-            '/bin/sh',
-            '-c',
-            'echo sometext > /tmp/somefile.txt',
-            '/bin/sh',
-            '-c',
-            'ls -la'
-          ]);
+                '/bin/sh',
+                '-c',
+                'echo sometext > /tmp/somefile.txt',
+                '/bin/sh',
+                '-c',
+                'ls -la'
+              ]);
           //cmd: ['echo hallo']);
           final startResponse = await connection.execStart(createdExec);
 
@@ -448,10 +478,6 @@ void main([List<String> args]) {
       group('export', () {
         test('should return the contents of the container as tar stream',
             () async {
-          if (!utils.isMinVersion(connection, ApiVersion.v1_17)) {
-            return;
-          }
-
           // exercise
           final Stream exportResponse =
               await connection.export(createdContainer);
@@ -468,17 +494,16 @@ void main([List<String> args]) {
           // Remove container in tearDown fails without some delay after
           // canceling the export stream.
           await utils.waitMilliseconds(500);
-        });
+        },
+            skip: remoteApiVersion < RemoteApiVersion.v1_17
+                ? remoteApiVersion.toString()
+                : false);
       });
 
       group('stats', () {
         test(
             'should return a live stream of the containers resource usage statistics',
             () async {
-          if (!utils.isMinVersion(connection, ApiVersion.v1_17)) {
-            return;
-          }
-
           // exercise
           final Stream<StatsResponse> stream =
               connection.stats(createdContainer).take(5);
@@ -494,15 +519,14 @@ void main([List<String> args]) {
             expect(item.cpuStats.cupUsage.totalUsage, greaterThan(0));
             expect(item.memoryStats.limit, greaterThan(0));
           }
-        });
+        },
+            skip: remoteApiVersion < RemoteApiVersion.v1_17
+                ? remoteApiVersion.toString()
+                : false);
 
         test(
             'should return a single event of a containers resource usage statistics',
             () async {
-          if (!utils.isMinVersion(connection, ApiVersion.v1_19)) {
-            return;
-          }
-
           // exercise
           final Stream<StatsResponse> stream =
               connection.stats(createdContainer, stream: false);
@@ -515,7 +539,10 @@ void main([List<String> args]) {
           expect(item.network.rxBytes, greaterThan(0));
           expect(item.cpuStats.cupUsage.totalUsage, greaterThan(0));
           expect(item.memoryStats.limit, greaterThan(0));
-        });
+        },
+            skip: remoteApiVersion < RemoteApiVersion.v1_19
+                ? remoteApiVersion.toString()
+                : false);
       });
 
       group('resize', () {
@@ -597,7 +624,8 @@ void main([List<String> args]) {
           //expect(restartedStatus.state.restarting, isTrue);
           // TODO(zoechi) check why running is false after restarting
           //expect(restartedStatus.state.running, isFalse);
-          expect(restartedStatus.state.startedAt.millisecondsSinceEpoch,
+          expect(
+              restartedStatus.state.startedAt.millisecondsSinceEpoch,
               greaterThan(
                   startedStatus.state.startedAt.millisecondsSinceEpoch));
 
@@ -638,10 +666,6 @@ void main([List<String> args]) {
 
       group('rename', () {
         test('should assign a new name to the container', () async {
-          if (!utils.isMinVersion(connection, ApiVersion.v1_17)) {
-            return;
-          }
-
           // set up
           final ContainerInfo startedStatus =
               await connection.container(createdContainer);
@@ -659,7 +683,10 @@ void main([List<String> args]) {
           // 1.15 'SomeOtherName
           // 1.18 '/SomeOtherName
           expect(renamedStatus.name, endsWith('SomeOtherName'));
-        });
+        },
+            skip: remoteApiVersion < RemoteApiVersion.v1_17
+                ? remoteApiVersion.toString()
+                : false);
       });
 
       group('pause', () {
@@ -718,10 +745,6 @@ void main([List<String> args]) {
 
       group('attachWs', () {
         test('simple', () async {
-          if (!utils.isMinVersion(connection, ApiVersion.v1_17)) {
-            return;
-          }
-
           // exercise
           final Stream attachResponse = await connection.attachWs(
               createdContainer,
@@ -749,7 +772,10 @@ void main([List<String> args]) {
 //          print(UTF8.decode(buf.takeBytes()));
           // verification
           expect(buf.length, greaterThan(1000));
-        });
+        },
+            skip: remoteApiVersion < RemoteApiVersion.v1_17
+                ? remoteApiVersion.toString()
+                : false);
       }, skip: 'not yet implemented');
 
       group('wait', () {
@@ -829,21 +855,17 @@ void main([List<String> args]) {
 
     group('attach', () {
       setUp(() async {
-        createdContainer = (await connection.createContainer(
-            new CreateContainerRequest()
-          ..image = imageNameAndTag
-          ..openStdin = false
-          ..attachStdin = false
-          ..cmd = ['/bin/sh', '-c', 'uptime'])).container;
+        createdContainer =
+            (await connection.createContainer(new CreateContainerRequest()
+              ..image = imageNameAndTag
+              ..openStdin = false
+              ..attachStdin = false
+              ..cmd = ['/bin/sh', '-c', 'uptime'])).container;
       });
 
       test(
           'should attach to the containers stdout and stderr and return a stream of the output',
           () async {
-        if (!utils.isMinVersion(connection, ApiVersion.v1_17)) {
-          return;
-        }
-
         // exercise
         final DeMux attachResponse = await connection.attach(createdContainer,
             stream: true, stdout: true, stderr: true);
@@ -852,9 +874,8 @@ void main([List<String> args]) {
 
         final buf = new io.BytesBuilder(copy: false);
 
-        final stdoutSubscription = attachResponse.stdout
-            .take(1000)
-            .listen((data) {
+        final stdoutSubscription =
+            attachResponse.stdout.take(1000).listen((data) {
           buf.add(data);
         });
 
@@ -867,7 +888,10 @@ void main([List<String> args]) {
         expect(s, contains('up'));
         expect(s, contains(' day'));
         expect(s, contains('load average'));
-      });
+      },
+          skip: remoteApiVersion < RemoteApiVersion.v1_17
+              ? remoteApiVersion.toString()
+              : false);
     });
   });
 
@@ -883,9 +907,11 @@ void main([List<String> args]) {
         expect(images.first.id, isNotEmpty);
         expect(images,
             anyElement((img) => img.repoTags.contains(imageNameAndTag)));
-        expect(images, anyElement(
-            (img) => (img.created as DateTime).millisecondsSinceEpoch >
-                new DateTime(1, 1, 1).millisecondsSinceEpoch));
+        expect(
+            images,
+            anyElement((img) =>
+                (img.created as DateTime).millisecondsSinceEpoch >
+                    new DateTime(1, 1, 1).millisecondsSinceEpoch));
       });
 
       test('all: true', () async {
@@ -920,7 +946,7 @@ void main([List<String> args]) {
           () async {
         final Iterable<CreateImageResponse> createImageResponse =
             await connection.createImage(imageNameAndTag);
-        if (connection.apiVersion <= ApiVersion.v1_15) {
+        if (connection.remoteApiVersion <= RemoteApiVersion.v1_15) {
           expect(createImageResponse.first.status,
               'Pulling repository ${imageName}');
         } else {
@@ -944,8 +970,9 @@ void main([List<String> args]) {
         final Iterable<ImageHistoryResponse> imageHistoryResponse =
             await connection.history(new Image(imageNameAndTag));
         expect(imageHistoryResponse.length, greaterThan(2));
-        expect(imageHistoryResponse, everyElement(
-            (e) => e.created.millisecondsSinceEpoch >
+        expect(
+            imageHistoryResponse,
+            everyElement((e) => e.created.millisecondsSinceEpoch >
                 new DateTime(1, 1, 1).millisecondsSinceEpoch));
         expect(imageHistoryResponse,
             anyElement((e) => e.createdBy != null && e.createdBy.isNotEmpty));
@@ -961,8 +988,9 @@ void main([List<String> args]) {
         final Iterable<ImagePushResponse> imagePushResponse =
             await connection.push(new Image(imageName));
         expect(imagePushResponse.length, greaterThan(3));
-        expect(imagePushResponse, everyElement(
-            (e) => e.created.millisecondsSinceEpoch >
+        expect(
+            imagePushResponse,
+            everyElement((e) => e.created.millisecondsSinceEpoch >
                 new DateTime(1, 1, 1).millisecondsSinceEpoch));
         expect(imagePushResponse,
             anyElement((e) => e.createdBy != null && e.createdBy.isNotEmpty));
@@ -1007,8 +1035,10 @@ void main([List<String> args]) {
         final Iterable<SearchResponse> searchResponse =
             await connection.search('sshd');
         expect(searchResponse, isNotNull);
-        expect(searchResponse, anyElement((e) => e.description ==
-            'Dockerized SSH service, built on top of official Ubuntu images.'));
+        expect(
+            searchResponse,
+            anyElement((e) => e.description ==
+                'Dockerized SSH service, built on top of official Ubuntu images.'));
         expect(searchResponse,
             anyElement((e) => e.name != null && e.name.isNotEmpty));
         expect(searchResponse, anyElement((e) => e.isOfficial != null));
@@ -1029,9 +1059,10 @@ void main([List<String> args]) {
 //        expect(authResponse, isNotNull);
 //        expect(authResponse.status, 'Login Succeeded');
 
-        expect(connection.auth(new AuthRequest('xxxxx', 'xxxxx', 'xxx@xxx.com',
-                'https://index.docker.io/v1/')), throwsA(
-            (e) => e is DockerRemoteApiError &&
+        expect(
+            connection.auth(new AuthRequest('xxxxx', 'xxxxx', 'xxx@xxx.com',
+                'https://index.docker.io/v1/')),
+            throwsA((e) => e is DockerRemoteApiError &&
                 //e.body == 'Wrong login/password, please try again\n'));
                 e.body ==
                     'Login: Account is not Active. Please check your e-mail for a confirmation link.\n'));
@@ -1149,10 +1180,6 @@ void main([List<String> args]) {
     group('create', () {
       test('should set up the exec instance in the running container',
           () async {
-        if (!utils.isMinVersion(connection, ApiVersion.v1_17)) {
-          return;
-        }
-
         // set up
         await createContainer();
         await connection.start(createdContainer);
@@ -1178,15 +1205,14 @@ void main([List<String> args]) {
         expect(inspectResponse.openStderr, isTrue);
         expect(inspectResponse.openStdout, isTrue);
         expect(inspectResponse.openStdin, isFalse);
-      });
+      },
+          skip: remoteApiVersion < RemoteApiVersion.v1_17
+              ? remoteApiVersion.toString()
+              : false);
     });
 
     group('start', () {
       test('should start the exec and return the stdout as stream', () async {
-        if (!utils.isMinVersion(connection, ApiVersion.v1_17)) {
-          return;
-        }
-
         // set up
         await createContainer();
         await connection.start(createdContainer);
@@ -1196,7 +1222,10 @@ void main([List<String> args]) {
         // exercise
         final Exec createResponse = await connection.execCreate(
             createdContainer,
-            attachStdout: true, attachStderr: true, tty: true, cmd: entryPoint);
+            attachStdout: true,
+            attachStderr: true,
+            tty: true,
+            cmd: entryPoint);
 
         final DeMux startResponse = await connection.execStart(createResponse,
             tty: false, detach: false);
@@ -1228,7 +1257,10 @@ void main([List<String> args]) {
 
         expect(stdoutBuf, isNotEmpty);
         expect(stderrBuf, isEmpty);
-      });
+      },
+          skip: remoteApiVersion < RemoteApiVersion.v1_17
+              ? remoteApiVersion.toString()
+              : false);
     });
 
     // TODO(zoechi) implement test for execResize()
@@ -1236,10 +1268,6 @@ void main([List<String> args]) {
     group('inspect', () {
       test('should return detail information about the created exec instance',
           () async {
-        if (!utils.isMinVersion(connection, ApiVersion.v1_17)) {
-          return;
-        }
-
         await createContainer();
         await connection.start(createdContainer);
         //await utils.waitMilliseconds(200);
@@ -1259,14 +1287,13 @@ void main([List<String> args]) {
         expect(inspectResponse.openStdout, isFalse);
         expect(inspectResponse.openStderr, isFalse);
         expect(inspectResponse.container.id, createdContainer.id);
-      });
+      },
+          skip: remoteApiVersion < RemoteApiVersion.v1_17
+              ? remoteApiVersion.toString()
+              : false);
 
       test('should return detail information about the started exec instance',
           () async {
-        if (!utils.isMinVersion(connection, ApiVersion.v1_17)) {
-          return;
-        }
-
         await createContainer();
         await connection.start(createdContainer);
         //await utils.waitMilliseconds(200);
@@ -1286,7 +1313,10 @@ void main([List<String> args]) {
         expect(inspectResponse.openStdout, isFalse);
         expect(inspectResponse.openStderr, isFalse);
         expect(inspectResponse.container.id, createdContainer.id);
-      });
+      },
+          skip: remoteApiVersion < RemoteApiVersion.v1_17
+              ? remoteApiVersion.toString()
+              : false);
     });
   });
 
@@ -1304,7 +1334,6 @@ void main([List<String> args]) {
       subscription = connection.events(filters: new EventsFilter()
         ..events.addAll([ContainerEvent.start, ContainerEvent.stop])
         ..containers.add(createdContainer)).listen((event) {
-
         // verify
         if (event.id == createdContainer.id &&
             event.from == imageNameAndTag &&
@@ -1316,7 +1345,7 @@ void main([List<String> args]) {
             connection.stop(createdContainer);
             //
           } else if (event.status == ContainerEvent.die) {
-            if (connection.apiVersion >= ApiVersion.v1_17) {
+            if (connection.remoteApiVersion >= RemoteApiVersion.v1_17) {
               fail('"die" event was filtered out.');
             }
             //
@@ -1349,7 +1378,6 @@ void main([List<String> args]) {
               since: new DateTime.now(),
               until: new DateTime.now().add(const Duration(minutes: 2)))
           .listen((event) {
-
         // verify
         if (event.id == createdContainer.id &&
             event.from == imageNameAndTag &&
@@ -1361,7 +1389,7 @@ void main([List<String> args]) {
             connection.stop(createdContainer);
             //
           } else if (event.status == ContainerEvent.die) {
-            if (connection.apiVersion >= ApiVersion.v1_17) {
+            if (connection.remoteApiVersion >= RemoteApiVersion.v1_17) {
               dieReceived();
             }
             //

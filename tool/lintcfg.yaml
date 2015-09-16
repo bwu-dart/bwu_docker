@@ -19,5 +19,5 @@ rules:
 #    package_names:
 #      enabled: false # longer form of package_names: false
   lint:
-    unnecessary_getters: false # TODO(zoechi) remove when #35 is fixed
     unnecessary_brace_in_string_interp: false
+    non_constant_identifier_names: false

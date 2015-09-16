@@ -46,12 +46,12 @@ main() {
 
   /// setUp helper to create a container from the image used in tests.
   final createContainer = ([String name]) async {
-    createdContainer = await connection.createContainer(
-        new CreateContainerRequest()
-      ..image = imageNameAndTag
-      ..cmd = ['/bin/sh']
-      ..openStdin = true
-      ..tty = true, name: name);
+    createdContainer =
+        await connection.createContainer(new CreateContainerRequest()
+          ..image = imageNameAndTag
+          ..cmd = ['/bin/sh']
+          ..openStdin = true
+          ..tty = true, name: name);
     return createdContainer.container;
   };
 
@@ -92,14 +92,21 @@ main() {
       // set up
       final Iterable<Container> containersBefore =
           await connection.containers(all: true);
-      expect(containersBefore
-              .firstWhere((c) => c.names.contains('/keep_running')).status,
+      expect(
+          containersBefore
+              .firstWhere((c) => c.names.contains('/keep_running'))
+              .status,
           startsWith('Up '));
-      expect(containersBefore
-              .firstWhere((c) => c.names.contains('/stopped')).status,
+      expect(
+          containersBefore
+              .firstWhere((c) => c.names.contains('/stopped'))
+              .status,
           startsWith('Exited'));
-      expect(containersBefore
-          .firstWhere((c) => c.names.contains('/never_started')).status, '');
+      expect(
+          containersBefore
+              .firstWhere((c) => c.names.contains('/never_started'))
+              .status,
+          '');
 
       final Iterable<ImageInfo> imagesBefore = await connection.images();
       expect(imagesBefore, isNotEmpty);
@@ -123,11 +130,16 @@ main() {
           anyElement((c) => c.names.contains('/never_started')));
 
       // each container was removed
-      expect(containersBefore, everyElement((c) =>
-          result.removedContainers.firstWhere((r) => r.id == r.id) != null));
+      expect(
+          containersBefore,
+          everyElement((c) =>
+              result.removedContainers.firstWhere((r) => r.id == r.id) !=
+                  null));
       // each image was removed
-      expect(imagesBefore, everyElement(
-          (i) => result.removedImages.firstWhere((r) => r.id == i.id) != null));
+      expect(
+          imagesBefore,
+          everyElement((i) =>
+              result.removedImages.firstWhere((r) => r.id == i.id) != null));
 
       // Docker doesn't return any containers
       final Iterable<Container> containersAfter =
@@ -175,8 +187,10 @@ main() {
 
       // verification
       await new Future.delayed(const Duration(milliseconds: 200), () async {
-        final Iterable<Container> containers = await connection.containers(
-            filters: {'status': [ContainerStatus.running.toString()]});
+        final Iterable<Container> containers =
+            await connection.containers(filters: {
+          'status': [ContainerStatus.running.toString()]
+        });
         expect(
             containers, anyElement((c) => c.id == createResponse.container.id));
       });

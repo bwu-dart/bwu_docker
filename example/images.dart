@@ -12,10 +12,10 @@ main() async {
   await conn.init();
 
   // create a container from an image
-  CreateResponse created = await conn.createContainer(
-      new CreateContainerRequest()
-    ..image = 'busybox'
-    ..hostConfig.logConfig = {'Type': 'json-file'});
+  CreateResponse created =
+      await conn.createContainer(new CreateContainerRequest()
+        ..image = 'busybox'
+        ..hostConfig.logConfig = {'Type': 'json-file'});
 
   // start the container
   await conn.start(created.container);

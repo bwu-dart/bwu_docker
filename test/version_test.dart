@@ -52,8 +52,10 @@ main() {
           true);
       expect(new Version.fromString('0.0.0') == new Version.fromString('0.0.0'),
           true);
-      expect(new Version.fromString('10.20.30') ==
-          new Version.fromString('10.20.30'), true);
+      expect(
+          new Version.fromString('10.20.30') ==
+              new Version.fromString('10.20.30'),
+          true);
       expect(
           new Version.fromString('1.1') == new Version.fromString('1.1'), true);
       expect(

@@ -52,15 +52,15 @@ Future removeContainer(DockerConnection connection, Container container) async {
   }
 }
 
-/// Helper to check if a feature is not supported on the connected server.
-bool isMinVersion(DockerConnection connection, Version supportedVersion) {
-  if (connection.apiVersion < supportedVersion) {
-    print(
-        'Test skipped because this command requires Docker API version ${supportedVersion} (current: ${connection.apiVersion}).');
-    return false;
-  }
-  return true;
-}
+///// Helper to check if a feature is not supported on the connected server.
+//bool isMinVersion(DockerConnection connection, Version supportedVersion) {
+//  if (connection.remoteApiVersion < supportedVersion) {
+//    print(
+//        'Test skipped because this command requires Docker API version ${supportedVersion} (current: ${connection.remoteApiVersion}).');
+//    return false;
+//  }
+//  return true;
+//}
 
 Future waitMilliseconds(int milliseconds) {
   return new Future.delayed(new Duration(milliseconds: milliseconds));

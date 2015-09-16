@@ -67,10 +67,12 @@ main() {
         expectDataReceived();
       }
 
-      if (eq(e, []
-        ..addAll(sampleString)
-        ..addAll(sampleString)
-        ..addAll(sampleString))) {
+      if (eq(
+          e,
+          []
+            ..addAll(sampleString)
+            ..addAll(sampleString)
+            ..addAll(sampleString))) {
         expectChunkedDataReceived();
       }
     });
