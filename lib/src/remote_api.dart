@@ -55,8 +55,12 @@ String dockerHostFromEnvironment = 'DOCKER_HOST_REMOTE_API';
 /// The primary API class to initialize a connection to a Docker hosts remote
 /// API and send any number of commands to this Docker service.
 class DockerConnection {
-  final Map<String,String> headersJson = <String,String>{'Content-Type': 'application/json'};
-  final Map<String,String> headersTar = <String,String>{'Content-Type': 'application/tar'};
+  final Map<String, String> headersJson = <String, String>{
+    'Content-Type': 'application/json'
+  };
+  final Map<String, String> headersTar = <String, String>{
+    'Content-Type': 'application/tar'
+  };
 
   VersionResponse _dockerVersion;
   VersionResponse get dockerVersion => _dockerVersion;
@@ -113,7 +117,7 @@ class DockerConnection {
 
   Future<dynamic> _request(RequestType requestType, String path,
       {Map body,
-      Map<String,String> query,
+      Map<String, String> query,
       Map<String, String> headers,
       ResponsePreprocessor preprocessor}) async {
     assert(requestType != null);
@@ -243,7 +247,8 @@ class DockerConnection {
     final List response =
         await _request(RequestType.get, '/containers/json', query: query);
 //    print(response);
-    return response.map/*<Iterable<Container>>*/((Map<String,dynamic> e) => new Container.fromJson( e, remoteApiVersion));
+    return response.map /*<Iterable<Container>>*/ ((Map<String, dynamic> e) =>
+        new Container.fromJson(e, remoteApiVersion));
   }
 
   /// Create a container from a container configuration.
@@ -330,7 +335,7 @@ class DockerConnection {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
     assert(stdout == true || stderr == true);
-    final Map<String,String> query = <String,String>{};
+    final Map<String, String> query = <String, String>{};
     if (follow != null) query['follow'] = follow.toString();
     if (stdout != null) query['stdout'] = stdout.toString();
     if (stderr != null) query['stderr'] = stderr.toString();
@@ -488,7 +493,9 @@ class DockerConnection {
     assert(signal == null ||
         (signal is String && signal.isNotEmpty) ||
         (signal is int));
-    final Map<String,String> query = <String,String>{'signal': signal.toString()};
+    final Map<String, String> query = <String, String>{
+      'signal': signal.toString()
+    };
     final Map response = await _request(
         RequestType.post, '/containers/${container.id}/kill',
         query: query);
@@ -601,7 +608,7 @@ class DockerConnection {
       {bool logs, bool stream, bool stdin, bool stdout, bool stderr}) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
-    final Map<String,String> query = <String,String>{};
+    final Map<String, String> query = <String, String>{};
     if (logs != null) query['logs'] = logs.toString();
     if (stream != null) query['stream'] = stream.toString();
     if (stdin != null) query['stdin'] = stdin.toString();
@@ -632,7 +639,7 @@ class DockerConnection {
       {bool logs, bool stream, bool stdin, bool stdout, bool stderr}) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
-    final Map<String,String> query = <String,String>{};
+    final Map<String, String> query = <String, String>{};
     if (logs != null) query['logs'] = logs.toString();
     if (stream != null) query['stream'] = stream.toString();
     if (stdin != null) query['stdin'] = stdin.toString();
@@ -691,7 +698,7 @@ class DockerConnection {
   Future<Stream> copy(Container container, String resource) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
-    final Map<String,dynamic> json = new CopyRequestPath(resource).toJson();
+    final Map<String, dynamic> json = new CopyRequestPath(resource).toJson();
     return _requestStream(RequestType.post, '/containers/${container.id}/copy',
         body: json);
   }
@@ -970,8 +977,8 @@ class DockerConnection {
 
     final List response =
         await _request(RequestType.get, '/images/search', query: query);
-    return response
-        .map((Map<String,dynamic> e) => new SearchResponse.fromJson(e, remoteApiVersion));
+    return response.map((Map<String, dynamic> e) =>
+        new SearchResponse.fromJson(e, remoteApiVersion));
   }
 
   /// Get the default username and email.
@@ -1073,7 +1080,8 @@ class DockerConnection {
     if (filters != null) query['filters'] = JSON.encode(filters.toJson());
 
     final Stream<List<int>> response =
-        await _requestStream(RequestType.get, '/events', query: query) as Stream<List<int>>;
+        await _requestStream(RequestType.get, '/events', query: query)
+        as Stream<List<int>>;
     if (response != null) {
       await for (List<int> e in response) {
 //        print(UTF8.decode(e));
@@ -1097,7 +1105,8 @@ class DockerConnection {
   /// 500 - server error
   Future<http.ByteStream> get(Image image) async {
     assert(image != null && image.name != null && image.name.isNotEmpty);
-    return _requestStream(RequestType.get, '/images/${image.name}/get') as http.ByteStream;
+    return _requestStream(RequestType.get, '/images/${image.name}/get')
+        as http.ByteStream;
   }
 
   /// Get a tarball containing all images and metadata for one or more

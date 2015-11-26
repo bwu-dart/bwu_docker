@@ -40,9 +40,9 @@ void main() {
   CreateResponse createdContainer;
 
   /// setUp helper to create the image used in tests if it is not yet available.
-  Future ensureImageExists  () async {
+  Future ensureImageExists() async {
     return utils.ensureImageExists(connection, imageNameAndTag);
-  };
+  }
 
   /// setUp helper to create a container from the image used in tests.
   Future<Container> createContainer([String name]) async {
@@ -53,7 +53,8 @@ void main() {
           ..openStdin = true
           ..tty = true, name: name);
     return createdContainer.container;
-  };
+  }
+  ;
 
   setUp(() async {
     /// Use the DinD set up with a higher port than default to not interfere
@@ -119,8 +120,10 @@ void main() {
           anyElement((Container c) => c.names.contains('/keep_running')));
       expect(result.stoppedContainers,
           isNot(anyElement((Container c) => c.names.contains('/stopped'))));
-      expect(result.stoppedContainers,
-          isNot(anyElement((Container c) => c.names.contains('/never_started'))));
+      expect(
+          result.stoppedContainers,
+          isNot(
+              anyElement((Container c) => c.names.contains('/never_started'))));
 
       expect(result.removedContainers,
           anyElement((Container c) => c.names.contains('/keep_running')));
@@ -132,14 +135,15 @@ void main() {
       // each container was removed
       expect(
           containersBefore,
-          everyElement((Container c) =>
-              result.removedContainers.firstWhere((Container r) => r.id == r.id) !=
-                  null));
+          everyElement((Container c) => result.removedContainers
+                  .firstWhere((Container r) => r.id == r.id) !=
+              null));
       // each image was removed
       expect(
           imagesBefore,
           everyElement((ImageInfo i) =>
-              result.removedImages.firstWhere((ImageInfo r) => r.id == i.id) != null));
+              result.removedImages.firstWhere((ImageInfo r) => r.id == i.id) !=
+                  null));
 
       // Docker doesn't return any containers
       final Iterable<Container> containersAfter =
@@ -191,8 +195,8 @@ void main() {
             await connection.containers(filters: {
           'status': [ContainerStatus.running.toString()]
         });
-        expect(
-            containers, anyElement((Container c) => c.id == createResponse.container.id));
+        expect(containers,
+            anyElement((Container c) => c.id == createResponse.container.id));
       });
 
       // exercise
@@ -202,8 +206,10 @@ void main() {
         // verification
         await new Future.delayed(const Duration(milliseconds: 500), () async {
           final Iterable<Container> containers = await connection.containers();
-          expect(containers,
-              isNot(anyElement((Container c) => c.id == createResponse.container.id)));
+          expect(
+              containers,
+              isNot(anyElement(
+                  (Container c) => c.id == createResponse.container.id)));
         });
       });
     }, timeout: const Timeout(const Duration(seconds: 180)));

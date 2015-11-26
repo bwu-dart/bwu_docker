@@ -95,8 +95,7 @@ Future<CreateResponse> run(DockerConnection connection, String image,
     bool publishAll: false,
     List<String> publish,
     bool rm: false,
-    List<String> volume
-    }) async {
+    List<String> volume}) async {
   assert(connection != null);
   assert(image != null && image.isNotEmpty);
 
@@ -124,7 +123,7 @@ Future<CreateResponse> run(DockerConnection connection, String image,
     createContainerRequest.hostConfig.links = link;
   }
 
-  if(privileged) {
+  if (privileged) {
     createContainerRequest.hostConfig.privileged = privileged;
   }
 
@@ -134,7 +133,8 @@ Future<CreateResponse> run(DockerConnection connection, String image,
 
   if (publish != null && publish.isNotEmpty) {
     assert(publish.every((String p) => p != null && p.isNotEmpty));
-    final Map<String, List<PortBinding>> portBindings = parsePublishArgument(publish);
+    final Map<String, List<PortBinding>> portBindings =
+        parsePublishArgument(publish);
     createContainerRequest.hostConfig.portBindings = portBindings;
     createContainerRequest.exposedPorts.addAll(new Map.fromIterable(
         portBindings.keys,
@@ -142,7 +142,7 @@ Future<CreateResponse> run(DockerConnection connection, String image,
         value: (_) => const {}));
   }
 
-  if(volume != null && volume.isNotEmpty) {
+  if (volume != null && volume.isNotEmpty) {
     createContainerRequest.hostConfig.binds = volume;
   }
 
@@ -223,7 +223,8 @@ Map<String, List<PortBinding>> parsePublishArgument(List<String> publish) {
       int containerPortsFrom = int.parse(containerPortsRange[0]);
       int containerPortsTo;
       if (containerPortsRange[1].contains('/')) {
-        final List<String> containerPortParts = containerPortsRange[1].split('/');
+        final List<String> containerPortParts =
+            containerPortsRange[1].split('/');
         containerPortsTo = int.parse(containerPortParts[0]);
         protocol = '/${containerPortParts[1]}';
       } else {

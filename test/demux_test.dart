@@ -27,8 +27,10 @@ void main() {
     });
 
     new Future.delayed(const Duration(milliseconds: 200), () {
-      sc.add(<int>[1, 0, 0, 0, 0, 0, 0, sampleString.length]..addAll(sampleString));
-      sc.add(<int>[1, 0, 0, 0, 0, 0, 0, sampleString.length]..addAll(sampleString));
+      sc.add(<int>[1, 0, 0, 0, 0, 0, 0, sampleString.length]
+        ..addAll(sampleString));
+      sc.add(<int>[1, 0, 0, 0, 0, 0, 0, sampleString.length]
+        ..addAll(sampleString));
       sc.close();
     });
 
@@ -39,16 +41,18 @@ void main() {
       () async {
     final Function expectDataReceived = expectAsync(() {}, count: 4);
 
-    final StreamSubscription<List<int>> subscription = mux.stderr.listen((List<int> e) {
+    final StreamSubscription<List<int>> subscription =
+        mux.stderr.listen((List<int> e) {
       if (eq(e, sampleString)) {
         expectDataReceived();
       }
     });
 
     new Future.delayed(const Duration(milliseconds: 200), () {
-      sc.add(<int>[2, 0, 0, 0, 0, 0, 0, sampleString.length]..addAll(sampleString));
-      sc.add(
-          <int>[2, 0, 0, 0, 0, 0, 0, sampleString.length * 3]..addAll(sampleString));
+      sc.add(<int>[2, 0, 0, 0, 0, 0, 0, sampleString.length]
+        ..addAll(sampleString));
+      sc.add(<int>[2, 0, 0, 0, 0, 0, 0, sampleString.length * 3]
+        ..addAll(sampleString));
       sc.add(sampleString);
       sc.add(sampleString);
       sc.close();
@@ -62,7 +66,8 @@ void main() {
     final Function expectDataReceived = expectAsync(() {});
     final Function expectChunkedDataReceived = expectAsync(() {});
 
-    final StreamSubscription<List<int>> subscription = mux.stderr.listen((List<int> e) {
+    final StreamSubscription<List<int>> subscription =
+        mux.stderr.listen((List<int> e) {
       if (eq(e, sampleString)) {
         expectDataReceived();
       }
@@ -78,7 +83,8 @@ void main() {
     });
 
     new Future.delayed(const Duration(milliseconds: 200), () {
-      sc.add(<int>[2, 0, 0, 0, 0, 0, 0, sampleString.length]..addAll(sampleString));
+      sc.add(<int>[2, 0, 0, 0, 0, 0, 0, sampleString.length]
+        ..addAll(sampleString));
 
       final List<int> data = <int>[2, 0, 0, 0, 0, 0, 0, sampleString.length * 3]
         ..addAll(sampleString)

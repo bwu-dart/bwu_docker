@@ -54,30 +54,34 @@ void tests(RemoteApiVersion remoteApiVersion) {
   Container createdContainer;
 
   /// setUp helper to create the image used in tests if it is not yet available.
-  Future ensureImageExists () async {
+  Future ensureImageExists() async {
     return utils.ensureImageExists(connection, imageNameAndTag);
-  };
+  }
+  ;
 
   /// setUp helper to create a container from the image used in tests.
   Future createContainer() async {
-    createdContainer =
-        (await connection.createContainer(new CreateContainerRequest()
-          ..image = imageNameAndTag
-          ..cmd = ['/bin/sh']
-          ..attachStdin = false
-          ..attachStdout = true
-          ..attachStderr = true
-          ..openStdin = false
-          ..stdinOnce = false
-          ..tty = true
-          ..hostConfig.logConfig = <String,String>{'Type': 'json-file'})).container;
-  };
+    createdContainer = (await connection
+            .createContainer(new CreateContainerRequest()
+              ..image = imageNameAndTag
+              ..cmd = ['/bin/sh']
+              ..attachStdin = false
+              ..attachStdout = true
+              ..attachStderr = true
+              ..openStdin = false
+              ..stdinOnce = false
+              ..tty = true
+              ..hostConfig.logConfig = <String, String>{'Type': 'json-file'}))
+        .container;
+  }
+  ;
 
   /// tearDown helper to remove the container created in setUp
   Future removeContainer() async {
     await utils.removeContainer(connection, createdContainer);
     createdContainer = null;
-  };
+  }
+  ;
 
   setUp(() async {
     connection = new DockerConnection.useRemoteApiVersion(
@@ -305,7 +309,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
           // verification
           expect(containers, isNotEmpty);
           expect(containers.first.image, isNotEmpty);
-          expect(containers, anyElement((Container c) => c.image == imageNameAndTag));
+          expect(containers,
+              anyElement((Container c) => c.image == imageNameAndTag));
         });
 
         test('should return the list of containers including status exited',
@@ -314,7 +319,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
           final Iterable<Container> containers = await connection.containers();
           expect(containers, isNotEmpty);
           expect(containers.first.image, isNotEmpty);
-          expect(containers, anyElement((Container c) => c.id == createdContainer.id));
+          expect(containers,
+              anyElement((Container c) => c.id == createdContainer.id));
 
           await connection.stop(createdContainer);
 
@@ -323,8 +329,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
               await connection.containers(all: true);
 
           // verification
-          final Container stoppedContainer =
-              updatedContainers.firstWhere((Container c) => c.id == createdContainer.id);
+          final Container stoppedContainer = updatedContainers
+              .firstWhere((Container c) => c.id == createdContainer.id);
 
           expect(stoppedContainer.status, startsWith('Exited'));
         });
@@ -470,7 +476,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
           // TODO(zoechi) provoke some changes and check the result
           // expect(changesResponse.changes.length, greaterThan(0));
           expect(changesResponse.changes,
-              everyElement(( c) => c.path.startsWith('/')));
+              everyElement((c) => c.path.startsWith('/')));
           expect(changesResponse.changes, everyElement((c) => c.kind != null));
         });
       });
@@ -482,7 +488,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
           final Stream exportResponse =
               await connection.export(createdContainer);
           final io.BytesBuilder buf = new io.BytesBuilder(copy: false);
-          final StreamSubscription subscription = exportResponse.take(1000000).listen((List<int>data) {
+          final StreamSubscription subscription =
+              exportResponse.take(1000000).listen((List<int> data) {
             buf.add(data);
           });
           await subscription.asFuture();
@@ -605,7 +612,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
           connection
               .events(
                   filters: new EventsFilter()..containers.add(createdContainer))
-              .listen((EventResponse event) {
+              .listen((EventsResponse event) {
             if (event.status == ContainerEvent.restart) {
               expectRestartEvent();
             }
@@ -972,14 +979,21 @@ void tests(RemoteApiVersion remoteApiVersion) {
         expect(imageHistoryResponse.length, greaterThan(2));
         expect(
             imageHistoryResponse,
-            everyElement((ImageHistoryResponse e) => e.created.millisecondsSinceEpoch >
-                new DateTime(1, 1, 1).millisecondsSinceEpoch));
-        expect(imageHistoryResponse,
-            anyElement((ImageHistoryResponse e) => e.createdBy != null && e.createdBy.isNotEmpty));
-        expect(imageHistoryResponse,
-            anyElement((ImageHistoryResponse e) => e.tags != null && e.tags.isNotEmpty));
-        expect(imageHistoryResponse,
-            anyElement((ImageHistoryResponse e) => e.size != null && e.size > 0));
+            everyElement((ImageHistoryResponse e) =>
+                e.created.millisecondsSinceEpoch >
+                    new DateTime(1, 1, 1).millisecondsSinceEpoch));
+        expect(
+            imageHistoryResponse,
+            anyElement((ImageHistoryResponse e) =>
+                e.createdBy != null && e.createdBy.isNotEmpty));
+        expect(
+            imageHistoryResponse,
+            anyElement((ImageHistoryResponse e) =>
+                e.tags != null && e.tags.isNotEmpty));
+        expect(
+            imageHistoryResponse,
+            anyElement(
+                (ImageHistoryResponse e) => e.size != null && e.size > 0));
       });
     });
 
@@ -988,14 +1002,16 @@ void tests(RemoteApiVersion remoteApiVersion) {
         final Iterable<ImagePushResponse> imagePushResponse =
             await connection.push(new Image(imageName));
         expect(imagePushResponse.length, greaterThan(3));
-        expect(
-            imagePushResponse,
-            everyElement((ImagePushResponse e) => e.created.millisecondsSinceEpoch >
-                new DateTime(1, 1, 1).millisecondsSinceEpoch));
-        expect(imagePushResponse,
-            anyElement((ImagePushResponse e) => e.createdBy != null && e.createdBy.isNotEmpty));
-        expect(imagePushResponse,
-            anyElement((ImagePushResponse e) => e.tags != null && e.tags.isNotEmpty));
+//        expect(
+//            imagePushResponse,
+        // TODO(zoechi) this seems to have worked already. Now `e.created` doesn't exist
+        // Maybe this isn't an ImagePushResponse at all - check
+//            everyElement((ImagePushResponse e) => e.created.millisecondsSinceEpoch >
+//                new DateTime(1, 1, 1).millisecondsSinceEpoch));
+//        expect(imagePushResponse,
+//            anyElement((ImagePushResponse e) => e.createdBy != null && e.createdBy.isNotEmpty));
+//        expect(imagePushResponse,
+//            anyElement((ImagePushResponse e) => e.tags != null && e.tags.isNotEmpty));
         expect(
             imagePushResponse, anyElement((e) => e.size != null && e.size > 0));
       }, skip: 'don\'t know yet how to test');
@@ -1025,8 +1041,10 @@ void tests(RemoteApiVersion remoteApiVersion) {
         final Iterable<ImageRemoveResponse> imageRemoveResponse =
             await connection.removeImage(new Image('${imageName}:removeImage'));
         expect(imageRemoveResponse, isNotNull);
-        expect(imageRemoveResponse,
-            anyElement((ImageRemoveResponse e) => e.untagged == '${imageName}:removeImage'));
+        expect(
+            imageRemoveResponse,
+            anyElement((ImageRemoveResponse e) =>
+                e.untagged == '${imageName}:removeImage'));
       });
     });
 
@@ -1039,12 +1057,16 @@ void tests(RemoteApiVersion remoteApiVersion) {
             searchResponse,
             anyElement((SearchResponse e) => e.description ==
                 'Dockerized SSH service, built on top of official Ubuntu images.'));
-        expect(searchResponse,
-            anyElement((SearchResponse e) => e.name != null && e.name.isNotEmpty));
+        expect(
+            searchResponse,
+            anyElement(
+                (SearchResponse e) => e.name != null && e.name.isNotEmpty));
         expect(searchResponse, anyElement((e) => e.isOfficial != null));
         expect(searchResponse, anyElement((e) => e.isAutomated != null));
-        expect(searchResponse,
-            anyElement((SearchResponse e) => e.starCount != null && e.starCount > 0));
+        expect(
+            searchResponse,
+            anyElement(
+                (SearchResponse e) => e.starCount != null && e.starCount > 0));
       }, timeout: const Timeout(const Duration(seconds: 60)));
     });
   });
@@ -1231,12 +1253,14 @@ void tests(RemoteApiVersion remoteApiVersion) {
             tty: false, detach: false);
 
         final StringBuffer stdoutBuf = new StringBuffer();
-        final StreamSubscription stdoutSubscription = startResponse.stdout.listen((List<int>data) {
+        final StreamSubscription stdoutSubscription =
+            startResponse.stdout.listen((List<int> data) {
           stdoutBuf.write(UTF8.decode(data));
         });
 
         final StringBuffer stderrBuf = new StringBuffer();
-        final StreamSubscription stderrSubscription = startResponse.stderr.listen((List<int> data) {
+        final StreamSubscription stderrSubscription =
+            startResponse.stderr.listen((List<int> data) {
           stderrBuf.write(UTF8.decode(data));
         });
 

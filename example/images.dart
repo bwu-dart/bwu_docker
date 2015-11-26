@@ -15,7 +15,7 @@ dynamic main() async {
   CreateResponse created =
       await conn.createContainer(new CreateContainerRequest()
         ..image = 'busybox'
-        ..hostConfig.logConfig = <String,String>{'Type': 'json-file'});
+        ..hostConfig.logConfig = <String, String>{'Type': 'json-file'});
 
   // start the container
   await conn.start(created.container);
@@ -24,7 +24,8 @@ dynamic main() async {
   Iterable<Container> containers = await conn.containers();
 
   // investigate response
-  final Container found = containers.firstWhere((Container c) => c.id == created.container.id);
+  final Container found =
+      containers.firstWhere((Container c) => c.id == created.container.id);
   print('found: ${found.id}, name: ${found.names.join(', ')}\n');
 
   print('all:');

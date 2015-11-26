@@ -57,8 +57,7 @@ DockerConnection _dockerConnection;
 dynamic startDocker() async {
   final Uri dockerHost = _dockerHost();
   print(dockerHost);
-  DockerConnection docker =
-      new DockerConnection(dockerHost, new http.Client());
+  DockerConnection docker = new DockerConnection(dockerHost, new http.Client());
   await docker.init();
   await _dindStartForTest(docker);
 }
@@ -75,7 +74,8 @@ Uri _uriUpdatePort(Uri uri, int port) {
 }
 
 Uri _dockerHost() {
-  final  String dockerHostStr = io.Platform.environment[dockerHostFromEnvironment];
+  final String dockerHostStr =
+      io.Platform.environment[dockerHostFromEnvironment];
   if (dockerHostStr == null || dockerHostStr.isEmpty) {
     fail(
         'To run the tests the environment variable "${dockerHostFromEnvironment}" '
@@ -88,8 +88,7 @@ Uri _dockerHost() {
 dynamic _testTaskImpl() async {
   final Uri dockerHost = _dockerHost();
 
-  DockerConnection docker =
-      new DockerConnection(dockerHost, new http.Client());
+  DockerConnection docker = new DockerConnection(dockerHost, new http.Client());
   await docker.init();
   try {
     await _dindStartForTest(docker);
@@ -107,10 +106,10 @@ dynamic _testTaskImpl() async {
 
 /// Prepare Docker-in-Docker instances for running tests.
 Future _dindStartForTest(DockerConnection docker) async {
-  await _dindCreateContainer(docker, _dindPort1)
-      .then/*<Container>*/((dynamic container) => _dindRemoteApiTest = container);
+  await _dindCreateContainer(docker, _dindPort1).then /*<Container>*/ (
+      (dynamic container) => _dindRemoteApiTest = container);
   await _dindCreateContainer(docker, _dindPort1 + 1)
-      .then/*<Container>*/((dynamic container) => _dindTasksTest = container);
+      .then /*<Container>*/ ((dynamic container) => _dindTasksTest = container);
 }
 
 /// Create and start a Docker-in-Docker container.
