@@ -1,8 +1,8 @@
-library bwu_docker.src.tasks;
+library bwu_docker.src.v1x15_to_v1x19.tasks;
 
 import 'dart:async' show Future, StreamSubscription;
 
-import 'package:bwu_docker/bwu_docker.dart';
+import 'package:bwu_docker/bwu_docker_v1x15_to_v1x19.dart';
 import 'dart:collection';
 
 /// Stops and removes all containers and removes all images.
@@ -56,7 +56,7 @@ class PurgeAllResult {
 Future<Iterable<Container>> stopAllContainers(
     DockerConnection connection) async {
   final Iterable<Container> containers = await connection.containers();
-  await Future.wait(containers.map((c) => connection.stop(c)));
+  await Future.wait(containers.map/*<Future>*/((Container c) => connection.stop(c)));
   return containers;
 }
 
@@ -68,8 +68,8 @@ Future<Iterable<Container>> removeAllExitedContainers(
     'status': ['exited']
   });
 
-  await Future
-      .wait(stoppedContainers.map((c) => connection.removeContainer(c)));
+  await Future.wait(stoppedContainers
+      .map /*<Future>*/ ((Container c) => connection.removeContainer(c)));
   return stoppedContainers;
 }
 
@@ -77,7 +77,8 @@ Future<Iterable<Container>> removeAllExitedContainers(
 /// If images are referenced by containers they can't be removed.
 Future<Iterable<ImageInfo>> removeAllImages(DockerConnection connection) async {
   final Iterable<ImageInfo> images = await connection.images();
-  await Future.wait(images.map((i) => connection.removeImage(new Image(i.id))));
+  await Future.wait(
+      images.map /*<Future>*/ ((ImageInfo i) => connection.removeImage(new Image(i.id))));
   return images;
 }
 
@@ -85,7 +86,7 @@ Future<Iterable<ImageInfo>> removeAllImages(DockerConnection connection) async {
 /// TODO(zoechi) This implementation is incomplete and supports only a very
 /// limited set of arguments.
 Future<CreateResponse> run(DockerConnection connection, String image,
-    {List<String> attach: const [],
+    {List<String> attach: const <String>[],
     List<String> addHost,
     List<String> command,
     bool detach: false,
@@ -100,14 +101,15 @@ Future<CreateResponse> run(DockerConnection connection, String image,
   assert(image != null && image.isNotEmpty);
 
   assert(attach != null);
-  attach = attach.map((e) => e.toLowerCase()).toList();
-  assert(attach.every((e) => const ['stdin', 'stdout', 'stderr'].contains(e)));
+  attach = attach.map /*<String>*/ ((String e) => e.toLowerCase()).toList();
+  assert(attach
+      .every((String e) => const ['stdin', 'stdout', 'stderr'].contains(e)));
   assert(detach != null);
   assert(publishAll != null);
   assert(privileged != null);
   assert(rm != null);
 
-  final createContainerRequest = new CreateContainerRequest()
+  final CreateContainerRequest createContainerRequest = new CreateContainerRequest()
     ..image = image
     ..hostConfig = new HostConfigRequest();
 
@@ -138,7 +140,7 @@ Future<CreateResponse> run(DockerConnection connection, String image,
     createContainerRequest.hostConfig.portBindings = portBindings;
     createContainerRequest.exposedPorts.addAll(new Map.fromIterable(
         portBindings.keys,
-        key: (k) => k,
+        key: (String k) => k,
         value: (_) => const {}));
   }
 
@@ -161,13 +163,13 @@ Future<CreateResponse> run(DockerConnection connection, String image,
     StreamSubscription eventsSubscription;
     eventsSubscription = connection.events(filters: new EventsFilter()
       ..events.addAll([ContainerEvent.stop, ContainerEvent.kill, ContainerEvent.die])
-      ..containers.add(createdResponse.container)).listen((event) {
+      ..containers.add(createdResponse.container)).listen((EventsResponse event) {
       new Future.delayed(const Duration(milliseconds: 200), () async {
         final Iterable<Container> containers =
             await connection.containers(filters: {
           'status': [ContainerStatus.exited.toString()]
         });
-        if (containers.any((c) => c.id == createdResponse.container.id)) {
+        if (containers.any((Container c) => c.id == createdResponse.container.id)) {
           try {
             await connection.removeContainer(createdResponse.container);
           } catch (e) {
@@ -190,7 +192,7 @@ Map<String, List<PortBinding>> parsePublishArgument(List<String> publish) {
   final Map<String, List<PortBinding>> portBindings =
       <String, List<PortBinding>>{};
 
-  publish.forEach((p) {
+  publish.forEach((String p) {
     String hostIp;
     String hostPort;
     String containerPort;
@@ -235,10 +237,10 @@ Map<String, List<PortBinding>> parsePublishArgument(List<String> publish) {
       int hostPortsTo;
 
       if (hostPort != null && hostPort.isNotEmpty) {
-        final hostPortsRange = hostPort.split('-');
+        final List<String> hostPortsRange = hostPort.split('-');
 
         if (hostPortsRange.length != 2 ||
-            hostPortsRange.any((p) => p.isEmpty)) {
+            hostPortsRange.any((String p) => p.isEmpty)) {
           throw new ArgumentError.value(
               hostPort, 'publish', 'Invalid host port range.');
         }
@@ -253,7 +255,7 @@ Map<String, List<PortBinding>> parsePublishArgument(List<String> publish) {
       }
 
       for (int i = 0; i <= containerPortsTo - containerPortsFrom; i++) {
-        final portBinding = new PortBindingRequest();
+        final PortBindingRequest portBinding = new PortBindingRequest();
 
         if (hostPortsFrom != null) {
           portBinding.hostPort = '${hostPortsFrom + i}';
@@ -291,7 +293,7 @@ Future _ensureImageExists(DockerConnection connection, String imageName) async {
   } on DockerRemoteApiError {
     final Iterable<CreateImageResponse> createResponse =
         await connection.createImage(imageName);
-    for (var e in createResponse) {
+    for (CreateImageResponse e in createResponse) {
       print('${e.status} - ${e.progressDetail}');
     }
   }

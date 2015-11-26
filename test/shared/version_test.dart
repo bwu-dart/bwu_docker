@@ -2,7 +2,7 @@
 library bwu_docker.test.version;
 
 import 'package:test/test.dart';
-import 'package:bwu_docker/src/data_structures.dart';
+import 'package:bwu_docker/src/shared/version.dart';
 
 void main() {
   group('version', () {

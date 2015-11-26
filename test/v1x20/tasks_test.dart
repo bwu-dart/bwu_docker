@@ -17,8 +17,8 @@ import 'dart:io' as io;
 import 'dart:async' show Future, Stream;
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
-import 'package:bwu_docker/bwu_docker.dart';
-import 'package:bwu_docker/tasks.dart';
+import 'package:bwu_docker/bwu_docker_v1x20.dart';
+import 'package:bwu_docker/tasks_v1x20.dart';
 import 'utils.dart' as utils;
 
 const String imageName = 'busybox';

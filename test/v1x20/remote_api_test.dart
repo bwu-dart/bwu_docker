@@ -6,8 +6,7 @@ import 'dart:convert' show JSON, UTF8;
 import 'dart:async' show Completer, Future, Stream, StreamSubscription;
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
-import 'package:bwu_docker/src/remote_api.dart';
-import 'package:bwu_docker/src/data_structures.dart';
+import 'package:bwu_docker/bwu_docker_v1x20.dart';
 import 'utils.dart' as utils;
 
 //const imageName = 'selenium/standalone-chrome';
@@ -39,9 +38,7 @@ dynamic main([List<String> args]) async {
       new DockerConnection(Uri.parse(envDockerHost), new http.Client());
   await connection.init();
 
-  // Run tests for each [RemoteApiVersion] supported by this package and
-  // supported by the Docker service.
-  for (RemoteApiVersion remoteApiVersion in RemoteApiVersion.versions) {
+  RemoteApiVersion remoteApiVersion = RemoteApiVersion.v1x20;
     group(remoteApiVersion.toString(), () => tests(remoteApiVersion),
         skip: remoteApiVersion > connection.remoteApiVersion
             ? remoteApiVersion.toString()
@@ -117,15 +114,15 @@ void tests(RemoteApiVersion remoteApiVersion) {
 
       test('should create a new container with an assigned name', () async {
         // set up
-        const containerName = '/dummy_name';
+        const String containerName = '/dummy_name';
 
         final Iterable<Container> alreadyExisting =
             await connection.containers(filters: {
           'name': [containerName]
         }, all: true);
         alreadyExisting
-            .where((c) => c.names.contains(containerName))
-            .forEach((c) {
+            .where((Container c) => c.names.contains(containerName))
+            .forEach((Container c) {
           connection.removeContainer(new Container(c.id));
         });
         await utils.waitMilliseconds(100);
@@ -148,9 +145,9 @@ void tests(RemoteApiVersion remoteApiVersion) {
 
         expect(containers.length, greaterThan(0));
         expect(
-            containers, everyElement((c) => c.names.contains(containerName)));
+            containers, everyElement((Container c) => c.names.contains(containerName)));
       },
-          skip: remoteApiVersion < RemoteApiVersion.v1_17
+          skip: remoteApiVersion < RemoteApiVersion.v1x17
               ? remoteApiVersion.toString()
               : false);
     });
@@ -163,7 +160,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
         await connection.start(createdContainer);
         await connection.restart(createdContainer);
         await connection.kill(createdContainer, signal: 'SIGKILL');
-        final startedContainer = await connection.start(createdContainer);
+        final SimpleResponse startedContainer = await connection.start(createdContainer);
 
         expect(startedContainer, isNotNull);
       });
@@ -176,8 +173,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
             timestamps: true,
             follow: false,
             tail: 10);
-        final buf = new io.BytesBuilder(copy: false);
-        final sub = log.take(100).listen(buf.add);
+        final io.BytesBuilder buf = new io.BytesBuilder(copy: false);
+        final StreamSubscription sub = log.take(100).listen(buf.add);
 
         await sub.asFuture();
 
@@ -193,8 +190,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
             timestamps: true,
             follow: false,
             tail: 10);
-        final buf = new io.BytesBuilder(copy: false);
-        final sub = log.take(100).listen(buf.add);
+        final io.BytesBuilder buf = new io.BytesBuilder(copy: false);
+        final StreamSubscription sub = log.take(100).listen(buf.add);
 
         await sub.asFuture();
 
@@ -208,8 +205,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
             timestamps: true,
             follow: false,
             tail: 10);
-        final bufSince = new io.BytesBuilder(copy: false);
-        final subSince = logSince.take(100).listen(bufSince.add);
+        final io.BytesBuilder bufSince = new io.BytesBuilder(copy: false);
+        final StreamSubscription subSince = logSince.take(100).listen(bufSince.add);
 
         await subSince.asFuture();
 
@@ -221,7 +218,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
 //        }
         expect(bufSince.isEmpty, isTrue);
       },
-          skip: remoteApiVersion < RemoteApiVersion.v1_19
+          skip: remoteApiVersion < RemoteApiVersion.v1x19
               ? remoteApiVersion.toString()
               : false);
     });
@@ -245,7 +242,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
           'status': [ContainerStatus.running.toString()]
         });
 
-        expect(containers, anyElement((c) => c.id == createdContainer.id));
+        expect(containers, anyElement((Container c) => c.id == createdContainer.id));
       }, timeout: const Timeout(const Duration(seconds: 100)));
     });
 
@@ -364,7 +361,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
           expect(updatedContainers, isNotEmpty);
           expect(updatedContainers.first.image, isNotEmpty);
           expect(updatedContainers,
-              anyElement((c) => c.id == createdContainer.id));
+              anyElement((Container c) => c.id == createdContainer.id));
         });
       });
 
@@ -393,7 +390,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
               await connection.top(createdContainer);
 
           // verification
-          const titles = const [
+          const List<String> titles = const <String>[
             'UID',
             'PID',
             'PPID',
@@ -406,7 +403,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
           expect(topResponse.titles, orderedEquals(titles));
           expect(topResponse.processes.length, greaterThan(0));
           expect(topResponse.processes,
-              anyElement((e) => e.any((i) => i.contains(runningProcess))));
+              anyElement((List<String> e) => e.any((String i) => i.contains(runningProcess))));
         });
 
         test(
@@ -417,7 +414,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
               await connection.top(createdContainer, psArgs: 'aux');
 
           // verification
-          const titles = const [
+          const List<String> titles = const <String>[
             'USER',
             'PID',
             '%CPU',
@@ -433,7 +430,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
           expect(topResponse.titles, orderedEquals(titles));
           expect(topResponse.processes.length, greaterThan(0));
           expect(topResponse.processes,
-              anyElement((e) => e.any((i) => i.contains(runningProcess))));
+              anyElement((List<String> e) => e.any((String i) => i.contains(runningProcess))));
         });
       });
 
@@ -454,13 +451,13 @@ void tests(RemoteApiVersion remoteApiVersion) {
                 'ls -la'
               ]);
           //cmd: ['echo hallo']);
-          final startResponse = await connection.execStart(createdExec);
+          final DeMux startResponse = await connection.execStart(createdExec);
 
-          await for (var _ in startResponse.stdout) {
+          await for (List<int> _ in startResponse.stdout) {
 // only for debugging purposes (otherwise spams the test log output)
 //            print('stdout: ${UTF8.decode(_)}');
           }
-          await for (var _ in startResponse.stderr) {
+          await for (List<int> _ in startResponse.stderr) {
 // only for debugging purposes (otherwise spams the test log output)
 //            print('stderr: ${UTF8.decode(_)}');
           }
@@ -476,8 +473,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
           // TODO(zoechi) provoke some changes and check the result
           // expect(changesResponse.changes.length, greaterThan(0));
           expect(changesResponse.changes,
-              everyElement((c) => c.path.startsWith('/')));
-          expect(changesResponse.changes, everyElement((c) => c.kind != null));
+              everyElement((ChangesPath c) => c.path.startsWith('/')));
+          expect(changesResponse.changes, everyElement((ChangesPath c) => c.kind != null));
         });
       });
 
@@ -502,7 +499,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
           // canceling the export stream.
           await utils.waitMilliseconds(500);
         },
-            skip: remoteApiVersion < RemoteApiVersion.v1_17
+            skip: remoteApiVersion < RemoteApiVersion.v1x17
                 ? remoteApiVersion.toString()
                 : false);
       });
@@ -518,7 +515,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
           final List<StatsResponse> items = await stream.toList();
 
           // verification
-          for (final item in items) {
+          for (final StatsResponse item in items) {
             expect(item.read, isNotNull);
             expect(item.read.millisecondsSinceEpoch,
                 greaterThan(new DateTime(1, 1, 1).millisecondsSinceEpoch));
@@ -527,7 +524,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
             expect(item.memoryStats.limit, greaterThan(0));
           }
         },
-            skip: remoteApiVersion < RemoteApiVersion.v1_17
+            skip: remoteApiVersion < RemoteApiVersion.v1x17
                 ? remoteApiVersion.toString()
                 : false);
 
@@ -547,7 +544,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
           expect(item.cpuStats.cupUsage.totalUsage, greaterThan(0));
           expect(item.memoryStats.limit, greaterThan(0));
         },
-            skip: remoteApiVersion < RemoteApiVersion.v1_19
+            skip: remoteApiVersion < RemoteApiVersion.v1x19
                 ? remoteApiVersion.toString()
                 : false);
       });
@@ -691,7 +688,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
           // 1.18 '/SomeOtherName
           expect(renamedStatus.name, endsWith('SomeOtherName'));
         },
-            skip: remoteApiVersion < RemoteApiVersion.v1_17
+            skip: remoteApiVersion < RemoteApiVersion.v1x17
                 ? remoteApiVersion.toString()
                 : false);
       });
@@ -780,7 +777,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
           // verification
           expect(buf.length, greaterThan(1000));
         },
-            skip: remoteApiVersion < RemoteApiVersion.v1_17
+            skip: remoteApiVersion < RemoteApiVersion.v1x17
                 ? remoteApiVersion.toString()
                 : false);
       }, skip: 'not yet implemented');
@@ -792,10 +789,10 @@ void tests(RemoteApiVersion remoteApiVersion) {
               await connection.container(createdContainer);
           expect(startedStatus.state.running, isNotNull);
 
-          final waitReturned = expectAsync(() {});
+          final Function waitReturned = expectAsync(() {});
 
           // exercise
-          connection.wait(createdContainer).then((response) {
+          connection.wait(createdContainer).then/*<WaitResponse>*/((WaitResponse response) {
             // verification
             expect(response, isNotNull);
             expect(response.statusCode, isNot(0));
@@ -844,10 +841,10 @@ void tests(RemoteApiVersion remoteApiVersion) {
             () async {
           // exercise
 //          print(createdContainer.id);
-          final fileStream =
+          final Stream<List<int>> fileStream =
               await connection.copy(createdContainer, '/copytest.txt');
           final StringBuffer buf = new StringBuffer();
-          await for (var data in fileStream) {
+          await for (List<int> data in fileStream) {
             buf.write(UTF8.decode(data));
           }
 
@@ -879,10 +876,10 @@ void tests(RemoteApiVersion remoteApiVersion) {
 
         expect(attachResponse, isNotNull);
 
-        final buf = new io.BytesBuilder(copy: false);
+        final io.BytesBuilder buf = new io.BytesBuilder(copy: false);
 
-        final stdoutSubscription =
-            attachResponse.stdout.take(1000).listen((data) {
+        final StreamSubscription stdoutSubscription =
+            attachResponse.stdout.take(1000).listen((List<int> data) {
           buf.add(data);
         });
 
@@ -891,12 +888,12 @@ void tests(RemoteApiVersion remoteApiVersion) {
 
         // verification
         expect(buf.length, greaterThan(50));
-        final s = UTF8.decode(buf.toBytes());
+        final String s = UTF8.decode(buf.toBytes());
         expect(s, contains('up'));
         expect(s, contains(' day'));
         expect(s, contains('load average'));
       },
-          skip: remoteApiVersion < RemoteApiVersion.v1_17
+          skip: remoteApiVersion < RemoteApiVersion.v1x17
               ? remoteApiVersion.toString()
               : false);
     });
@@ -913,11 +910,11 @@ void tests(RemoteApiVersion remoteApiVersion) {
         expect(images, isNotEmpty);
         expect(images.first.id, isNotEmpty);
         expect(images,
-            anyElement((img) => img.repoTags.contains(imageNameAndTag)));
+            anyElement((ImageInfo img) => img.repoTags.contains(imageNameAndTag)));
         expect(
             images,
-            anyElement((img) =>
-                (img.created as DateTime).millisecondsSinceEpoch >
+            anyElement((ImageInfo img) =>
+                img.created.millisecondsSinceEpoch >
                     new DateTime(1, 1, 1).millisecondsSinceEpoch));
       });
 
@@ -953,7 +950,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
           () async {
         final Iterable<CreateImageResponse> createImageResponse =
             await connection.createImage(imageNameAndTag);
-        if (connection.remoteApiVersion <= RemoteApiVersion.v1_15) {
+        if (connection.remoteApiVersion <= RemoteApiVersion.v1x15) {
           expect(createImageResponse.first.status,
               'Pulling repository ${imageName}');
         } else {
@@ -1013,7 +1010,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
 //        expect(imagePushResponse,
 //            anyElement((ImagePushResponse e) => e.tags != null && e.tags.isNotEmpty));
         expect(
-            imagePushResponse, anyElement((e) => e.size != null && e.size > 0));
+            imagePushResponse, anyElement((ImagePushResponse e) => e.size != null && e.size > 0));
       }, skip: 'don\'t know yet how to test');
     });
 
@@ -1061,8 +1058,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
             searchResponse,
             anyElement(
                 (SearchResponse e) => e.name != null && e.name.isNotEmpty));
-        expect(searchResponse, anyElement((e) => e.isOfficial != null));
-        expect(searchResponse, anyElement((e) => e.isAutomated != null));
+        expect(searchResponse, anyElement((SearchResponse e) => e.isOfficial != null));
+        expect(searchResponse, anyElement((SearchResponse e) => e.isAutomated != null));
         expect(
             searchResponse,
             anyElement(
@@ -1084,7 +1081,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
         expect(
             connection.auth(new AuthRequest('xxxxx', 'xxxxx', 'xxx@xxx.com',
                 'https://index.docker.io/v1/')),
-            throwsA((e) => e is DockerRemoteApiError &&
+            throwsA((Object e) => e is DockerRemoteApiError &&
                 //e.body == 'Wrong login/password, please try again\n'));
                 e.body ==
                     'Login: Account is not Active. Please check your e-mail for a confirmation link.\n'));
@@ -1206,8 +1203,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
         await createContainer();
         await connection.start(createdContainer);
 
-        const entryPoint = 'echo sometext > ~/somefile.txt';
-        const args = 'ls -la';
+        const String entryPoint = 'echo sometext > ~/somefile.txt';
+        const String args = 'ls -la';
 
         // exercise
         final Exec createResponse = await connection.execCreate(
@@ -1228,7 +1225,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
         expect(inspectResponse.openStdout, isTrue);
         expect(inspectResponse.openStdin, isFalse);
       },
-          skip: remoteApiVersion < RemoteApiVersion.v1_17
+          skip: remoteApiVersion < RemoteApiVersion.v1x17
               ? remoteApiVersion.toString()
               : false);
     });
@@ -1239,7 +1236,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
         await createContainer();
         await connection.start(createdContainer);
 
-        const entryPoint = const ['/bin/sh', '-c', 'tail -f /etc/inittab'];
+        const List<String> entryPoint = const <String>['/bin/sh', '-c', 'tail -f /etc/inittab'];
 
         // exercise
         final Exec createResponse = await connection.execCreate(
@@ -1282,7 +1279,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
         expect(stdoutBuf, isNotEmpty);
         expect(stderrBuf, isEmpty);
       },
-          skip: remoteApiVersion < RemoteApiVersion.v1_17
+          skip: remoteApiVersion < RemoteApiVersion.v1x17
               ? remoteApiVersion.toString()
               : false);
     });
@@ -1312,7 +1309,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
         expect(inspectResponse.openStderr, isFalse);
         expect(inspectResponse.container.id, createdContainer.id);
       },
-          skip: remoteApiVersion < RemoteApiVersion.v1_17
+          skip: remoteApiVersion < RemoteApiVersion.v1x17
               ? remoteApiVersion.toString()
               : false);
 
@@ -1338,7 +1335,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
         expect(inspectResponse.openStderr, isFalse);
         expect(inspectResponse.container.id, createdContainer.id);
       },
-          skip: remoteApiVersion < RemoteApiVersion.v1_17
+          skip: remoteApiVersion < RemoteApiVersion.v1x17
               ? remoteApiVersion.toString()
               : false);
     });
@@ -1350,14 +1347,14 @@ void tests(RemoteApiVersion remoteApiVersion) {
       // set up
       await createContainer();
 
-      final startReceived = expectAsync(() {});
-      final stopReceived = expectAsync(() {});
+      final Function startReceived = expectAsync(() {});
+      final Function stopReceived = expectAsync(() {});
 
       // exercise
       StreamSubscription subscription;
       subscription = connection.events(filters: new EventsFilter()
         ..events.addAll([ContainerEvent.start, ContainerEvent.stop])
-        ..containers.add(createdContainer)).listen((event) {
+        ..containers.add(createdContainer)).listen((EventsResponse event) {
         // verify
         if (event.id == createdContainer.id &&
             event.from == imageNameAndTag &&
@@ -1369,7 +1366,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
             connection.stop(createdContainer);
             //
           } else if (event.status == ContainerEvent.die) {
-            if (connection.remoteApiVersion >= RemoteApiVersion.v1_17) {
+            if (connection.remoteApiVersion >= RemoteApiVersion.v1x17) {
               fail('"die" event was filtered out.');
             }
             //
@@ -1391,9 +1388,9 @@ void tests(RemoteApiVersion remoteApiVersion) {
       // set up
       await createContainer();
 
-      final startReceived = expectAsync(() {});
-      final dieReceived = expectAsync(() {});
-      final stopReceived = expectAsync(() {});
+      final Function startReceived = expectAsync(() {});
+      final Function dieReceived = expectAsync(() {});
+      final Function stopReceived = expectAsync(() {});
 
       // exercise
       StreamSubscription subscription;
@@ -1401,7 +1398,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
           .events(
               since: new DateTime.now(),
               until: new DateTime.now().add(const Duration(minutes: 2)))
-          .listen((event) {
+          .listen((EventsResponse event) {
         // verify
         if (event.id == createdContainer.id &&
             event.from == imageNameAndTag &&
@@ -1413,7 +1410,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
             connection.stop(createdContainer);
             //
           } else if (event.status == ContainerEvent.die) {
-            if (connection.remoteApiVersion >= RemoteApiVersion.v1_17) {
+            if (connection.remoteApiVersion >= RemoteApiVersion.v1x17) {
               dieReceived();
             }
             //

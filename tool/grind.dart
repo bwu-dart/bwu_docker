@@ -160,7 +160,7 @@ Future<Container> _dindCreateContainer(
     }
   }
   if (!isRunning) {
-    throw 'Docker container didn\'t start - message: "${(await docker.logs(response.container)).toList()}" - exitcode "${containerInfo.state.exitCode}".';
+    throw 'Docker container didn\'t start - message: "${(await docker.logs(response.container, stdout: true, stderr: true)).toList()}" - exitcode "${containerInfo.state.exitCode}".';
   }
   return response.container;
 

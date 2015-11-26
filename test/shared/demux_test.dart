@@ -4,7 +4,7 @@ library bwu_docker.test.demux;
 import 'dart:async' show Future, StreamController, StreamSubscription;
 import 'package:collection/equality.dart';
 import 'package:test/test.dart';
-import 'package:bwu_docker/src/remote_api.dart';
+import 'package:bwu_docker/src/v1x20/remote_api.dart';
 
 final List<int> sampleString = 'abcdefghij'.codeUnits;
 final Function eq = const ListEquality().equals;

@@ -1,16 +1,12 @@
 library bwu_docker.test.all;
 
 import 'package:test/test.dart';
-import 'data_structures_test.dart' as ds;
-import 'demux_test.dart' as demux;
-import 'remote_api_test.dart' as ra;
-import 'tasks_test.dart' as tasks;
-import 'version_test.dart' as version;
+import 'shared/all.dart' as shared;
+import 'v1x15_to_v1x19/all.dart' as v1x15_to_v1x19;
+import 'v1x20/all.dart' as v1x20;
 
 void main() {
-  group('', () => ds.main());
-  group('', () => demux.main());
-  group('', () => ra.main());
-  group('', () => tasks.main());
-  group('', () => version.main());
+  group('', () => shared.main());
+  group('', () => v1x15_to_v1x19.main());
+  group('', () => v1x20.main());
 }
