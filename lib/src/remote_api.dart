@@ -10,9 +10,9 @@ import 'data_structures.dart';
 typedef String ResponsePreprocessor(String s);
 
 class RequestType {
-  static const post = const RequestType('POST');
-  static const get = const RequestType('GET');
-  static const delete = const RequestType('DELETE');
+  static const RequestType post = const RequestType('POST');
+  static const RequestType get = const RequestType('GET');
+  static const RequestType delete = const RequestType('DELETE');
 
   final String value;
 
@@ -55,8 +55,8 @@ String dockerHostFromEnvironment = 'DOCKER_HOST_REMOTE_API';
 /// The primary API class to initialize a connection to a Docker hosts remote
 /// API and send any number of commands to this Docker service.
 class DockerConnection {
-  final Map headersJson = {'Content-Type': 'application/json'};
-  final Map headersTar = {'Content-Type': 'application/tar'};
+  final Map<String,String> headersJson = <String,String>{'Content-Type': 'application/json'};
+  final Map<String,String> headersTar = <String,String>{'Content-Type': 'application/tar'};
 
   VersionResponse _dockerVersion;
   VersionResponse get dockerVersion => _dockerVersion;
@@ -113,7 +113,7 @@ class DockerConnection {
 
   Future<dynamic> _request(RequestType requestType, String path,
       {Map body,
-      Map query,
+      Map<String,String> query,
       Map<String, String> headers,
       ResponsePreprocessor preprocessor}) async {
     assert(requestType != null);
@@ -124,7 +124,7 @@ class DockerConnection {
     }
     Map<String, String> _headers = headers != null ? headers : headersJson;
 
-    final url = serverReference.buildUri(path, query);
+    final Uri url = serverReference.buildUri(path, query);
 //    print('Uri: ${url}, ${requestType}');
 
     http.Response response;
@@ -150,7 +150,7 @@ class DockerConnection {
           message: 'Request failed: ${requestType} ${url}');
     }
     if (response.body != null && response.body.isNotEmpty) {
-      var data = response.body;
+      String data = response.body;
       if (preprocessor != null) {
         data = preprocessor(response.body);
       }
@@ -175,9 +175,9 @@ class DockerConnection {
     if (body != null) {
       data = JSON.encode(body);
     }
-    final url = serverReference.buildUri(path, query);
+    final Uri url = serverReference.buildUri(path, query);
 
-    final request = new http.Request(requestType.toString(), url)
+    final http.Request request = new http.Request(requestType.toString(), url)
       ..headers.addAll(headers != null ? headers : headersJson);
     if (data != null) {
       request.body = data;
@@ -196,9 +196,9 @@ class DockerConnection {
       {Map<String, String> query}) async {
     assert(stream != null);
 
-    final url = serverReference.buildUri(path, query);
+    final Uri url = serverReference.buildUri(path, query);
 
-    final request = new http.StreamedRequest('POST', url)
+    final http.StreamedRequest request = new http.StreamedRequest('POST', url)
       ..headers.addAll(headersTar);
     stream.listen(request.sink.add);
     final http.BaseResponse response =
@@ -243,7 +243,7 @@ class DockerConnection {
     final List response =
         await _request(RequestType.get, '/containers/json', query: query);
 //    print(response);
-    return response.map((e) => new Container.fromJson(e, remoteApiVersion));
+    return response.map/*<Iterable<Container>>*/((Map<String,dynamic> e) => new Container.fromJson( e, remoteApiVersion));
   }
 
   /// Create a container from a container configuration.
@@ -326,11 +326,11 @@ class DockerConnection {
       bool stderr,
       DateTime since,
       bool timestamps,
-      dynamic tail}) async {
+      Object tail}) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
     assert(stdout == true || stderr == true);
-    final query = {};
+    final Map<String,String> query = <String,String>{};
     if (follow != null) query['follow'] = follow.toString();
     if (stdout != null) query['stdout'] = stdout.toString();
     if (stderr != null) query['stderr'] = stderr.toString();
@@ -488,7 +488,7 @@ class DockerConnection {
     assert(signal == null ||
         (signal is String && signal.isNotEmpty) ||
         (signal is int));
-    final query = {'signal': signal.toString()};
+    final Map<String,String> query = <String,String>{'signal': signal.toString()};
     final Map response = await _request(
         RequestType.post, '/containers/${container.id}/kill',
         query: query);
@@ -601,7 +601,7 @@ class DockerConnection {
       {bool logs, bool stream, bool stdin, bool stdout, bool stderr}) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
-    final query = {};
+    final Map<String,String> query = <String,String>{};
     if (logs != null) query['logs'] = logs.toString();
     if (stream != null) query['stream'] = stream.toString();
     if (stdin != null) query['stdin'] = stdin.toString();
@@ -632,7 +632,7 @@ class DockerConnection {
       {bool logs, bool stream, bool stdin, bool stdout, bool stderr}) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
-    final query = {};
+    final Map<String,String> query = <String,String>{};
     if (logs != null) query['logs'] = logs.toString();
     if (stream != null) query['stream'] = stream.toString();
     if (stdin != null) query['stdin'] = stdin.toString();
@@ -691,7 +691,7 @@ class DockerConnection {
   Future<Stream> copy(Container container, String resource) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
-    final json = new CopyRequestPath(resource).toJson();
+    final Map<String,dynamic> json = new CopyRequestPath(resource).toJson();
     return _requestStream(RequestType.post, '/containers/${container.id}/copy',
         body: json);
   }
@@ -817,7 +817,7 @@ class DockerConnection {
       String tag,
       String registry}) async {
     assert(fromImage != null && fromImage.isNotEmpty);
-    Map<String, String> query = {};
+    Map<String, String> query = <String, String>{};
     if (fromImage != null) query['fromImage'] = fromImage;
     if (fromSrc != null) query['fromSrc'] = fromSrc;
     if (repo != null) query['repo'] = repo;
@@ -921,7 +921,7 @@ class DockerConnection {
     assert(tag != null && tag.isNotEmpty);
     assert(repo != null && repo.isNotEmpty);
 
-    Map<String, String> query = {};
+    Map<String, String> query = <String, String>{};
     if (tag != null) query['tag'] = tag;
     if (repo != null) query['repo'] = repo;
     if (force != null) query['force'] = force.toString();
@@ -945,7 +945,7 @@ class DockerConnection {
       {bool force, bool noPrune}) async {
     assert(image != null && image.name != null && image.name.isNotEmpty);
 
-    Map<String, String> query = {};
+    Map<String, String> query = <String, String>{};
     if (force != null) query['force'] = force.toString();
     if (noPrune != null) query['noprune'] = noPrune.toString();
 
@@ -971,7 +971,7 @@ class DockerConnection {
     final List response =
         await _request(RequestType.get, '/images/search', query: query);
     return response
-        .map((e) => new SearchResponse.fromJson(e, remoteApiVersion));
+        .map((Map<String,dynamic> e) => new SearchResponse.fromJson(e, remoteApiVersion));
   }
 
   /// Get the default username and email.
@@ -1033,7 +1033,7 @@ class DockerConnection {
       {String repo, String tag, String comment, String author}) async {
     assert(config != null);
     assert(config != null);
-    Map<String, String> query = {};
+    Map<String, String> query = <String, String>{};
     if (container != null) query['container'] = container.id;
     if (repo != null) query['repo'] = repo;
     if (tag != null) query['tag'] = tag;
@@ -1065,17 +1065,17 @@ class DockerConnection {
   /// 500 - server error
   Stream<EventsResponse> events(
       {DateTime since, DateTime until, EventsFilter filters}) async* {
-    Map<String, String> query = {};
+    Map<String, String> query = <String, String>{};
     if (since != null) query['since'] =
         (since.toUtc().millisecondsSinceEpoch ~/ 1000).toString();
     if (until != null) query['until'] =
         (until.toUtc().millisecondsSinceEpoch ~/ 1000).toString();
     if (filters != null) query['filters'] = JSON.encode(filters.toJson());
 
-    final response =
-        await _requestStream(RequestType.get, '/events', query: query);
+    final Stream<List<int>> response =
+        await _requestStream(RequestType.get, '/events', query: query) as Stream<List<int>>;
     if (response != null) {
-      await for (var e in response) {
+      await for (List<int> e in response) {
 //        print(UTF8.decode(e));
         yield new EventsResponse.fromJson(
             JSON.decode(UTF8.decode(e)), remoteApiVersion);
@@ -1097,7 +1097,7 @@ class DockerConnection {
   /// 500 - server error
   Future<http.ByteStream> get(Image image) async {
     assert(image != null && image.name != null && image.name.isNotEmpty);
-    return _requestStream(RequestType.get, '/images/${image.name}/get');
+    return _requestStream(RequestType.get, '/images/${image.name}/get') as http.ByteStream;
   }
 
   /// Get a tarball containing all images and metadata for one or more
@@ -1225,11 +1225,11 @@ class DockerConnection {
 }
 
 class DeMux {
-  static const _stdin = 0;
-  static const _stdout = 1;
-  static const _stderr = 2;
-  static const _headerLength = 8;
-  static const _firstLengthBytePos = 4;
+  static const int _stdin = 0;
+  static const int _stdout = 1;
+  static const int _stderr = 2;
+  static const int _headerLength = 8;
+  static const int _firstLengthBytePos = 4;
 
   final Stream<List<int>> _stream;
 
@@ -1255,12 +1255,12 @@ class DeMux {
     int byteCountdown = 0;
 
     List<int> buf = <int>[];
-    _stream.listen((data) {
+    _stream.listen((List<int> data) {
       buf.addAll(data);
       while (buf.length > _headerLength) {
         if (byteCountdown == 0) {
           if (buf.length >= _headerLength) {
-            final header = buf.sublist(0, _headerLength);
+            final List<int> header = buf.sublist(0, _headerLength);
             buf.removeRange(0, _headerLength);
 
             switch (header[0]) {

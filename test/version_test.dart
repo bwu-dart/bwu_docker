@@ -4,20 +4,20 @@ library bwu_docker.test.version;
 import 'package:test/test.dart';
 import 'package:bwu_docker/src/data_structures.dart';
 
-main() {
+void main() {
   group('version', () {
     test('create', () {
-      final v1 = new Version.fromString('1.2.3');
+      final Version v1 = new Version.fromString('1.2.3');
       expect(v1.major, 1);
       expect(v1.minor, 2);
       expect(v1.patch, 3);
 
-      final v2 = new Version.fromString('10.20.30');
+      final Version v2 = new Version.fromString('10.20.30');
       expect(v2.major, 10);
       expect(v2.minor, 20);
       expect(v2.patch, 30);
 
-      final v3 = new Version.fromString('1.2');
+      final Version v3 = new Version.fromString('1.2');
       expect(v3.major, 1);
       expect(v3.minor, 2);
       expect(v3.patch, null);

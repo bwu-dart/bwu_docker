@@ -133,8 +133,8 @@ Future<CreateResponse> run(DockerConnection connection, String image,
   }
 
   if (publish != null && publish.isNotEmpty) {
-    assert(publish.every((p) => p != null && p.isNotEmpty));
-    final portBindings = parsePublishArgument(publish);
+    assert(publish.every((String p) => p != null && p.isNotEmpty));
+    final Map<String, List<PortBinding>> portBindings = parsePublishArgument(publish);
     createContainerRequest.hostConfig.portBindings = portBindings;
     createContainerRequest.exposedPorts.addAll(new Map.fromIterable(
         portBindings.keys,
@@ -196,7 +196,7 @@ Map<String, List<PortBinding>> parsePublishArgument(List<String> publish) {
     String containerPort;
     String protocol = '/tcp';
 
-    final parts = p.split(':');
+    final List<String> parts = p.split(':');
     if (parts.length == 1) {
       containerPort = parts[0];
     } else if (parts.length == 2) {
@@ -214,16 +214,16 @@ Map<String, List<PortBinding>> parsePublishArgument(List<String> publish) {
         containerPort.isEmpty) throw new ArgumentError.value(
         p, 'publish', 'Invalid value.');
     if (containerPort.contains('-')) {
-      final containerPortsRange = containerPort.split('-');
+      final List<String> containerPortsRange = containerPort.split('-');
       if (containerPortsRange.length != 2 ||
-          containerPortsRange.any((p) => p.isEmpty)) {
+          containerPortsRange.any((String p) => p.isEmpty)) {
         throw new ArgumentError.value(
             containerPort, 'publish', 'Invalid container port range.');
       }
       int containerPortsFrom = int.parse(containerPortsRange[0]);
       int containerPortsTo;
       if (containerPortsRange[1].contains('/')) {
-        final containerPortParts = containerPortsRange[1].split('/');
+        final List<String> containerPortParts = containerPortsRange[1].split('/');
         containerPortsTo = int.parse(containerPortParts[0]);
         protocol = '/${containerPortParts[1]}';
       } else {
@@ -263,10 +263,10 @@ Map<String, List<PortBinding>> parsePublishArgument(List<String> publish) {
         portBindings['${containerPortsFrom + i}${protocol}'] = [portBinding];
       }
     } else {
-      final portBinding = new PortBindingRequest();
+      final PortBindingRequest portBinding = new PortBindingRequest();
 
       if (containerPort.contains('/')) {
-        final containerPortParts = containerPort.split('/');
+        final List<String> containerPortParts = containerPort.split('/');
         containerPort = containerPortParts[0];
         protocol = '/${containerPortParts[1]}';
       }
@@ -284,7 +284,7 @@ Map<String, List<PortBinding>> parsePublishArgument(List<String> publish) {
 }
 
 /// Check if image exists or create it and wait until it is available.
-Future _ensureImageExists(DockerConnection connection, imageName) async {
+Future _ensureImageExists(DockerConnection connection, String imageName) async {
   try {
     await connection.image(new Image(imageName));
   } on DockerRemoteApiError {

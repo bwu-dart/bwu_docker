@@ -21,15 +21,15 @@ import 'utils.dart' as utils;
 // jpetazzo/dind became docker
 // // docker run --privileged -d -p 1234:1234 -e PORT=1234 jpetazzo/dind
 // See also https://github.com/bwu-dart/bwu_docker/wiki/Development-tips-&-tricks#run-docker-inside-docker
-const imageName = 'busybox';
-const imageTag = 'buildroot-2014.02';
-const entryPoint = '/bin/sh';
-const runningProcess = '/bin/sh';
-const imageNameAndTag = '${imageName}:${imageTag}';
+const String imageName = 'busybox';
+const String imageTag = 'buildroot-2014.02';
+const String entryPoint = '/bin/sh';
+const String runningProcess = '/bin/sh';
+const String imageNameAndTag = '${imageName}:${imageTag}';
 
 String envDockerHost;
 
-main([List<String> args]) async {
+dynamic main([List<String> args]) async {
   envDockerHost = io.Platform.environment[dockerHostFromEnvironment];
   if (envDockerHost == null) {
     throw '$dockerHostFromEnvironment must be set in ENV';
@@ -54,12 +54,12 @@ void tests(RemoteApiVersion remoteApiVersion) {
   Container createdContainer;
 
   /// setUp helper to create the image used in tests if it is not yet available.
-  final ensureImageExists = () async {
+  Future ensureImageExists () async {
     return utils.ensureImageExists(connection, imageNameAndTag);
   };
 
   /// setUp helper to create a container from the image used in tests.
-  final createContainer = () async {
+  Future createContainer() async {
     createdContainer =
         (await connection.createContainer(new CreateContainerRequest()
           ..image = imageNameAndTag
@@ -70,11 +70,11 @@ void tests(RemoteApiVersion remoteApiVersion) {
           ..openStdin = false
           ..stdinOnce = false
           ..tty = true
-          ..hostConfig.logConfig = {'Type': 'json-file'})).container;
+          ..hostConfig.logConfig = <String,String>{'Type': 'json-file'})).container;
   };
 
   /// tearDown helper to remove the container created in setUp
-  final removeContainer = () async {
+  Future removeContainer() async {
     await utils.removeContainer(connection, createdContainer);
     createdContainer = null;
   };
@@ -305,7 +305,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
           // verification
           expect(containers, isNotEmpty);
           expect(containers.first.image, isNotEmpty);
-          expect(containers, anyElement((c) => c.image == imageNameAndTag));
+          expect(containers, anyElement((Container c) => c.image == imageNameAndTag));
         });
 
         test('should return the list of containers including status exited',
@@ -314,7 +314,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
           final Iterable<Container> containers = await connection.containers();
           expect(containers, isNotEmpty);
           expect(containers.first.image, isNotEmpty);
-          expect(containers, anyElement((c) => c.id == createdContainer.id));
+          expect(containers, anyElement((Container c) => c.id == createdContainer.id));
 
           await connection.stop(createdContainer);
 
@@ -324,7 +324,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
 
           // verification
           final Container stoppedContainer =
-              updatedContainers.firstWhere((c) => c.id == createdContainer.id);
+              updatedContainers.firstWhere((Container c) => c.id == createdContainer.id);
 
           expect(stoppedContainer.status, startsWith('Exited'));
         });
@@ -470,7 +470,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
           // TODO(zoechi) provoke some changes and check the result
           // expect(changesResponse.changes.length, greaterThan(0));
           expect(changesResponse.changes,
-              everyElement((c) => c.path.startsWith('/')));
+              everyElement(( c) => c.path.startsWith('/')));
           expect(changesResponse.changes, everyElement((c) => c.kind != null));
         });
       });
@@ -481,8 +481,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
           // exercise
           final Stream exportResponse =
               await connection.export(createdContainer);
-          final buf = new io.BytesBuilder(copy: false);
-          var subscription = exportResponse.take(1000000).listen((data) {
+          final io.BytesBuilder buf = new io.BytesBuilder(copy: false);
+          final StreamSubscription subscription = exportResponse.take(1000000).listen((List<int>data) {
             buf.add(data);
           });
           await subscription.asFuture();
@@ -601,11 +601,11 @@ void tests(RemoteApiVersion remoteApiVersion) {
               await connection.container(createdContainer);
           expect(startedStatus.state.running, isNotNull);
 
-          final expectRestartEvent = expectAsync(() {});
+          final Function expectRestartEvent = expectAsync(() {});
           connection
               .events(
                   filters: new EventsFilter()..containers.add(createdContainer))
-              .listen((event) {
+              .listen((EventResponse event) {
             if (event.status == ContainerEvent.restart) {
               expectRestartEvent();
             }
@@ -753,10 +753,10 @@ void tests(RemoteApiVersion remoteApiVersion) {
               stdin: true,
               stdout: true,
               stderr: true);
-          final buf = new io.BytesBuilder(copy: false);
+          final io.BytesBuilder buf = new io.BytesBuilder(copy: false);
           StreamSubscription sub;
           Completer c = new Completer();
-          sub = attachResponse.listen((data) {
+          sub = attachResponse.listen((List<int> data) {
 //            print(UTF8.decode(data));
             buf.add(data);
             if (buf.length > 1000) {
@@ -819,7 +819,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
 
       group('copy', () {
         setUp(() async {
-          const entryPoint = const [
+          const List<String> entryPoint = const <String>[
             '/bin/sh',
             '-c',
             'echo "some text" > copytest.txt'
@@ -972,14 +972,14 @@ void tests(RemoteApiVersion remoteApiVersion) {
         expect(imageHistoryResponse.length, greaterThan(2));
         expect(
             imageHistoryResponse,
-            everyElement((e) => e.created.millisecondsSinceEpoch >
+            everyElement((ImageHistoryResponse e) => e.created.millisecondsSinceEpoch >
                 new DateTime(1, 1, 1).millisecondsSinceEpoch));
         expect(imageHistoryResponse,
-            anyElement((e) => e.createdBy != null && e.createdBy.isNotEmpty));
+            anyElement((ImageHistoryResponse e) => e.createdBy != null && e.createdBy.isNotEmpty));
         expect(imageHistoryResponse,
-            anyElement((e) => e.tags != null && e.tags.isNotEmpty));
+            anyElement((ImageHistoryResponse e) => e.tags != null && e.tags.isNotEmpty));
         expect(imageHistoryResponse,
-            anyElement((e) => e.size != null && e.size > 0));
+            anyElement((ImageHistoryResponse e) => e.size != null && e.size > 0));
       });
     });
 
@@ -990,12 +990,12 @@ void tests(RemoteApiVersion remoteApiVersion) {
         expect(imagePushResponse.length, greaterThan(3));
         expect(
             imagePushResponse,
-            everyElement((e) => e.created.millisecondsSinceEpoch >
+            everyElement((ImagePushResponse e) => e.created.millisecondsSinceEpoch >
                 new DateTime(1, 1, 1).millisecondsSinceEpoch));
         expect(imagePushResponse,
-            anyElement((e) => e.createdBy != null && e.createdBy.isNotEmpty));
+            anyElement((ImagePushResponse e) => e.createdBy != null && e.createdBy.isNotEmpty));
         expect(imagePushResponse,
-            anyElement((e) => e.tags != null && e.tags.isNotEmpty));
+            anyElement((ImagePushResponse e) => e.tags != null && e.tags.isNotEmpty));
         expect(
             imagePushResponse, anyElement((e) => e.size != null && e.size > 0));
       }, skip: 'don\'t know yet how to test');
@@ -1026,7 +1026,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
             await connection.removeImage(new Image('${imageName}:removeImage'));
         expect(imageRemoveResponse, isNotNull);
         expect(imageRemoveResponse,
-            anyElement((e) => e.untagged == '${imageName}:removeImage'));
+            anyElement((ImageRemoveResponse e) => e.untagged == '${imageName}:removeImage'));
       });
     });
 
@@ -1037,14 +1037,14 @@ void tests(RemoteApiVersion remoteApiVersion) {
         expect(searchResponse, isNotNull);
         expect(
             searchResponse,
-            anyElement((e) => e.description ==
+            anyElement((SearchResponse e) => e.description ==
                 'Dockerized SSH service, built on top of official Ubuntu images.'));
         expect(searchResponse,
-            anyElement((e) => e.name != null && e.name.isNotEmpty));
+            anyElement((SearchResponse e) => e.name != null && e.name.isNotEmpty));
         expect(searchResponse, anyElement((e) => e.isOfficial != null));
         expect(searchResponse, anyElement((e) => e.isAutomated != null));
         expect(searchResponse,
-            anyElement((e) => e.starCount != null && e.starCount > 0));
+            anyElement((SearchResponse e) => e.starCount != null && e.starCount > 0));
       }, timeout: const Timeout(const Duration(seconds: 60)));
     });
   });
@@ -1122,10 +1122,10 @@ void tests(RemoteApiVersion remoteApiVersion) {
         // exercise
         final Stream exportResponse =
             await connection.get(new Image(imageNameAndTag));
-        final buf = new io.BytesBuilder(copy: false);
+        final io.BytesBuilder buf = new io.BytesBuilder(copy: false);
         StreamSubscription sub;
         Completer c = new Completer();
-        sub = exportResponse.listen((data) {
+        sub = exportResponse.listen((List<int> data) {
           buf.add(data);
           if (buf.length > 1000000) {
             sub.cancel();
@@ -1150,10 +1150,10 @@ void tests(RemoteApiVersion remoteApiVersion) {
           () async {
         // exercise
         final Stream exportResponse = await connection.getAll();
-        final buf = new io.BytesBuilder(copy: false);
+        final io.BytesBuilder buf = new io.BytesBuilder(copy: false);
         StreamSubscription sub;
         Completer c = new Completer();
-        sub = exportResponse.listen((data) {
+        sub = exportResponse.listen((List<int> data) {
           buf.add(data);
           if (buf.length > 1000000) {
             sub.cancel();
@@ -1231,12 +1231,12 @@ void tests(RemoteApiVersion remoteApiVersion) {
             tty: false, detach: false);
 
         final StringBuffer stdoutBuf = new StringBuffer();
-        final stdoutSubscription = startResponse.stdout.listen((data) {
+        final StreamSubscription stdoutSubscription = startResponse.stdout.listen((List<int>data) {
           stdoutBuf.write(UTF8.decode(data));
         });
 
         final StringBuffer stderrBuf = new StringBuffer();
-        final stderrSubscription = startResponse.stderr.listen((data) {
+        final StreamSubscription stderrSubscription = startResponse.stderr.listen((List<int> data) {
           stderrBuf.write(UTF8.decode(data));
         });
 

@@ -21,31 +21,31 @@ import 'package:bwu_docker/bwu_docker.dart';
 import 'package:bwu_docker/tasks.dart';
 import 'utils.dart' as utils;
 
-const imageName = 'busybox';
-const imageTag = 'buildroot-2014.02';
-const entryPoint = '/bin/sh';
-const runningProcess = '/bin/sh';
+const String imageName = 'busybox';
+const String imageTag = 'buildroot-2014.02';
+const String entryPoint = '/bin/sh';
+const String runningProcess = '/bin/sh';
 
-const imageNameAndTag = '${imageName}:${imageTag}';
+const String imageNameAndTag = '${imageName}:${imageTag}';
 
 Uri _uriUpdatePort(Uri uri, int port) {
-  final result = new Uri(
+  final Uri result = new Uri(
       scheme: uri.scheme, userInfo: uri.userInfo, host: uri.host, port: port);
   print('${result}');
   return result;
 }
 
-main() {
+void main() {
   DockerConnection connection;
   CreateResponse createdContainer;
 
   /// setUp helper to create the image used in tests if it is not yet available.
-  final ensureImageExists = () async {
+  Future ensureImageExists  () async {
     return utils.ensureImageExists(connection, imageNameAndTag);
   };
 
   /// setUp helper to create a container from the image used in tests.
-  final createContainer = ([String name]) async {
+  Future<Container> createContainer([String name]) async {
     createdContainer =
         await connection.createContainer(new CreateContainerRequest()
           ..image = imageNameAndTag
@@ -59,7 +59,7 @@ main() {
     /// Use the DinD set up with a higher port than default to not interfere
     /// with the default test DinD when testing purging all containers and
     /// images.
-    var uri = Uri.parse(io.Platform.environment[dockerHostFromEnvironment]);
+    Uri uri = Uri.parse(io.Platform.environment[dockerHostFromEnvironment]);
     uri = _uriUpdatePort(uri, uri.port + 1);
     connection = new DockerConnection(uri, new http.Client());
     await connection.init();
@@ -76,10 +76,10 @@ main() {
       expect(imagesAfter, isEmpty);
 
       await ensureImageExists();
-      final keepRunning = await createContainer('keep_running');
+      final Container keepRunning = await createContainer('keep_running');
       await connection.start(keepRunning);
 
-      final stopped = await createContainer('stopped');
+      final Container stopped = await createContainer('stopped');
       await connection.start(stopped);
       await connection.stop(stopped);
 
@@ -94,17 +94,17 @@ main() {
           await connection.containers(all: true);
       expect(
           containersBefore
-              .firstWhere((c) => c.names.contains('/keep_running'))
+              .firstWhere((Container c) => c.names.contains('/keep_running'))
               .status,
           startsWith('Up '));
       expect(
           containersBefore
-              .firstWhere((c) => c.names.contains('/stopped'))
+              .firstWhere((Container c) => c.names.contains('/stopped'))
               .status,
           startsWith('Exited'));
       expect(
           containersBefore
-              .firstWhere((c) => c.names.contains('/never_started'))
+              .firstWhere((Container c) => c.names.contains('/never_started'))
               .status,
           '');
 
@@ -116,30 +116,30 @@ main() {
 
       // verify
       expect(result.stoppedContainers,
-          anyElement((c) => c.names.contains('/keep_running')));
+          anyElement((Container c) => c.names.contains('/keep_running')));
       expect(result.stoppedContainers,
-          isNot(anyElement((c) => c.names.contains('/stopped'))));
+          isNot(anyElement((Container c) => c.names.contains('/stopped'))));
       expect(result.stoppedContainers,
-          isNot(anyElement((c) => c.names.contains('/never_started'))));
+          isNot(anyElement((Container c) => c.names.contains('/never_started'))));
 
       expect(result.removedContainers,
-          anyElement((c) => c.names.contains('/keep_running')));
+          anyElement((Container c) => c.names.contains('/keep_running')));
       expect(result.removedContainers,
-          anyElement((c) => c.names.contains('/stopped')));
+          anyElement((Container c) => c.names.contains('/stopped')));
       expect(result.removedContainers,
-          anyElement((c) => c.names.contains('/never_started')));
+          anyElement((Container c) => c.names.contains('/never_started')));
 
       // each container was removed
       expect(
           containersBefore,
-          everyElement((c) =>
-              result.removedContainers.firstWhere((r) => r.id == r.id) !=
+          everyElement((Container c) =>
+              result.removedContainers.firstWhere((Container r) => r.id == r.id) !=
                   null));
       // each image was removed
       expect(
           imagesBefore,
-          everyElement((i) =>
-              result.removedImages.firstWhere((r) => r.id == i.id) != null));
+          everyElement((ImageInfo i) =>
+              result.removedImages.firstWhere((ImageInfo r) => r.id == i.id) != null));
 
       // Docker doesn't return any containers
       final Iterable<Container> containersAfter =
@@ -165,8 +165,8 @@ main() {
     test('should parse a port range from `publish` argument', () {
       final Map<String, List<PortBinding>> rangePortBindings =
           parsePublishArgument(['1000-1005:2000-2005']);
-      [1000, 1001, 1002, 1003, 1004, 1005].forEach((k) {
-        final key = '${k + 1000}/tcp';
+      [1000, 1001, 1002, 1003, 1004, 1005].forEach((int k) {
+        final String key = '${k + 1000}/tcp';
         expect(rangePortBindings.containsKey(key), isTrue);
         expect(rangePortBindings[key].length, 1);
         expect(rangePortBindings[key][0].hostIp, isNull);
@@ -192,7 +192,7 @@ main() {
           'status': [ContainerStatus.running.toString()]
         });
         expect(
-            containers, anyElement((c) => c.id == createResponse.container.id));
+            containers, anyElement((Container c) => c.id == createResponse.container.id));
       });
 
       // exercise
@@ -203,7 +203,7 @@ main() {
         await new Future.delayed(const Duration(milliseconds: 500), () async {
           final Iterable<Container> containers = await connection.containers();
           expect(containers,
-              isNot(anyElement((c) => c.id == createResponse.container.id)));
+              isNot(anyElement((Container c) => c.id == createResponse.container.id)));
         });
       });
     }, timeout: const Timeout(const Duration(seconds: 180)));

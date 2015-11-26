@@ -4,9 +4,9 @@ import 'dart:io' as io;
 import 'package:http/http.dart' as http;
 import 'package:bwu_docker/bwu_docker.dart';
 
-main() async {
+dynamic main() async {
   // initialize the connection to the Docker service
-  final conn = new DockerConnection(
+  final DockerConnection conn = new DockerConnection(
       Uri.parse(io.Platform.environment[dockerHostFromEnvironment]),
       new http.Client());
   await conn.init();
@@ -15,7 +15,7 @@ main() async {
   CreateResponse created =
       await conn.createContainer(new CreateContainerRequest()
         ..image = 'busybox'
-        ..hostConfig.logConfig = {'Type': 'json-file'});
+        ..hostConfig.logConfig = <String,String>{'Type': 'json-file'});
 
   // start the container
   await conn.start(created.container);
@@ -24,7 +24,7 @@ main() async {
   Iterable<Container> containers = await conn.containers();
 
   // investigate response
-  var found = containers.firstWhere((c) => c.id == created.container.id);
+  final Container found = containers.firstWhere((Container c) => c.id == created.container.id);
   print('found: ${found.id}, name: ${found.names.join(', ')}\n');
 
   print('all:');

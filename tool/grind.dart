@@ -17,10 +17,10 @@ import 'package:http/http.dart' as http;
 //import 'package:stack_trace/stack_trace.dart';
 
 // _dindPort2 is `_dindPort1 + 1`
-const _dindPort1 = 3375;
-const _dindImageName = 'docker'; // https://hub.docker.com/_/docker/
+const int _dindPort1 = 3375;
+const String _dindImageName = 'docker'; // https://hub.docker.com/_/docker/
 
-main(List<String> args) {
+void main(List<String> args) {
   doInstallContentShell = false;
   testTask = ([_]) => _testTaskImpl();
   // Disable test when run on Travis
@@ -54,8 +54,8 @@ DockerConnection _dockerConnection;
 //}
 
 @Task('Start Docker(DIND)')
-startDocker() async {
-  final dockerHost = _dockerHost();
+dynamic startDocker() async {
+  final Uri dockerHost = _dockerHost();
   print(dockerHost);
   DockerConnection docker =
       new DockerConnection(dockerHost, new http.Client());
@@ -68,14 +68,14 @@ Container _dindTasksTest;
 
 /// Copy the [uri] and replace the port with [port].
 Uri _uriUpdatePort(Uri uri, int port) {
-  final result = new Uri(
+  final Uri result = new Uri(
       scheme: uri.scheme, userInfo: uri.userInfo, host: uri.host, port: port);
   print('${result}');
   return result;
 }
 
 Uri _dockerHost() {
-  final dockerHostStr = io.Platform.environment[dockerHostFromEnvironment];
+  final  String dockerHostStr = io.Platform.environment[dockerHostFromEnvironment];
   if (dockerHostStr == null || dockerHostStr.isEmpty) {
     fail(
         'To run the tests the environment variable "${dockerHostFromEnvironment}" '
@@ -85,8 +85,8 @@ Uri _dockerHost() {
   return Uri.parse(dockerHostStr);
 }
 
-_testTaskImpl() async {
-  final dockerHost = _dockerHost();
+dynamic _testTaskImpl() async {
+  final Uri dockerHost = _dockerHost();
 
   DockerConnection docker =
       new DockerConnection(dockerHost, new http.Client());
@@ -108,9 +108,9 @@ _testTaskImpl() async {
 /// Prepare Docker-in-Docker instances for running tests.
 Future _dindStartForTest(DockerConnection docker) async {
   await _dindCreateContainer(docker, _dindPort1)
-      .then((container) => _dindRemoteApiTest = container);
+      .then/*<Container>*/((dynamic container) => _dindRemoteApiTest = container);
   await _dindCreateContainer(docker, _dindPort1 + 1)
-      .then((container) => _dindTasksTest = container);
+      .then/*<Container>*/((dynamic container) => _dindTasksTest = container);
 }
 
 /// Create and start a Docker-in-Docker container.
@@ -124,7 +124,7 @@ Future<Container> _dindCreateContainer(
 //      print('${e.status} - ${e.progressDetail}');
 //    }
   }
-  final hostConfig = new HostConfigRequest()
+  final HostConfigRequest hostConfig = new HostConfigRequest()
     ..privileged = true
     ..publishAllPorts = false
     ..portBindings = {

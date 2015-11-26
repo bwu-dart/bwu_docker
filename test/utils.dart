@@ -5,7 +5,7 @@ import 'dart:async' show Future;
 import 'package:bwu_docker/bwu_docker.dart';
 
 /// Check if image exists or create it.
-Future ensureImageExists(DockerConnection connection, imageName) async {
+Future ensureImageExists(DockerConnection connection, String imageName) async {
   try {
     await connection.image(new Image(imageName));
   } on DockerRemoteApiError {

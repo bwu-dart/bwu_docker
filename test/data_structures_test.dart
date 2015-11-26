@@ -4,7 +4,7 @@ library bwu_docker.test.data_structures;
 import 'package:test/test.dart';
 import 'package:bwu_docker/bwu_docker.dart';
 
-const json = const {
+const Map<String,dynamic> json = const <String,dynamic>{
   "PortBindings": const {
     "22/tcp": const [
       const {"HostPort": "11022"}
@@ -12,14 +12,14 @@ const json = const {
   }
 };
 
-main() {
+void main() {
   group('PortBindings', () {
     test(
         'JSON deserialize => serialize JSON result result in same setting values',
         () {
-      final hc = new HostConfig.fromJson(json, RemoteApiVersion.v1_17);
-      final json2 = hc.toJson();
-      final hc2 = new HostConfig.fromJson(json2, RemoteApiVersion.v1_17);
+      final HostConfig hc = new HostConfig.fromJson(json, RemoteApiVersion.v1_17);
+      final Map<String,dynamic> json2 = hc.toJson();
+      final HostConfig hc2 = new HostConfig.fromJson(json2, RemoteApiVersion.v1_17);
 
       expect(hc2.portBindings.length, hc.portBindings.length);
       expect(hc2.portBindings.keys.first, hc.portBindings.keys.first);

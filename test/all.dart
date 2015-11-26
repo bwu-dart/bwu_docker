@@ -7,7 +7,7 @@ import 'remote_api_test.dart' as ra;
 import 'tasks_test.dart' as tasks;
 import 'version_test.dart' as version;
 
-main() {
+void main() {
   group('', () => ds.main());
   group('', () => demux.main());
   group('', () => ra.main());

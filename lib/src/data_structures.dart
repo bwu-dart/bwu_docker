@@ -3,24 +3,24 @@ library bwu_docker.src.data_structures;
 import 'dart:collection';
 //import 'package:quiver/core.dart';
 
-final containerNameRegex = new RegExp(r'^/?[a-zA-Z0-9_-]+$');
+final RegExp containerNameRegex = new RegExp(r'^/?[a-zA-Z0-9_-]+$');
 
 /// Enum of API versions currently considered for API differences.
 class RemoteApiVersion extends Version {
-  static final v1_15 = new RemoteApiVersion(1, 15, null);
-  static final v1_16 = new RemoteApiVersion(1, 16, null);
-  static final v1_17 = new RemoteApiVersion(1, 17, null);
-  static final v1_18 = new RemoteApiVersion(1, 18, null);
-  static final v1_19 = new RemoteApiVersion(1, 19, null);
-  static final v1_20 = new RemoteApiVersion(1, 20, null);
+  static final RemoteApiVersion v1_15 = new RemoteApiVersion(1, 15, null);
+  static final RemoteApiVersion v1_16 = new RemoteApiVersion(1, 16, null);
+  static final RemoteApiVersion v1_17 = new RemoteApiVersion(1, 17, null);
+  static final RemoteApiVersion v1_18 = new RemoteApiVersion(1, 18, null);
+  static final RemoteApiVersion v1_19 = new RemoteApiVersion(1, 19, null);
+  static final RemoteApiVersion v1_20 = new RemoteApiVersion(1, 20, null);
 
-  static final versions = [v1_15, v1_16, v1_17, v1_18, v1_19, v1_20];
+  static final List<RemoteApiVersion> versions = <RemoteApiVersion>[v1_15, v1_16, v1_17, v1_18, v1_19, v1_20];
 
   RemoteApiVersion(int major, int minor, int patch)
       : super(major, minor, patch);
 
   factory RemoteApiVersion.fromVersion(Version version) => versions.firstWhere(
-      (v) => v == version,
+      (RemoteApiVersion v) => v == version,
       orElse: () =>
           new RemoteApiVersion(version.major, version.minor, version.patch));
 
@@ -44,15 +44,15 @@ void _checkSurplusItems(Version apiVersion, Map<Version, List<String>> expected,
     if (expected.length == 1) {
       expectedForVersion = expected.values.first;
     } else {
-      var ascSortedKeys = expected.keys.toList()..sort();
+      final List<Version> ascSortedKeys = expected.keys.toList()..sort();
       expectedForVersion =
-          expected[ascSortedKeys..lastWhere((k) => k < apiVersion)];
+          expected[ascSortedKeys..lastWhere((Version k) => k < apiVersion)];
       if (expectedForVersion == null) {
         expectedForVersion = expected[ascSortedKeys.first];
       }
     }
   }
-  assert(actual.every((k) {
+  assert(actual.every((String k) {
     if (!expectedForVersion.contains(k)) {
       print('Unsupported key: "${k}"');
       return false;
@@ -61,7 +61,7 @@ void _checkSurplusItems(Version apiVersion, Map<Version, List<String>> expected,
   }));
 }
 
-DateTime _parseDate(dynamic dateValue) {
+DateTime _parseDate(Object dateValue) {
   if (dateValue == null) {
     return null;
   }
@@ -71,13 +71,13 @@ DateTime _parseDate(dynamic dateValue) {
     }
 
     try {
-      final years = int.parse((dateValue as String).substring(0, 4));
-      final months = int.parse(dateValue.substring(5, 7));
-      final days = int.parse(dateValue.substring(8, 10));
-      final hours = int.parse(dateValue.substring(11, 13));
-      final minutes = int.parse(dateValue.substring(14, 16));
-      final seconds = int.parse(dateValue.substring(17, 19));
-      final milliseconds = int.parse(dateValue.substring(20, 23));
+      final int years = int.parse((dateValue).substring(0, 4));
+      final int months = int.parse(dateValue.substring(5, 7));
+      final int days = int.parse(dateValue.substring(8, 10));
+      final int hours = int.parse(dateValue.substring(11, 13));
+      final int minutes = int.parse(dateValue.substring(14, 16));
+      final int seconds = int.parse(dateValue.substring(17, 19));
+      final int milliseconds = int.parse(dateValue.substring(20, 23));
       return new DateTime.utc(
           years, months, days, hours, minutes, seconds, milliseconds);
     } catch (_) {
@@ -113,54 +113,57 @@ bool _parseBool(dynamic boolValue) {
       'Value "${boolValue}" can not be converted to bool.');
 }
 
-Map<String, String> _parseLabels(Map<String, List<String>> json) {
+UnmodifiableMapView<String, String> _parseLabels(
+    Map<String, List<String>> json) {
   if (json == null) {
     return null;
   }
-  final l =
-      json['Labels'] != null ? json['Labels'].map((l) => l.split('=')) : null;
+  final Iterable<List<String>> l = json['Labels'] != null
+      ? json['Labels'].map/*<List<String>>*/((String l) => l.split('='))
+      : null;
   return l == null
       ? null
-      : _toUnmodifiableMapView(new Map.fromIterable(l,
-          key: (l) => l[0], value: (l) => l.length == 2 ? l[1] : null));
+      : _toUnmodifiableMapView/*<String,String>*/(new Map<String,String>.fromIterable(l,
+          key: (List<String> l) => l[0],
+          value: (String l) => l.length == 2 ? l[1] : null));
 }
 
-UnmodifiableMapView _toUnmodifiableMapView(Map map) {
+UnmodifiableMapView<dynamic/*=K*/, dynamic/*=V*/> _toUnmodifiableMapView/*<K,V>*/(Map<dynamic/*=K*/, dynamic/*=V*/> map) {
   if (map == null) {
     return null;
   }
-  return new UnmodifiableMapView(
-      new Map.fromIterable(map.keys, key: (k) => k, value: (k) {
+  return new UnmodifiableMapView<dynamic/*=K*/, dynamic/*=V*/>(
+      new Map<dynamic/*=K*/, dynamic/*=V*/>.fromIterable(map.keys, key: (dynamic /*=K*/ k) => k, value: (dynamic /*=V*/ k) {
     if (map == null) {
       return null;
     }
     if (map[k] is Map) {
-      return _toUnmodifiableMapView(map[k]);
+      return _toUnmodifiableMapView/*<K,V>*/(map[k]);
     } else if (map[k] is List) {
-      return _toUnmodifiableListView(map[k]);
+      return _toUnmodifiableListView/*<K,V>*/(map[k]);
     } else {
-      return map[k];
+      return map[k] as UnmodifiableMapView<dynamic/*=K*/, dynamic/*=V*/>;
     }
   }));
 }
 
-UnmodifiableListView _toUnmodifiableListView(Iterable list) {
+UnmodifiableListView<dynamic /*=T*/> _toUnmodifiableListView/*<T>*/(Iterable<dynamic/*=T*/> list) {
   if (list == null) {
     return null;
   }
   if (list.length == 0) {
-    return new UnmodifiableListView(const []);
+    return new UnmodifiableListView<dynamic/*=T*/>(const []);
   }
 
-  return new UnmodifiableListView(list.map((e) {
+  return new UnmodifiableListView<dynamic /*=T*/ >(list.map/*<T>*/((T e) {
     if (e is Map) {
-      return _toUnmodifiableMapView(e);
+      return _toUnmodifiableMapView/*<T>*/(e);
     } else if (e is List) {
-      return _toUnmodifiableListView(e);
+      return _toUnmodifiableListView/*<T>*/(e);
     } else {
       return e;
     }
-  }).toList());
+  }).toList/*<T>*/());
 }
 
 /// Error thrown
@@ -204,16 +207,16 @@ class ExecInfo {
   ContainerInfo _container;
   ContainerInfo get container => _container;
 
-  ExecInfo.fromJson(Map json, Version apiVersion) {
+  ExecInfo.fromJson(Map<String,dynamic> json, Version apiVersion) {
     _id = json['ID'];
     _running = json['Running'];
     _exitCode = json['ExitCode'];
     _processConfig =
-        new ProcessConfig.fromJson(json['ProcessConfig'], apiVersion);
+        new ProcessConfig.fromJson(json['ProcessConfig'] as Map<String,dynamic>, apiVersion);
     _openStdin = json['OpenStdin'];
     _openStderr = json['OpenStderr'];
     _openStdout = json['OpenStdout'];
-    _container = new ContainerInfo.fromJson(json['Container'], apiVersion);
+    _container = new ContainerInfo.fromJson(json['Container'] as Map<String,dynamic> , apiVersion);
 
     _checkSurplusItems(
         apiVersion,
@@ -249,12 +252,12 @@ class ProcessConfig {
   UnmodifiableListView<String> _arguments;
   UnmodifiableListView<String> get arguments => _arguments;
 
-  ProcessConfig.fromJson(Map json, Version apiVersion) {
+  ProcessConfig.fromJson(Map<String,dynamic> json, Version apiVersion) {
     _privileged = json['privileged'];
     _user = json['user'];
     _tty = json['tty'];
     _entrypoint = json['entrypoint'];
-    _arguments = _toUnmodifiableListView(json['arguments']);
+    _arguments = _toUnmodifiableListView(json['arguments']) as UnmodifiableListView<String>;
     _checkSurplusItems(
         apiVersion,
         {
@@ -275,7 +278,7 @@ class Exec {
   String _id;
   String get id => _id;
 
-  Exec.fromJson(Map json, Version apiVersion) {
+  Exec.fromJson(Map<String,dynamic> json, Version apiVersion) {
     if (json == null) {
       return;
     }
@@ -297,21 +300,21 @@ abstract class DockerEventBase {
 /// Container related Docker events
 /// [More details about container events](https://docs.docker.com/reference/api/images/event_state.png)
 class ContainerEvent extends DockerEventBase {
-  static const create = const ContainerEvent._(1, 'create');
-  static const destroy = const ContainerEvent._(2, 'destroy');
-  static const die = const ContainerEvent._(3, 'die');
-  static const execCreate = const ContainerEvent._(4, 'exec_create');
-  static const execStart = const ContainerEvent._(5, 'exec_start');
-  static const export = const ContainerEvent._(6, 'export');
-  static const kill = const ContainerEvent._(7, 'kill');
-  static const outOfMemory = const ContainerEvent._(7, 'oom');
-  static const pause = const ContainerEvent._(8, 'pause');
-  static const restart = const ContainerEvent._(9, 'restart');
-  static const start = const ContainerEvent._(10, 'start');
-  static const stop = const ContainerEvent._(11, 'stop');
-  static const unpause = const ContainerEvent._(11, 'unpause');
+  static const ContainerEvent create = const ContainerEvent._(1, 'create');
+  static const ContainerEvent destroy = const ContainerEvent._(2, 'destroy');
+  static const ContainerEvent die = const ContainerEvent._(3, 'die');
+  static const ContainerEvent execCreate = const ContainerEvent._(4, 'exec_create');
+  static const ContainerEvent execStart = const ContainerEvent._(5, 'exec_start');
+  static const ContainerEvent export = const ContainerEvent._(6, 'export');
+  static const ContainerEvent kill = const ContainerEvent._(7, 'kill');
+  static const ContainerEvent outOfMemory = const ContainerEvent._(7, 'oom');
+  static const ContainerEvent pause = const ContainerEvent._(8, 'pause');
+  static const ContainerEvent restart = const ContainerEvent._(9, 'restart');
+  static const ContainerEvent start = const ContainerEvent._(10, 'start');
+  static const ContainerEvent stop = const ContainerEvent._(11, 'stop');
+  static const ContainerEvent unpause = const ContainerEvent._(11, 'unpause');
 
-  static const values = const [
+  static const List<ContainerEvent>values = const <ContainerEvent>[
     create,
     destroy,
     die,
@@ -354,24 +357,24 @@ class ImageEvent extends DockerEventBase {
 
 /// All Docker events in one enum
 class DockerEvent {
-  static const containerCreate = ContainerEvent.create;
-  static const containerDestroy = ContainerEvent.destroy;
-  static const containerDie = ContainerEvent.die;
-  static const containerExecCreate = ContainerEvent.execCreate;
-  static const containerExecStart = ContainerEvent.execStart;
-  static const containerExport = ContainerEvent.export;
-  static const containerKill = ContainerEvent.kill;
-  static const containerOutOfMemory = ContainerEvent.outOfMemory;
-  static const containerPause = ContainerEvent.pause;
-  static const containerRestart = ContainerEvent.restart;
-  static const containerStart = ContainerEvent.start;
-  static const containerStop = ContainerEvent.stop;
-  static const containerUnpause = ContainerEvent.unpause;
+  static const ContainerEvent containerCreate = ContainerEvent.create;
+  static const ContainerEvent containerDestroy = ContainerEvent.destroy;
+  static const ContainerEvent containerDie = ContainerEvent.die;
+  static const ContainerEvent containerExecCreate = ContainerEvent.execCreate;
+  static const ContainerEvent containerExecStart = ContainerEvent.execStart;
+  static const ContainerEvent containerExport = ContainerEvent.export;
+  static const ContainerEvent containerKill = ContainerEvent.kill;
+  static const ContainerEvent containerOutOfMemory = ContainerEvent.outOfMemory;
+  static const ContainerEvent containerPause = ContainerEvent.pause;
+  static const ContainerEvent containerRestart = ContainerEvent.restart;
+  static const ContainerEvent containerStart = ContainerEvent.start;
+  static const ContainerEvent containerStop = ContainerEvent.stop;
+  static const ContainerEvent containerUnpause = ContainerEvent.unpause;
 
-  static const imageUntag = ImageEvent.untag;
-  static const imageDelete = ImageEvent.delete;
+  static const ImageEvent imageUntag = ImageEvent.untag;
+  static const ImageEvent imageDelete = ImageEvent.delete;
 
-  static const values = const [
+  static const List<DockerEventBase> values = const <DockerEventBase>[
     containerCreate,
     containerDestroy,
     containerDie,
@@ -391,7 +394,7 @@ class DockerEvent {
 
   final DockerEvent value;
   const DockerEvent(this.value);
-  @override toString() => value.toString();
+  @override String toString() => value.toString();
 }
 
 /// An item of the response to the events request.
@@ -408,11 +411,11 @@ class EventsResponse {
   DateTime _time;
   DateTime get time => _time;
 
-  EventsResponse.fromJson(Map json, Version apiVersion) {
+  EventsResponse.fromJson(Map<String,dynamic> json, Version apiVersion) {
     if (json['status'] != null) {
       try {
         _status = DockerEvent.values
-            .firstWhere((e) => e.toString() == json['status']);
+            .firstWhere((ContainerEvent e) => e.toString() == json['status']);
       } catch (e) {
         print('${e}');
       }
@@ -431,20 +434,20 @@ class EventsResponse {
 
 /// The filter argument to the events request.
 class EventsFilter {
-  final List<DockerEventBase> events = [];
-  final List<Image> images = [];
-  final List<Container> containers = [];
+  final List<DockerEventBase> events = <DockerEventBase>[];
+  final List<Image> images = <Image>[];
+  final List<Container> containers = <Container>[];
 
-  Map toJson() {
-    final json = {};
+  Map<String,dynamic> toJson() {
+    final Map<String,dynamic> json = <String,dynamic>{};
     if (events.isNotEmpty) {
-      json['event'] = events.map((e) => e.toString()).toList();
+      json['event'] = events.map((DockerEventBase e) => e.toString()).toList();
     }
     if (images.isNotEmpty) {
-      json['image'] = images.map((e) => e.name).toList();
+      json['image'] = images.map((Image e) => e.name).toList();
     }
     if (containers.isNotEmpty) {
-      json['container'] = containers.map((e) => e.id).toList();
+      json['container'] = containers.map((Container e) => e.id).toList();
     }
     return json;
   }
@@ -458,9 +461,9 @@ class CommitResponse {
   UnmodifiableListView<String> _warnings;
   UnmodifiableListView<String> get warnings => _warnings;
 
-  CommitResponse.fromJson(Map json, Version apiVersion) {
+  CommitResponse.fromJson(Map<String,dynamic> json, Version apiVersion) {
     _id = json['Id'];
-    _warnings = _toUnmodifiableListView(json['Warnings']);
+    _warnings = _toUnmodifiableListView(json['Warnings']) as UnmodifiableListView<String>;
     _checkSurplusItems(
         apiVersion,
         {
@@ -478,8 +481,8 @@ class CommitRequest {
   final bool attachStdin;
   final bool attachStdout;
   final bool attachStderr;
-  List<PortArgument> _portSpecs;
-  List<PortArgument> get portSpecs => _portSpecs;
+  UnmodifiableListView<PortArgument> _portSpecs;
+  UnmodifiableListView<PortArgument> get portSpecs => _portSpecs;
   final bool tty;
   final bool openStdin;
   final bool stdinOnce;
@@ -513,13 +516,13 @@ class CommitRequest {
       this.workingDir,
       this.networkingDisabled,
       Map<String, Map> exposedPorts}) {
-    _portSpecs = _toUnmodifiableListView(portSpecs);
+    _portSpecs = _toUnmodifiableListView(portSpecs) as List<PortArgument>;
     _env = _toUnmodifiableMapView(env);
     _name = _toUnmodifiableMapView(exposedPorts);
   }
 
-  Map toJson() {
-    final json = {};
+  Map<String,dynamic> toJson() {
+    final Map<String,dynamic> json = <String,dynamic>{};
     if (hostName != null) json['Hostname'] = hostName;
     if (domainName != null) json['Domainname'] = domainName;
     if (user != null) json['User'] = user;
@@ -673,7 +676,7 @@ class VersionResponse {
   Version _apiVersion;
   Version get apiVersion => _apiVersion;
 
-  VersionResponse.fromJson(Map json, Version apiVersion) {
+  VersionResponse.fromJson(Map<String,dynamic> json, Version apiVersion) {
     _version = new Version.fromString(json['Version']);
     _os = json['Os'];
     _kernelVersion = json['KernelVersion'];
@@ -799,14 +802,14 @@ class InfoResponse {
   DateTime _systemTime;
   DateTime get systemTime => _systemTime;
 
-  InfoResponse.fromJson(Map json, Version apiVersion) {
+  InfoResponse.fromJson(Map<String,dynamic> json, Version apiVersion) {
     _containers = json['Containers'];
     _cpuCfsPeriod = json['CpuCfsPeriod'];
     _cpuCfsQuota = json['CpuCfsQuota'];
     _debug = _parseBool(json['Debug']);
     _dockerRootDir = json['DockerRootDir'];
     _driver = json['Driver'];
-    _driverStatus = _toUnmodifiableListView(json['DriverStatus']);
+    _driverStatus = _toUnmodifiableListView/*<List<List>>*/(json['DriverStatus']);
     _executionDriver = json['ExecutionDriver'];
     _experimentalBuild = json['ExperimentalBuild'];
     _httpProxy = json['HttpProxy'];
@@ -945,7 +948,7 @@ class RegistryConfigs {
   UnmodifiableListView<String> get insecureRegistryCidrs =>
       _insecureRegistryCidrs;
 
-  RegistryConfigs.fromJson(Map json, Version apiVersion) {
+  RegistryConfigs.fromJson(Map<String,dynamic> json, Version apiVersion) {
     if (json == null) {
       return;
     }
@@ -988,7 +991,7 @@ class AuthRequest {
     assert(serverAddress.isNotEmpty);
   }
 
-  Map toJson() {
+  Map<String,dynamic> toJson() {
     return {
       'username': userName,
       'password': password,
@@ -1015,7 +1018,7 @@ class SearchResponse {
   int _starCount;
   int get starCount => _starCount;
 
-  SearchResponse.fromJson(Map json, Version apiVersion) {
+  SearchResponse.fromJson(Map<String, dynamic> json, Version apiVersion) {
     _description = json['description'];
     _isOfficial = json['is_official'];
     if (json['is_trusted'] != null) {
@@ -1049,7 +1052,7 @@ class ImageRemoveResponse {
   String _deleted;
   String get deleted => _deleted;
 
-  ImageRemoveResponse.fromJson(Map json, Version apiVersion) {
+  ImageRemoveResponse.fromJson(Map<String,dynamic> json, Version apiVersion) {
     _untagged = json['Untagged'];
     _deleted = json['Deleted'];
     _checkSurplusItems(
@@ -1075,7 +1078,7 @@ class ImagePushResponse {
   String _error;
   String get error => _error;
 
-  ImagePushResponse.fromJson(Map json, Version apiVersion) {
+  ImagePushResponse.fromJson(Map<String,dynamic> json, Version apiVersion) {
     final json = {};
     _status = json['status'];
     _progress = json['progress'];
@@ -1115,7 +1118,7 @@ class ImageHistoryResponse {
   UnmodifiableListView<String> _tags;
   UnmodifiableListView<String> get tags => _tags;
 
-  ImageHistoryResponse.fromJson(Map json, Version apiVersion) {
+  ImageHistoryResponse.fromJson(Map<String,dynamic> json, Version apiVersion) {
     _id = json['Id'];
     _comment = json['Comment'];
     _created = _parseDate(json['Created']);
@@ -1168,7 +1171,7 @@ class CreateImageResponse {
   String _progress;
   String get progress => _progress;
 
-  CreateImageResponse.fromJson(Map json, Version apiVersion) {
+  CreateImageResponse.fromJson(Map<String,dynamic> json, Version apiVersion) {
     _status = json['status'];
     _progressDetail = _toUnmodifiableMapView(json['progressDetail']);
     _id = json['id'];
@@ -1202,8 +1205,8 @@ class ConfigFile {
     _httpHeaders = _toUnmodifiableMapView(httpHeaders);
   }
 
-  Map toJson() {
-    final json = {};
+  Map<String,dynamic> toJson() {
+    final Map<String,dynamic> json = <String,dynamic>{};
     if (auths != null) json['auths'] = auths.toJson();
     if (httpHeaders != null) json['HttpHeaders'] = _httpHeaders;
     return json;
@@ -1233,8 +1236,8 @@ class AuthConfig {
       this.email,
       this.serverAddress});
 
-  Map toJson() {
-    final json = {};
+  Map<String,dynamic> toJson() {
+    final Map<String,dynamic> json = <String,dynamic>{};
     if (userName != null) json['userName'] = userName;
     if (password != null) json['password;'] = password;
     json['auth;'] = auth;
@@ -1253,8 +1256,8 @@ class CopyRequestPath {
     assert(path != null && path.isNotEmpty);
   }
 
-  Map toJson() {
-    return {'Resource': path};
+  Map<String,dynamic> toJson() {
+    return <String,dynamic>{'Resource': path};
   }
 }
 
@@ -1263,7 +1266,7 @@ class WaitResponse {
   int _statusCode;
   int get statusCode => _statusCode;
 
-  WaitResponse.fromJson(Map json, Version apiVersion) {
+  WaitResponse.fromJson(Map<String,dynamic> json, Version apiVersion) {
     _statusCode = json['StatusCode'];
   }
 }
@@ -1293,7 +1296,7 @@ class StatsResponseNetwork {
   int _txBytes;
   int get txBytes => _txBytes;
 
-  StatsResponseNetwork.fromJson(Map json, Version apiVersion) {
+  StatsResponseNetwork.fromJson(Map<String,dynamic> json, Version apiVersion) {
     _rxDropped = json['rx_dropped'];
     _rxBytes = json['rx_bytes'];
     _rxErrors = json['rx_errors'];
@@ -1336,7 +1339,8 @@ class StatsResponseMemoryStats {
   int _limit;
   int get limit => _limit;
 
-  StatsResponseMemoryStats.fromJson(Map json, Version apiVersion) {
+  StatsResponseMemoryStats.fromJson(
+      Map<String, dynamic> json, Version apiVersion) {
     _stats =
         new StatsResponseMemoryStatsStats.fromJson(json['stats'], apiVersion);
     _maxUsage = json['max_usage'];
@@ -1446,7 +1450,7 @@ class StatsResponseMemoryStatsStats {
   int _totalPgpgIn;
   int get totalPgpgIn => _totalPgpgIn;
 
-  StatsResponseMemoryStatsStats.fromJson(Map json, Version apiVersion) {
+  StatsResponseMemoryStatsStats.fromJson(Map<String,dynamic> json, Version apiVersion) {
     if (json == null) {
       return;
     }
@@ -1531,8 +1535,8 @@ class StatsResponseCpuUsage {
   int _usageInKernelMode;
   int get usageInKernelMode => _usageInKernelMode;
 
-  StatsResponseCpuUsage.fromJson(Map json, Version apiVersion) {
-    _perCpuUsage = _toUnmodifiableListView(json['percpu_usage']);
+  StatsResponseCpuUsage.fromJson(Map<String,dynamic> json, Version apiVersion) {
+    _perCpuUsage = _toUnmodifiableListView/*<int>*/(json['percpu_usage']);
     _usageInUserMode = json['usage_in_usermode'];
     _totalUsage = json['total_usage'];
     _usageInKernelMode = json['usage_in_kernelmode'];
@@ -1561,7 +1565,7 @@ class StatsResponseCpuStats {
   ThrottlingData _throttlingData;
   ThrottlingData get throttlingData => _throttlingData;
 
-  StatsResponseCpuStats.fromJson(Map json, Version apiVersion) {
+  StatsResponseCpuStats.fromJson(Map<String,dynamic> json, Version apiVersion) {
     _cupUsage =
         new StatsResponseCpuUsage.fromJson(json['cpu_usage'], apiVersion);
     _systemCpuUsage = json['system_cpu_usage'];
@@ -1590,7 +1594,7 @@ class ThrottlingData {
   int _throttledTime;
   int get throttledTime => _throttledTime;
 
-  ThrottlingData.fromJson(Map json, Version apiVersion) {
+  ThrottlingData.fromJson(Map<String,dynamic> json, Version apiVersion) {
     _periods = json['periods'];
     _throttledPeriods = json['throttled_periods'];
     _throttledTime = json['throttled_time'];
@@ -1628,7 +1632,7 @@ class StatsResponse {
   DateTime _read;
   DateTime get read => _read;
 
-  StatsResponse.fromJson(Map json, Version apiVersion) {
+  StatsResponse.fromJson(Map<String,dynamic> json, Version apiVersion) {
     _blkIoStats = new BlkIoStats.fromJson(json['blkio_stats'], apiVersion);
     _cpuStats =
         new StatsResponseCpuStats.fromJson(json['cpu_stats'], apiVersion);
@@ -1688,7 +1692,7 @@ class BlkIoStats {
   UnmodifiableListView<int> _sectorsRecursive;
   UnmodifiableListView<int> get sectorsRecursive => _sectorsRecursive;
 
-  BlkIoStats.fromJson(Map json, Version apiVersion) {
+  BlkIoStats.fromJson(Map<String,dynamic> json, Version apiVersion) {
     if (json == null) {
       return;
     }
@@ -1700,7 +1704,7 @@ class BlkIoStats {
     _ioServiceTimeRecursive =
         _toUnmodifiableListView(json['io_service_time_recursive']);
     _ioWaitTimeRecursive =
-        _toUnmodifiableListView(json['io_wait_time_recursive']);
+        _toUnmodifiableListView/*<int>*/(json['io_wait_time_recursive']);
     _ioMergedRecursive = _toUnmodifiableListView(json['io_merged_recursive']);
     _ioTimeRecursive = _toUnmodifiableListView(json['io_time_recursive']);
     _sectorsRecursive = _toUnmodifiableListView(json['sectors_recursive']);
@@ -1735,8 +1739,8 @@ class ChangesResponse {
     _changes.add(new _ChangesPath(path, kind));
   }
 
-  List<Map> toJson() {
-    return _changes.map((c) => c.toJson()).toList();
+  List<Map<String,dynamic>> toJson() {
+    return _changes.map((c) => c.toJson()).toList/*<Map<String,dynamic>>*/();
   }
 
   ChangesResponse.fromJson(List json) {
@@ -1766,7 +1770,7 @@ class _ChangesPath {
     return (other is _ChangesPath && other.path == path && other.kind == kind);
   }
 
-  Map toJson() => {'Path': path, 'Kind': kind.index};
+  Map<String,dynamic> toJson() => <String,dynamic>{'Path': path, 'Kind': kind.index};
 }
 
 /// Response to the top request.
@@ -1777,12 +1781,12 @@ class TopResponse {
   List<List<String>> _processes;
   List<List<String>> get processes => _processes;
 
-  TopResponse.fromJson(Map json, Version apiVersion) {
-    _titles = _toUnmodifiableListView(json['Titles']);
+  TopResponse.fromJson(Map<String,dynamic> json, Version apiVersion) {
+    _titles = _toUnmodifiableListView/*<List<String>>*/(json['Titles']);
     _processes = _toUnmodifiableListView(json['Processes']);
   }
 
-  Map toJson() => {'Titles': titles, 'Processes': processes};
+  Map<String,dynamic> toJson() => <String,dynamic>{'Titles': titles, 'Processes': processes};
 }
 
 /// The possible running states of a container.
@@ -1824,11 +1828,11 @@ class RestartPolicy {
 
   RestartPolicy(this._variant, this._maximumRetryCount);
 
-  RestartPolicy.fromJson(Map json, Version apiVersion) {
+  RestartPolicy.fromJson(Map<String,dynamic> json, Version apiVersion) {
     if (json == null) {
       return;
     }
-    if (json['Name'] != null && json['Name'].isNotEmpty) {
+    if (json['Name'] != null && (json['Name'] as String).isNotEmpty) {
       final value = RestartPolicyVariant.values
           .where((v) => v.toString().endsWith(json['Name']));
 //      print(json);
@@ -1842,7 +1846,7 @@ class RestartPolicy {
     }
   }
 
-  Map toJson() {
+  Map<String,dynamic> toJson() {
     assert(_maximumRetryCount == null ||
         _variant == RestartPolicyVariant.onFailure);
     if (variant == null) {
@@ -1852,12 +1856,12 @@ class RestartPolicy {
       case RestartPolicyVariant.doNotRestart:
         return null;
       case RestartPolicyVariant.always:
-        return {'always': null};
+        return <String,dynamic>{'always': null};
       case RestartPolicyVariant.onFailure:
         if (_maximumRetryCount != null) {
-          return {'on-failure': null, 'MaximumRetryCount': _maximumRetryCount};
+          return <String,dynamic>{'on-failure': null, 'MaximumRetryCount': _maximumRetryCount};
         }
-        return {'on-failure': null};
+        return <String,dynamic>{'on-failure': null};
       default:
         throw 'Unsupported enum value.';
     }
@@ -1865,8 +1869,8 @@ class RestartPolicy {
 }
 
 class NetworkMode {
-  static const bridge = const NetworkMode('bridge');
-  static const host = const NetworkMode('host');
+  static const NetworkMode bridge = const NetworkMode('bridge');
+  static const NetworkMode host = const NetworkMode('host');
 
   static const values = const <NetworkMode>[bridge, host];
 
@@ -1906,13 +1910,13 @@ class Container {
 
   Container(this._id);
 
-  Container.fromJson(Map json, Version apiVersion) {
+  Container.fromJson(Map<String,dynamic> json, Version apiVersion) {
     _id = json['Id'];
     _command = json['Command'];
     _created = _parseDate(json['Created']);
     _labels = _parseLabels(json['Labels']);
     _image = json['Image'];
-    _names = json['Names'];
+    _names = json['Names'] as List<String>;
     _ports = json['Ports'] == null
         ? null
         : json['Ports']
@@ -1956,8 +1960,8 @@ class Container {
         json.keys);
   }
 
-  Map toJson() {
-    final json = {};
+  Map<String,dynamic> toJson() {
+    final Map<String,dynamic> json = <String,dynamic>{};
     if (id != null) json['Id'] = id;
     if (command != null) json['Command'] = command;
     if (created != null) json['Created'] = created.toIso8601String();
@@ -2019,7 +2023,7 @@ class ImageInfo {
   UnmodifiableListView<String> _repoTags;
   UnmodifiableListView<String> get repoTags => _repoTags;
 
-  ImageInfo.fromJson(Map json, Version apiVersion) {
+  ImageInfo.fromJson(Map<String,dynamic> json, Version apiVersion) {
     if (json == null) {
       return;
     }
@@ -2039,8 +2043,8 @@ class ImageInfo {
     _parent = json['ParentId'] != null ? json['ParentId'] : null;
     _size = json['Size'];
     _virtualSize = json['VirtualSize'];
-    _repoDigests = _toUnmodifiableListView(json['RepoDigests']);
-    _repoTags = _toUnmodifiableListView(json['RepoTags']);
+    _repoDigests = _toUnmodifiableListView/*<String>*/(json['RepoDigests']);
+    _repoTags = _toUnmodifiableListView/*<String>*/(json['RepoTags']);
 
     _checkSurplusItems(
         apiVersion,
@@ -2188,7 +2192,7 @@ class ContainerInfo {
   bool _updateDns;
   bool get updateDns => _updateDns;
 
-  ContainerInfo.fromJson(Map json, Version apiVersion) {
+  ContainerInfo.fromJson(Map<String,dynamic> json, Version apiVersion) {
     _appArmorProfile = json['AppArmorProfile'];
     _appliedVolumesFrom = json['AppliedVolumesFrom'];
     _args = _toUnmodifiableListView(json['Args']);
@@ -2197,7 +2201,7 @@ class ContainerInfo {
     _driver = json['Driver'];
     _execDriver = json['ExecDriver'];
     _execIds = json['ExecIDs'];
-    _hostConfig = new HostConfig.fromJson(json['HostConfig'], apiVersion);
+    _hostConfig = new HostConfig.fromJson(json['HostConfig'] as Map<String,dynamic>, apiVersion);
     _hostnamePath = json['HostnamePath'];
     _hostsPath = json['HostsPath'];
     if (json.containsKey('Id')) {
@@ -2217,7 +2221,7 @@ class ContainerInfo {
     _processLabel = json['ProcessLabel'];
     _resolveConfPath = json['ResolvConfPath'];
     _restartCount = json['RestartCount'];
-    _state = new State.fromJson(json['State'], apiVersion);
+    _state = new State.fromJson(json['State'] as Map<String,dynamic>, apiVersion);
     _updateDns = json['UpdateDns'];
     _volumes = new Volumes.fromJson(json['Volumes'], apiVersion);
     _volumesRw = new VolumesRw.fromJson(json['VolumesRW'], apiVersion);
@@ -2310,8 +2314,8 @@ class ContainerInfo {
         json.keys);
   }
 
-  Map toJson() {
-    final json = {};
+  Map<String,dynamic> toJson() {
+    final Map<String,dynamic> json = <String,dynamic>{};
     if (appArmorProfile != null) json['AppArmorProfile'] = appArmorProfile;
     if (args != null) json['Args'] = args;
     if (config != null) json['Config'] = config.toJson();
@@ -2340,10 +2344,14 @@ class ContainerInfo {
 
 class PortBindingRequest extends PortBinding {
   String get hostIp => _hostIp;
-  set hostIp(String val) => _hostIp = val;
+  void set hostIp(String val) {
+     _hostIp = val;
+  }
 
   String get hostPort => _hostPort;
-  set hostPort(String val) => _hostPort = val;
+  void set hostPort(String val) {
+     _hostPort = val;
+  }
 }
 
 class PortBinding {
@@ -2355,13 +2363,13 @@ class PortBinding {
 
   PortBinding();
 
-  PortBinding.fromJson(Map json, Version apiVersion) {
+  PortBinding.fromJson(Map<String,dynamic> json, Version apiVersion) {
     _hostIp = json['HostIp'];
     _hostPort = json['HostPort'];
   }
 
-  Map toJson() {
-    final result = {'HostPort': hostPort};
+  Map<String,dynamic> toJson() {
+    final Map<String,String> result = <String,String>{'HostPort': hostPort};
     if (hostIp != null) {
       result['HostIp'] = hostIp;
     }
@@ -2372,16 +2380,16 @@ class PortBinding {
 /// See [HostConfigRequest] for documentation of the members.
 class HostConfig {
   List<String> _binds;
-  List<String> get binds => _toUnmodifiableListView(_binds);
+  List<String> get binds => _toUnmodifiableListView/*<String>*/(_binds);
 
   int _blkioWeight;
   int get blkioWeight => _blkioWeight;
 
   List<String> _capAdd;
-  List<String> get capAdd => _toUnmodifiableListView(_capAdd);
+  List<String> get capAdd => _toUnmodifiableListView/*<String>*/(_capAdd) ;
 
   List<String> _capDrop;
-  List<String> get capDrop => _toUnmodifiableListView(_capDrop);
+  List<String> get capDrop => _toUnmodifiableListView/*<String>*/(_capDrop);
 
   String _cGroupParent;
   String get cGroupParent => _cGroupParent;
@@ -2405,28 +2413,28 @@ class HostConfig {
   String get cpusetMems => _cpusetMems;
 
   Map<String, String> _devices;
-  Map<String, String> get devices => _toUnmodifiableMapView(_devices);
+  Map<String, String> get devices => _toUnmodifiableMapView/*<String,String>*/(_devices);
 
   List<String> _dns;
-  List<String> get dns => _toUnmodifiableListView(_dns);
+  List<String> get dns => _toUnmodifiableListView/*<String>*/(_dns) as List<String>;
 
   List<String> _dnsSearch;
-  List<String> get dnsSearch => _toUnmodifiableListView(_dnsSearch);
+  List<String> get dnsSearch => _toUnmodifiableListView/*<String>*/(_dnsSearch) as List<String>;
 
   List<String> _extraHosts;
-  List<String> get extraHosts => _toUnmodifiableListView(_extraHosts);
+  List<String> get extraHosts => _toUnmodifiableListView/*<String>*/(_extraHosts) as List<String>;
 
   String _ipcMode;
   String get ipcMode => _ipcMode;
 
   List<String> _links;
-  List<String> get links => _toUnmodifiableListView(_links);
+  List<String> get links => _toUnmodifiableListView(_links)  as List<String>;
 
   Map<String, Config> _logConfig;
-  Map<String, Config> get logConfig => _toUnmodifiableMapView(_logConfig);
+  Map<String, Config> get logConfig => _toUnmodifiableMapView(_logConfig)  as Map<String,Config>;
 
   Map<String, String> _lxcConf;
-  Map<String, String> get lxcConf => _toUnmodifiableMapView(_lxcConf);
+  Map<String, String> get lxcConf => _toUnmodifiableMapView(_lxcConf)  as Map<String,String>;
 
   int _memory;
   int get memory => _memory;
@@ -2473,35 +2481,36 @@ class HostConfig {
 
   HostConfig();
 
-  HostConfig.fromJson(Map json, Version apiVersion) {
+  HostConfig.fromJson(Map<String, dynamic> json, Version apiVersion) {
     if (json == null) {
       return;
     }
-    _binds = json['Binds'];
+    _binds = json['Binds'] as List<String>;
     _blkioWeight = json['BlkioWeight'];
-    _capAdd = json['CapAdd'];
-    _capDrop = json['CapDrop'];
+    _capAdd = json['CapAdd'] as List<String>;
+    _capDrop = json['CapDrop'] as List<String>;
     _cGroupParent = json['CgroupParent'];
     _containerIdFile = json['ContainerIDFile'];
     _cpuPeriod = json['CpuPeriod'];
     _cpusetCpus = json['CpusetCpus'];
     _cpusetMems = json['CpusetMems'];
     _cpuShares = json['CpuShares'];
-    _devices = json['Devices'];
-    _dns = json['Dns'];
-    _dnsSearch = json['DnsSearch'];
-    _extraHosts = json['ExtraHosts'];
+    _devices = json['Devices'] as Map<String, String>;
+    _dns = json['Dns'] as List<String>;
+    _dnsSearch = json['DnsSearch'] as List<String>;
+    _extraHosts = json['ExtraHosts'] as List<String>;
     _ipcMode = json['IpcMode'];
-    _links = json['Links'];
-    _logConfig = json['LogConfig'];
-    _lxcConf = json['LxcConf'];
+    _links = json['Links'] as List<String>;
+    _logConfig = json['LogConfig']
+        as Map<String, Config>; // TODO(zoechi) this has to be a bug
+    _lxcConf = json['LxcConf'] as Map<String, String>;
     _memory = json['Memory'];
     _memorySwap = json['MemorySwap'];
     _networkMode = json['NetworkMode'];
     _oomKillDisable = json['OomKillDisable'];
     _pidMode = json['PidMode'];
     final Map<String, List<Map<String, String>>> portBindings =
-        json['PortBindings'];
+        json['PortBindings'] as Map<String, List<Map<String, String>>>;
     if (portBindings != null) {
       _portBindings = new Map<String, List<PortBinding>>.fromIterable(
           portBindings.keys,
@@ -2610,8 +2619,8 @@ class HostConfig {
         json.keys);
   }
 
-  Map toJson() {
-    final json = {};
+  Map<String, dynamic> toJson() {
+    final Map<String,dynamic> json = <String,dynamic>{};
     if (binds != null) json['Binds'] = binds;
     if (capAdd != null) json['CapAdd'] = capAdd;
     if (capDrop != null) json['CapDrop'] = capDrop;
@@ -2711,7 +2720,7 @@ class NetworkSettings {
   UnmodifiableListView _secondaryIPv6Addresses;
   UnmodifiableListView get secondaryIPv6Addresses => _secondaryIPv6Addresses;
 
-  NetworkSettings.fromJson(Map json, Version apiVersion) {
+  NetworkSettings.fromJson(Map<String,dynamic> json, Version apiVersion) {
     if (json == null) {
       return;
     }
@@ -2786,8 +2795,8 @@ class NetworkSettings {
         json.keys);
   }
 
-  Map toJson() {
-    final json = {};
+  Map<String,dynamic> toJson() {
+    final Map<String,dynamic> json = <String,dynamic>{};
     if (bridge != null) json['Bridge'] = bridge;
     if (endpointId != null) json['EndpointID'] = endpointId;
     if (gateway != null) json['Gateway'] = gateway;
@@ -2841,7 +2850,7 @@ class State {
   DateTime _startedAt;
   DateTime get startedAt => _startedAt;
 
-  State.fromJson(Map json, Version apiVersion) {
+  State.fromJson(Map<String,dynamic> json, Version apiVersion) {
     if (json == null) {
       return;
     }
@@ -2884,8 +2893,8 @@ class State {
         json.keys);
   }
 
-  Map toJson() {
-    final json = {};
+  Map<String,dynamic> toJson() {
+    final Map<String,dynamic> json = <String,dynamic>{};
     if (exitCode != null) json['ExitCode'] = exitCode;
     if (finishedAt != null) json['FinishedAt'] = finishedAt;
     if (paused != null) json['Paused'] = paused;
@@ -2898,7 +2907,7 @@ class State {
 }
 
 class Volumes {
-  Map<String, Map> _volumes = {};
+  Map<String, Map> _volumes = <String, Map>{};
   UnmodifiableMapView<String, Map> get volumes =>
       _toUnmodifiableMapView(_volumes);
 
@@ -2910,14 +2919,14 @@ class Volumes {
     _volumes[path] = to;
   }
 
-  Volumes.fromJson(Map json, Version apiVersion) {
+  Volumes.fromJson(Map<String,dynamic> json, Version apiVersion) {
     if (json == null) {
       return;
     }
     _volumes.addAll(json);
   }
 
-  Map toJson() {
+  Map<String,dynamic> toJson() {
     if (_volumes.isEmpty) {
       return null;
     } else {
@@ -2935,11 +2944,11 @@ class VolumesRequest extends Volumes {
 }
 
 class VolumesRw {
-  Map<String, bool> _volumes = {};
+  Map<String, bool> _volumes = <String, bool>{};
   UnmodifiableMapView<String, bool> get volumes =>
       _toUnmodifiableMapView(_volumes);
 
-  VolumesRw.fromJson(Map json, Version apiVersion) {
+  VolumesRw.fromJson(Map<String,dynamic> json, Version apiVersion) {
     if (json == null) {
       return;
     }
@@ -2947,7 +2956,7 @@ class VolumesRw {
 //    _checkSurplusItems(apiVersion, {ApiVersion.v1_15: const []}, json.keys);
   }
 
-  Map toJson() {
+  Map<String,dynamic> toJson() {
     if (_volumes.isEmpty) {
       return null;
     } else {
@@ -3040,34 +3049,34 @@ class Config {
   String _workingDir;
   String get workingDir => _workingDir;
 
-  Config.fromJson(Map json, Version apiVersion) {
+  Config.fromJson(Map<String,dynamic> json, Version apiVersion) {
     if (json == null) {
       return;
     }
     _attachStderr = json['AttachStderr'];
     _attachStdin = json['AttachStdin'];
     _attachStdout = json['AttachStdout'];
-    _cmd = _toUnmodifiableListView(json['Cmd']);
+    _cmd = _toUnmodifiableListView/*<String>*/(json['Cmd']);
     _cpuShares = json['CpuShares'];
     _cpuSet = json['Cpuset'];
     _domainName = json['Domainname'];
     _entryPoint = json['Entrypoint'];
-    final e = json['Env'];
+    final List<String> e = json['Env'] as List<String>;
     if (e != null) {
       _env = _toUnmodifiableMapView(new Map<String, String>.fromIterable(
-          e.map((i) => i.split('=')),
-          key: (i) => i[0],
-          value: (i) => i.length == 2 ? i[1] : null));
+          e.map/*<String>*/((String i) => i.split('=')),
+          key: (String i) => i[0],
+          value: (String i) => i.length == 2 ? i[1] : null));
     }
-    _exposedPorts = _toUnmodifiableMapView(json['ExposedPorts']);
+    _exposedPorts = _toUnmodifiableMapView/*<String<UnmodifiableMapView<String, String>>>*/(json['ExposedPorts']);
     _hostName = json['Hostname'];
     _image = json['Image'];
-    _labels = _parseLabels(json['Labels']);
+    _labels = _parseLabels(json['Labels'] as Map<String, List<String>>);
     _macAddress = json['MacAddress'];
     _memory = json['Memory'];
     _memorySwap = json['MemorySwap'];
     _networkDisabled = json['NetworkDisabled'];
-    _onBuild = _toUnmodifiableListView(json['OnBuild']);
+    _onBuild = _toUnmodifiableListView/*<String>*/(json['OnBuild']);
     _openStdin = json['OpenStdin'];
     _portSpecs = json['PortSpecs'];
     _stdinOnce = json['StdinOnce'];
@@ -3164,8 +3173,8 @@ class Config {
         json.keys);
   }
 
-  Map toJson() {
-    final json = {};
+  Map<String,dynamic> toJson() {
+    final Map<String,dynamic> json = <String,dynamic>{};
     if (attachStderr != null) json['AttachStderr'] = attachStderr;
     if (attachStdin != null) json['AttachStdin'] = attachStdin;
     if (attachStdout != null) json['AttachStdout'] = attachStdout;
@@ -3207,7 +3216,7 @@ class PortResponse {
   String _type;
   String get type => _type;
 
-  PortResponse.fromJson(Map json, Version apiVersion) {
+  PortResponse.fromJson(Map<String,dynamic> json, Version apiVersion) {
     if (json == null) {
       return;
     }
@@ -3234,7 +3243,7 @@ class AuthResponse {
   String _status;
   String get status => _status;
 
-  AuthResponse.fromJson(Map json, Version apiVersion) {
+  AuthResponse.fromJson(Map<String,dynamic> json, Version apiVersion) {
     _status = json['Status'];
     _checkSurplusItems(
         apiVersion,
@@ -3247,7 +3256,7 @@ class AuthResponse {
 
 /// A response which isn't supposed to carry any information.
 class SimpleResponse {
-  SimpleResponse.fromJson(Map json, Version apiVersion) {
+  SimpleResponse.fromJson(Map<String,dynamic> json, Version apiVersion) {
     if (json != null && json.keys.length > 0) {
       throw json;
     }
@@ -3259,7 +3268,7 @@ class CreateResponse {
   Container _container;
   Container get container => _container;
 
-  CreateResponse.fromJson(Map json, Version apiVersion) {
+  CreateResponse.fromJson(Map<String,dynamic> json, Version apiVersion) {
     if (json['Id'] != null && (json['Id'] as String).isNotEmpty) {
       _container = new Container(json['Id']);
     }
@@ -3341,8 +3350,8 @@ class CreateContainerRequest {
   List<String> securityOpts = <String>[];
   HostConfigRequest hostConfig = new HostConfigRequest();
 
-  Map toJson() {
-    final json = {};
+  Map<String,dynamic> toJson() {
+    final Map<String,dynamic> json = <String,dynamic>{};
     if (hostName != null) json['Hostname'] = hostName;
     if (domainName != null) json['Domainname'] = domainName;
     if (user != null) json['User'] = user;
@@ -3353,7 +3362,7 @@ class CreateContainerRequest {
     if (openStdin != null) json['OpenStdin'] = openStdin;
     if (stdinOnce != null) json['StdinOnce'] = stdinOnce;
     if (env != null) json['Env'] =
-        env.keys.map((k) => '${k}=${env[k]}').toList();
+        env.keys.map/*<String>*/((String k) => '${k}=${env[k]}').toList();
     if (cmd != null) json['Cmd'] = cmd;
     if (entryPoint != null) json['Entrypoint'] = entryPoint;
     if (image != null) json['Image'] = image;
@@ -3378,96 +3387,136 @@ class HostConfigRequest extends HostConfig {
   ///  or `host_path:container_path:ro` (to make the bind-mount read-only inside
   ///  the container).
   List<String> get binds => _binds;
-  set binds(List<String> val) => _binds = val;
+  void set binds(List<String> val) {
+    _binds = val;
+  }
 
   /// Kernel capabilities to add to the container.
   List<String> get capAdd => _capAdd;
-  set capAdd(List<String> val) => _capAdd = val;
+  void set capAdd(List<String> val) {
+    _capAdd = val;
+  }
 
   /// Kernel capabilities to drop from the container.
   List<String> get capDrop => _capDrop;
-  set capDrop(List<String> val) => _capDrop = val;
+  void set capDrop(List<String> val) {
+    _capDrop = val;
+  }
 
   /// Path to cgroups under which the cgroup for the container will be created.
   /// If the path is not absolute, the path is considered to be relative to the
   /// cgroups path of the init process. Cgroups will be created if they do not
   /// already exist.
   String get cGroupParent => _cGroupParent;
-  set cGroupParent(String val) => _cGroupParent = val;
+  void set cGroupParent(String val) {
+    _cGroupParent = val;
+  }
 
   /// The CPU Shares for container (ie. the relative weight vs othercontainers).
   int get cpuShares => _cpuShares;
-  set cpuShares(int val) => _cpuShares = val;
+  void set cpuShares(int val) {
+    _cpuShares = val;
+  }
 
   /// The cgroups CpusetCpus to use.
   String get cpusetCpus => _cpusetCpus;
-  set cpusetCpus(String val) => _cpusetCpus = val;
+  void set cpusetCpus(String val) {
+    _cpusetCpus = val;
+  }
 
   /// Devices to add to the container specified in the form
   /// `{ "PathOnHost": "/dev/deviceName", "PathInContainer": "/dev/deviceName", "CgroupPermissions": "mrw"}`
   Map<String, String> get devices => _devices;
-  set devices(Map<String, String> val) => _devices = val;
+  void set devices(Map<String, String> val) {
+    _devices = val;
+  }
 
   /// A list of dns servers for the container to use.
   List<String> get dns => _dns;
-  set dns(List<String> val) => _dns = val;
+  void set dns(List<String> val) {
+    _dns = val;
+  }
 
   /// A list of DNS search domains.
   List<String> get dnsSearch => _dnsSearch;
-  set dnsSearch(List<String> val) => _dnsSearch = val;
+  void set dnsSearch(List<String> val) {
+    _dnsSearch = val;
+  }
 
   /// A list of hostnames/IP mappings to be added to the container's /etc/hosts
   /// file. Specified in the form `["hostname:IP"]`.
   List<String> get extraHosts => _extraHosts;
-  set extraHosts(List<String> val) => _extraHosts = val;
+  void set extraHosts(List<String> val) {
+    _extraHosts = val;
+  }
 
   /// Links for the container. Each link entry should be of of the form
   /// "container_name:alias".
   List<String> get links => _links;
-  set links(List<String> val) => _links = val;
+  void set links(List<String> val) {
+    _links = val;
+  }
 
   /// Logging configuration for the container in the form
   /// `{ "Type": "<driver_name>", "Config": {"key1": "val1"}}`
   /// Available types:`json-file`, `syslog`, `none`.
   Map<String, Config> get logConfig => _logConfig;
-  set logConfig(Map<String, Config> val) => _logConfig = val;
+  void set logConfig(Map<String, Config> val) {
+    _logConfig = val;
+  }
 
   /// LXC specific configurations. These configurations will only work when
   /// using the lxc execution driver.
   Map<String, String> get lxcConf => _lxcConf;
-  set lxcConf(Map<String, String> val) => _lxcConf = val;
+  void set lxcConf(Map<String, String> val) {
+    _lxcConf = val;
+  }
 
   /// Memory limit in bytes.
   int get memory => _memory;
-  set memory(int val) => _memory = val;
+  void set memory(int val) {
+    _memory = val;
+  }
 
   /// Total memory limit (memory + swap); set -1 to disable swap, always use
   /// this with [memory], and make the value larger than [memory].
   int get memorySwap => _memorySwap;
-  set memorySwap(int val) => _memorySwap = val;
+  void set memorySwap(int val) {
+    _memorySwap = val;
+  }
 
   /// Sets the networking mode for the container. Supported values are:
   /// [NetworkMode.bridge], [NetworkMode.host], and `container:<name|id>`
   String get networkMode => _networkMode;
-  set networkMode(String val) => _networkMode = val;
+  void set networkMode(String val) {
+    _networkMode = val;
+  }
 
   /// Exposed container ports and the host port they should map to. It should be
   /// specified in the form `{ <port>/<protocol>: [{ "HostPort": "<port>" }] }`.
   /// Take note that port is specified as a string and not an integer value.
   Map<String, List<PortBinding>> get portBindings => _portBindings;
-  set portBindings(Map<String, List<PortBinding>> val) => _portBindings = val;
+  void set portBindings(Map<String, List<PortBinding>> val) {
+    _portBindings = val;
+  }
 
   /// Allocates a random host port for all of a container's exposed ports.
   bool get publishAllPorts => _publishAllPorts;
-  set publishAllPorts(bool val) => _publishAllPorts = val;
+  void set publishAllPorts(bool val) {
+    _publishAllPorts = val;
+  }
 
   /// Gives the container full access to the host.
   bool get privileged => _privileged;
-  set privileged(bool val) => _privileged = val;
+  void set privileged(bool val) {
+    _privileged = val;
+  }
 
   ///  Mount the container's root filesystem as read only.
   bool get readonlyRootFs => _readonlyRootFs;
-  set readonlyRootFs(bool val) => _readonlyRootFs = val;
+  void set readonlyRootFs(bool val) {
+    _readonlyRootFs = val;
+  }
 
   /// The behavior to apply when the container exits. The value is an object
   /// with a `Name` property of either `"always"` to always restart or
@@ -3477,18 +3526,24 @@ class HostConfigRequest extends HostConfig {
   /// ever increasing delay (double the previous delay, starting at 100mS) is
   /// added before each restart to prevent flooding the server.
   RestartPolicy get restartPolicy => _restartPolicy;
-  set restartPolicy(RestartPolicy val) => _restartPolicy = val;
+  void set restartPolicy(RestartPolicy val) {
+    _restartPolicy = val;
+  }
 
   /// Ulimits to be set in the container, specified as
   /// `{ "Name": <name>, "Soft": <soft limit>, "Hard": <hard limit> }`, for example:
   /// `Ulimits: { "Name": "nofile", "Soft": 1024, "Hard", 2048 }`
   Map get ulimits => _ulimits;
-  set ulimits(Map val) => _ulimits = val;
+  void set ulimits(Map val) {
+    _ulimits = val;
+  }
 
   /// A list of volumes to inherit from another container. Specified in the
   /// form `<container name>[:<ro|rw>]`
   List<String> get volumesFrom => _volumesFrom;
-  set volumesFrom(List<String> val) => _volumesFrom = val;
+  void set volumesFrom(List<String> val) {
+    _volumesFrom = val;
+  }
 }
 
 class PortArgument {
