@@ -92,7 +92,7 @@ dynamic _testTaskImpl() async {
   await docker.init();
   try {
     await _dindStartForTest(docker);
-    new PubApp.local('test').run(['-rexpanded'],
+    new PubApp.local('test').run(['-rexpanded', '-j1'],
         runOptions: new RunOptions(environment: {
           dockerHostFromEnvironment:
               _uriUpdatePort(dockerHost, _dindPort1).toString()
@@ -136,10 +136,10 @@ Future<Container> _dindCreateContainer(
         ..image = _dindImageName
         ..exposedPorts = {'${port}/tcp': {}}
         ..env = {'PORT': '${port}'}
-        ..attachStdin = false
+        ..attachStdin = true
         ..attachStdout = false
         ..attachStderr = false
-        ..tty = false
+        ..tty = true
         ..openStdin = false
         ..stdinOnce = false
         ..hostConfig = hostConfig);

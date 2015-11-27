@@ -409,19 +409,24 @@ class DockerEvent {
 
 /// An item of the response to the events request.
 class EventsResponse {
-  DockerEventBase _status;
-  DockerEventBase get status => _status;
+  String _from;
+  String get from => _from;
 
   String _id;
   String get id => _id;
 
-  String _from;
-  String get from => _from;
+  DockerEventBase _status;
+  DockerEventBase get status => _status;
 
   DateTime _time;
   DateTime get time => _time;
 
+  int _timeNano;
+  int get timeNano => _timeNano;
+
   EventsResponse.fromJson(Map<String, dynamic> json, Version apiVersion) {
+    _from = json['from'];
+    _id = json['id'];
     if (json['status'] != null) {
       try {
         _status = DockerEvent.values
@@ -430,13 +435,25 @@ class EventsResponse {
         print('${e}');
       }
     }
-    _id = json['id'];
-    _from = json['from'];
     _time = parseDate(json['time']);
+    _timeNano = json['timeNano'];
     checkSurplusItems(
         apiVersion,
         {
-          RemoteApiVersion.v1x15: const ['status', 'id', 'from', 'time']
+          RemoteApiVersion.v1x15: const [
+            'from',
+            'id',
+            'status',
+            'time',
+            'timeNano'
+          ],
+          RemoteApiVersion.v1x19: const [
+            'from',
+            'id',
+            'status',
+            'time',
+            'timeNano'
+          ]
         },
         json.keys);
   }
@@ -456,6 +473,66 @@ class Exec {
         apiVersion,
         {
           RemoteApiVersion.v1x15: const ['Id']
+        },
+        json.keys);
+  }
+}
+
+class GraphDriver {
+  String _name;
+  String get name => _name;
+
+  List<GraphDriverData> _data;
+  List<GraphDriverData> get data =>
+      new UnmodifiableListView<GraphDriverData>(_data);
+
+  GraphDriver.fromJson(Map<String, dynamic> json, Version apiVersion) {
+    if (json == null) {
+      return;
+    }
+    _name = json['Name'] as String;
+    Map<String, dynamic> dataJsonTmp = json['Data'] as Map<String, dynamic>;
+    if (dataJsonTmp != null) {
+      _data = new UnmodifiableListView<GraphDriverData>(dataJsonTmp.keys
+          .map /*<GraphDriverData>*/ ((String k) =>
+              new GraphDriverData.fromJson(
+                  dataJsonTmp[k] as Map<String, dynamic>, apiVersion)));
+    }
+    checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1x20: const ['Name', 'Data'],
+        },
+        json.keys);
+  }
+}
+
+class GraphDriverData {
+  String _deviceId;
+  String get deviceId => _deviceId;
+
+  String _deviceName;
+  String get deviceName => _deviceName;
+
+  String _deviceSize;
+  String get deviceSize => _deviceSize;
+
+  GraphDriverData.fromJson(Map<String, dynamic> json, Version apiVersion) {
+    if (json == null) {
+      return;
+    }
+    _deviceId = json['DeviceId'];
+    _deviceName = json['DeviceName'];
+    _deviceSize = json['DeviceSize'];
+
+    checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1x20: const [
+            'DeviceId',
+            'DeviceName',
+            'DeviceSize'
+          ],
         },
         json.keys);
   }
@@ -840,6 +917,9 @@ class State {
   DateTime _startedAt;
   DateTime get startedAt => _startedAt;
 
+  String _status;
+  String get status => _status;
+
   State.fromJson(Map<String, dynamic> json, Version apiVersion) {
     if (json == null) {
       return;
@@ -855,18 +935,10 @@ class State {
     _restarting = json['Restarting'];
     _running = json['Running'];
     _startedAt = parseDate(json['StartedAt']);
+    _status = json['Status'];
     checkSurplusItems(
         apiVersion,
         {
-          RemoteApiVersion.v1x15: const [
-            'ExitCode',
-            'FinishedAt',
-            'Paused',
-            'Pid',
-            'Restarting',
-            'Running',
-            'StartedAt',
-          ],
           RemoteApiVersion.v1x15: const [
             'Dead',
             'Error',
@@ -878,7 +950,8 @@ class State {
             'Restarting',
             'Running',
             'StartedAt',
-          ]
+            'Status',
+          ],
         },
         json.keys);
   }
@@ -892,6 +965,7 @@ class State {
     if (restarting != null) json['Restarting'] = restarting;
     if (running != null) json['Running'] = running;
     if (startedAt != null) json['StartedAt'] = startedAt;
+    if (status != null) json['Status'] = status;
     return json;
   }
 }
@@ -1262,6 +1336,9 @@ class TopResponse {
 
 /// Response to the version request.
 class VersionResponse {
+  String _buildTime;
+  String get buildTime => _buildTime;
+
   Version _version;
   Version get version => _version;
 
@@ -1284,6 +1361,7 @@ class VersionResponse {
   Version get apiVersion => _apiVersion;
 
   VersionResponse.fromJson(Map<String, dynamic> json, Version apiVersion) {
+    _buildTime = json['BuildTime'];
     _version = new Version.fromString(json['Version']);
     _os = json['Os'];
     _kernelVersion = json['KernelVersion'];
@@ -1295,13 +1373,24 @@ class VersionResponse {
         apiVersion,
         {
           RemoteApiVersion.v1x15: const [
-            'Version',
-            'Os',
-            'KernelVersion',
-            'GoVersion',
-            'GitCommit',
+            'ApiVersion',
             'Arch',
-            'ApiVersion'
+            'BuildTime',
+            'GitCommit',
+            'GoVersion',
+            'KernelVersion',
+            'Os',
+            'Version',
+          ],
+          RemoteApiVersion.v1x20: const [
+            'ApiVersion',
+            'Arch',
+            'BuildTime',
+            'GitCommit',
+            'GoVersion',
+            'KernelVersion',
+            'Os',
+            'Version',
           ]
         },
         json.keys);

@@ -8,7 +8,7 @@ void checkSurplusItems(Version apiVersion, Map<Version, List<String>> expected,
     Iterable<String> actual) {
   assert(expected != null);
   assert(actual != null);
-  if (apiVersion == null || expected.isEmpty) {
+  if (apiVersion == null || apiVersion == new RemoteApiVersion(0,0,0) || expected.isEmpty ) {
     return;
   }
   List<String> expectedForVersion = expected[apiVersion];
@@ -138,7 +138,7 @@ UnmodifiableListView /*<T>*/ toUnmodifiableListView /*<T>*/ (Iterable list) {
     } else if (e is List) {
       return toUnmodifiableListView /*<T>*/ (e);
     } else {
-      return e as Iterable /*<T>*/;
+      return e;
     }
   }));
 }

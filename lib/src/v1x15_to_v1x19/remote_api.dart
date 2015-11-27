@@ -45,8 +45,10 @@ class DockerConnection {
   Future init() async {
     if (_dockerVersion == null) {
       _dockerVersion = await version();
+      if(_remoteApiVersion == null) {
       _remoteApiVersion =
           new RemoteApiVersion.fromVersion(dockerVersion.apiVersion);
+      }
     }
   }
 
@@ -59,7 +61,7 @@ class DockerConnection {
   /// by the Docker service is used (the version part is omitted in the request
   /// URI).
   DockerConnection.useRemoteApiVersion(
-      Uri uri, RemoteApiVersion remoteApiVersion, http.Client client) {
+      Uri uri, this._remoteApiVersion, http.Client client) {
     assert(uri != null);
     assert(client != null);
 //    print('Uri: ${uri}');
@@ -90,7 +92,7 @@ class DockerConnection {
     Map<String, String> _headers = headers != null ? headers : headersJson;
 
     final Uri url = serverReference.buildUri(path, query);
-//    print('Uri: ${url}, ${requestType}');
+    print('Uri: ${url}, ${requestType}');
 
     http.Response response;
     switch (requestType) {
@@ -1106,7 +1108,7 @@ class DockerConnection {
   Future<http.ByteStream> get(Image image) async {
     assert(image != null && image.name != null && image.name.isNotEmpty);
     return _requestStream(RequestType.get, '/images/${image.name}/get')
-        as http.ByteStream;
+        as Future<http.ByteStream>;
   }
 
   /// Get a tarball containing all images and metadata for one or more

@@ -4,6 +4,7 @@ import 'dart:collection';
 import 'package:bwu_docker/src/shared/version.dart';
 import 'package:bwu_docker/src/shared/json_util.dart';
 import 'package:bwu_docker/src/shared/data_structures.dart';
+import 'dart:math' show Point;
 
 export 'package:bwu_docker/src/shared/version.dart';
 export 'package:bwu_docker/src/shared/data_structures.dart';
@@ -182,6 +183,18 @@ class CommitRequest {
 
 /// Response to the info request.
 class InfoResponse {
+  bool _bridgeNfIp6Tables;
+  bool get bridgeNfIp6Tables => _bridgeNfIp6Tables;
+
+  bool _bridgeNfIpTables;
+  bool get bridgeNfIpTables => _bridgeNfIpTables;
+
+  String _clusterAdvertise;
+  String get clusterAdvertise => _clusterAdvertise;
+
+  String _clusterStore;
+  String get clusterStore => _clusterStore;
+
   int _containers;
   int get containers => _containers;
 
@@ -275,6 +288,9 @@ class InfoResponse {
   RegistryConfigs _registryConfigs;
   RegistryConfigs get registryConfigs => _registryConfigs;
 
+  String _serverVersion;
+  String get serverVersion => _serverVersion;
+
   bool _swapLimit;
   bool get swapLimit => _swapLimit;
 
@@ -282,6 +298,10 @@ class InfoResponse {
   DateTime get systemTime => _systemTime;
 
   InfoResponse.fromJson(Map<String, dynamic> json, Version apiVersion) {
+    _bridgeNfIp6Tables = json['BridgeNfIp6tables'];
+    _bridgeNfIpTables = json['BridgeNfIptables'];
+    _clusterAdvertise = json['ClusterAdvertise'];
+    _clusterStore = json['ClusterStore'];
     _containers = json['Containers'];
     _cpuCfsPeriod = json['CpuCfsPeriod'];
     _cpuCfsQuota = json['CpuCfsQuota'];
@@ -318,6 +338,7 @@ class InfoResponse {
     _operatingSystem = json['OperatingSystem'];
     _registryConfigs = new RegistryConfigs.fromJson(
         json['RegistryConfigs'] as Map<String, dynamic>, apiVersion);
+    _serverVersion = json['ServerVersion'];
     _swapLimit = parseBool(json['SwapLimit']);
     _systemTime = parseDate(json['SystemTime']);
 
@@ -325,7 +346,11 @@ class InfoResponse {
         apiVersion,
         {
           RemoteApiVersion.v1x15: const [
+            'BridgeNfIp6tables',
+            'BridgeNfIptables',
             'Containers',
+            'CpuCfsPeriod',
+            'CpuCfsQuota',
             'Debug',
             'DockerRootDir',
             'Driver',
@@ -352,36 +377,11 @@ class InfoResponse {
             'SwapLimit',
             'SystemTime'
           ],
-          RemoteApiVersion.v1x18: const [
-            'Containers',
-            'Debug',
-            'DockerRootDir',
-            'Driver',
-            'DriverStatus',
-            'ExecutionDriver',
-            'HttpProxy',
-            'HttpsProxy',
-            'ID',
-            'Images',
-            'IndexServerAddress',
-            'InitPath',
-            'InitSha1',
-            'IPv4Forwarding',
-            'KernelVersion',
-            'Labels',
-            'MemoryLimit',
-            'MemTotal',
-            'Name',
-            'NCPU',
-            'NEventsListener',
-            'NFd',
-            'NGoroutines',
-            'OperatingSystem',
-            'RegistryConfig',
-            'SwapLimit',
-            'SystemTime'
-          ],
-          RemoteApiVersion.v1x19: const [
+          RemoteApiVersion.v1x16: const [
+            'BridgeNfIp6tables',
+            'BridgeNfIptables',
+            'ClusterAdvertise',
+            'ClusterStore',
             'Containers',
             'CpuCfsPeriod',
             'CpuCfsQuota',
@@ -413,6 +413,7 @@ class InfoResponse {
             'OomKillDisable',
             'OperatingSystem',
             'RegistryConfig',
+            'ServerVersion',
             'SwapLimit',
             'SystemTime'
           ],
@@ -452,17 +453,10 @@ class ImageHistoryResponse {
         apiVersion,
         {
           RemoteApiVersion.v1x15: const [
-            'Id',
-            'Created',
-            'CreatedBy',
-            'Size',
-            'Tags'
-          ],
-          RemoteApiVersion.v1x19: const [
-            'Id',
             'Comment',
             'Created',
             'CreatedBy',
+            'Id',
             'Size',
             'Tags'
           ],
@@ -511,13 +505,6 @@ class StatsResponse {
             'cpu_stats',
             'memory_stats',
             'network',
-            'read',
-          ],
-          RemoteApiVersion.v1x19: const [
-            'blkio_stats',
-            'cpu_stats',
-            'memory_stats',
-            'network',
             'precpu_stats',
             'read',
           ],
@@ -528,20 +515,26 @@ class StatsResponse {
 
 /// Basic info about a container.
 class Container {
-  String _id;
-  String get id => _id;
-
   String _command;
   String get command => _command;
 
   DateTime _created;
   DateTime get created => _created;
 
-  UnmodifiableMapView<String, String> _labels;
-  UnmodifiableMapView<String, String> get labels => _labels;
+  HostConfig _hostConfig;
+  HostConfig get hostConfig => _hostConfig;
+
+  String _id;
+  String get id => _id;
 
   String _image;
   String get image => _image;
+
+  String _imageId;
+  String get imageId => _imageId;
+
+  UnmodifiableMapView<String, String> _labels;
+  UnmodifiableMapView<String, String> get labels => _labels;
 
   List<String> _names;
   List<String> get names => _names;
@@ -555,11 +548,13 @@ class Container {
   Container(this._id);
 
   Container.fromJson(Map<String, dynamic> json, Version apiVersion) {
-    _id = json['Id'];
     _command = json['Command'];
     _created = parseDate(json['Created']);
-    _labels = parseLabels(json['Labels'] as Map<String, List<String>>);
+    _hostConfig = json['hostConfig'] != null ? new HostConfig.fromJson(json['hostConfig'] as Map<String,dynamic>, apiVersion) : null;
+    _id = json['Id'];
     _image = json['Image'];
+    _imageId = json['ImageID'];
+    _labels = parseLabels(json['Labels'] as Map<String, List<String>>);
     _names = json['Names'] as List<String>;
     _ports = json['Ports'] == null
         ? null
@@ -573,10 +568,13 @@ class Container {
         apiVersion,
         {
           RemoteApiVersion.v1x15: const [
-            'Id',
             'Command',
             'Created',
+            'Id',
             'Image',
+            'ImageID',
+            'HostConfig',
+            'Labels',
             'Names',
             'Ports',
             'Status'
@@ -591,26 +589,30 @@ class Container {
 //            'Ports',
 //            'Status'
 //          ],
-          RemoteApiVersion.v1x19: [
-            'Id',
-            'Command',
-            'Created',
-            'Labels',
-            'Image',
-            'Names',
-            'Ports',
-            'Status'
-          ],
+//          RemoteApiVersion.v1x19: [
+//            'Command',
+//            'Created',
+//            'HostConfig',
+//            'Id',
+//            'Image',
+//            'ImageID',
+//            'Labels',
+//            'Names',
+//            'Ports',
+//            'Status'
+//          ],
         },
         json.keys);
   }
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> json = <String, dynamic>{};
-    if (id != null) json['Id'] = id;
     if (command != null) json['Command'] = command;
     if (created != null) json['Created'] = created.toIso8601String();
+    if(hostConfig != null) json['HostConfig'] = hostConfig.toJson();
+    if (id != null) json['Id'] = id;
     if (image != null) json['Image'] = image;
+    if (imageId != null) json['ImageID'] = imageId;
     if (names != null) json['Names'] = names;
     if (ports != null) json['Ports'] = ports;
     if (status != null) json['Status'] = status;
@@ -643,6 +645,9 @@ class ImageInfo {
 
   String _dockerVersion;
   String get dockerVersion => _dockerVersion;
+
+  GraphDriver _graphDriver;
+  GraphDriver get graphDriver => _graphDriver;
 
   String _id;
   String get id => _id;
@@ -682,6 +687,7 @@ class ImageInfo {
         json['ContainerConfig'] as Map<String, dynamic>, apiVersion);
     _created = parseDate(json['Created']);
     _dockerVersion = json['DockerVersion'];
+    _graphDriver = new GraphDriver.fromJson(json['GraphDriver'] as Map<String,dynamic>, apiVersion);
     _id = json['Id'];
     _labels = parseLabels(json['Labels'] as Map<String, List<String>>);
     _os = json['Os'];
@@ -707,13 +713,16 @@ class ImageInfo {
             'ContainerConfig',
             'Created',
             'DockerVersion',
+            'GraphDriver',
             'Id',
+            'Labels',
             'Os',
             'Parent',
             'ParentId',
+            'RepoDigests',
+            'RepoTags',
             'Size',
             'VirtualSize',
-            'RepoTags'
           ],
 //          RemoteApiVersion.v1x18: const [
 //            'Architecture',
@@ -734,25 +743,26 @@ class ImageInfo {
 //            'RepoDigests',
 //            'RepoTags',
 //          ],
-          RemoteApiVersion.v1x19: const [
-            'Architecture',
-            'Author',
-            'Comment',
-            'Config',
-            'Container',
-            'ContainerConfig',
-            'Created',
-            'DockerVersion',
-            'Id',
-            'Labels',
-            'Os',
-            'Parent',
-            'ParentId',
-            'Size',
-            'VirtualSize',
-            'RepoDigests',
-            'RepoTags',
-          ],
+//          RemoteApiVersion.v1x19: const [
+//            'Architecture',
+//            'Author',
+//            'Comment',
+//            'Config',
+//            'Container',
+//            'ContainerConfig',
+//            'Created',
+//            'DockerVersion',
+//            'GraphDriver',
+//            'Id',
+//            'Labels',
+//            'Os',
+//            'Parent',
+//            'ParentId',
+//            'RepoDigests',
+//            'RepoTags',
+//            'Size',
+//            'VirtualSize',
+//          ],
         },
         json.keys);
   }
@@ -782,6 +792,9 @@ class ContainerInfo {
 
   String _execIds;
   String get execIds => _execIds;
+
+  GraphDriver _graphDriver;
+  GraphDriver get graphDriver => _graphDriver;
 
   HostConfig _hostConfig;
   HostConfig get hostConfig => _hostConfig;
@@ -851,6 +864,7 @@ class ContainerInfo {
     _driver = json['Driver'];
     _execDriver = json['ExecDriver'];
     _execIds = json['ExecIDs'];
+    _graphDriver = new GraphDriver.fromJson(json['GraphDriver'] as Map<String,dynamic>, apiVersion);
     _hostConfig = new HostConfig.fromJson(
         json['HostConfig'] as Map<String, dynamic>, apiVersion);
     _hostnamePath = json['HostnamePath'];
@@ -889,37 +903,14 @@ class ContainerInfo {
         {
           RemoteApiVersion.v1x15: const [
             'AppArmorProfile',
-            'AppliedVolumesFrom', // ExecInfo
-            'Args',
-            'Config',
-            'Created',
-            'Driver',
-            'ExecDriver',
-            'HostConfig',
-            'HostnamePath',
-            'HostsPath',
-            'Id',
-            'ID',
-            'Image',
-            'MountLabel',
-            'Name',
-            'NetworkSettings',
-            'Path',
-            'ProcessLabel',
-            'ResolvConfPath',
-            'State',
-            'Volumes',
-            'VolumesRW'
-          ],
-          RemoteApiVersion.v1x18: const [
-            'AppArmorProfile',
-            'AppliedVolumesFrom', // ExecInfo
+            'AppliedVolumesFrom',
             'Args',
             'Config',
             'Created',
             'Driver',
             'ExecDriver',
             'ExecIDs',
+            'GraphDriver',
             'HostConfig',
             'HostnamePath',
             'HostsPath',
@@ -935,19 +926,19 @@ class ContainerInfo {
             'ResolvConfPath',
             'RestartCount',
             'State',
-            'UpdateDns',
             'Volumes',
             'VolumesRW'
           ],
           RemoteApiVersion.v1x19: const [
             'AppArmorProfile',
-            'AppliedVolumesFrom', // ExecInfo
+            'AppliedVolumesFrom',
             'Args',
             'Config',
             'Created',
             'Driver',
             'ExecDriver',
             'ExecIDs',
+            'GraphDriver',
             'HostConfig',
             'HostnamePath',
             'HostsPath',
@@ -956,7 +947,7 @@ class ContainerInfo {
             'Image',
             'LogPath',
             'MountLabel',
-            'MountPoints',
+            'MountPoints', // new
             'Name',
             'NetworkSettings',
             'Path',
@@ -980,6 +971,7 @@ class ContainerInfo {
     if (created == null) json['Created'] = _created.toIso8601String();
     if (driver != null) json['Driver'] = driver;
     if (execDriver != null) json['ExecDriver'] = execDriver;
+    if (graphDriver != null) json['GraphDriver'] = graphDriver.toJson();
     if (hostConfig != null) json['HostConfig'] = hostConfig.toJson();
     if (hostnamePath != null) json['HostnamePath'] = hostnamePath;
     if (hostsPath != null) json['HostsPath'] = hostsPath;
@@ -1017,6 +1009,9 @@ class HostConfig {
   String _cGroupParent;
   String get cGroupParent => _cGroupParent;
 
+  Point _consoleSize;
+  Point get consoleSize => _consoleSize;
+
   String _containerIdFile;
   String get containerIdFile => _containerIdFile;
 
@@ -1042,6 +1037,9 @@ class HostConfig {
   List<String> _dns;
   List<String> get dns => toUnmodifiableListView /*<String>*/ (_dns);
 
+  String _dnsOptions; // TODO(zoechi) check actual type
+  String get dnsOptions => _dnsOptions;
+
   List<String> _dnsSearch;
   List<String> get dnsSearch =>
       toUnmodifiableListView /*<String>*/ (_dnsSearch);
@@ -1050,8 +1048,15 @@ class HostConfig {
   List<String> get extraHosts =>
       toUnmodifiableListView /*<String>*/ (_extraHosts);
 
+  // TODO(zoechi) check actual type
+  String _groupAdd;
+  String get groupAdd => _groupAdd;
+
   String _ipcMode;
   String get ipcMode => _ipcMode;
+
+  int _kernelMemory;
+  int get kernelMemory => _kernelMemory;
 
   List<String> _links;
   List<String> get links => toUnmodifiableListView /*<String>*/ (_links);
@@ -1067,8 +1072,16 @@ class HostConfig {
   int _memory;
   int get memory => _memory;
 
+  // TODO(zoechi) check actual type
+  int _memoryReservation;
+  int get memoryReservation => _memoryReservation;
+
   int _memorySwap;
   int get memorySwap => _memorySwap;
+
+  // TODO(zoechi) check actual type
+  int _memorySwappiness;
+    int get memorySwappiness => _memorySwappiness;
 
   String _networkMode;
   String get networkMode => _networkMode;
@@ -1104,6 +1117,9 @@ class HostConfig {
   String _utsMode;
   String get utsMode => _utsMode;
 
+  String _volumeDriver;
+  String get volumeDriver => _volumeDriver;
+
   List<String> _volumesFrom;
   List<String> get volumesFrom =>
       toUnmodifiableListView /*<String>*/ (_volumesFrom);
@@ -1119,21 +1135,28 @@ class HostConfig {
     _capAdd = json['CapAdd'] as List<String>;
     _capDrop = json['CapDrop'] as List<String>;
     _cGroupParent = json['CgroupParent'];
+    _consoleSize = json['ConsoleSize'] != null ? new Point(json['ConsoleSize'][0], json['ConsoleSize'][1]) : null;
     _containerIdFile = json['ContainerIDFile'];
     _cpuPeriod = json['CpuPeriod'];
+    _cpuQuota = json['CpuQuota'];
     _cpusetCpus = json['CpusetCpus'];
     _cpusetMems = json['CpusetMems'];
     _cpuShares = json['CpuShares'];
     _devices = json['Devices'] as Map<String, String>;
     _dns = json['Dns'] as List<String>;
+    _dnsOptions = json['DnsOptions'];
     _dnsSearch = json['DnsSearch'] as List<String>;
     _extraHosts = json['ExtraHosts'] as List<String>;
+    _groupAdd = json['GroupAdd'];
     _ipcMode = json['IpcMode'];
+    _kernelMemory = json['KernelMemory'];
     _links = json['Links'] as List<String>;
     _logConfig = json['LogConfig'] as Map<String, String>;
     _lxcConf = json['LxcConf'] as Map<String, String>;
     _memory = json['Memory'];
+    _memoryReservation = json['MemoryReservation'];
     _memorySwap = json['MemorySwap'];
+    _memorySwappiness = json['MemorySwappiness'];
     _networkMode = json['NetworkMode'];
     _oomKillDisable = json['OomKillDisable'];
     _pidMode = json['PidMode'];
@@ -1143,7 +1166,7 @@ class HostConfig {
       _portBindings = new Map<String, List<PortBinding>>.fromIterable(
           portBindings.keys,
           key: (String k) => k,
-          value: (List<Map<String, String>> k) => portBindings[k]
+          value: (String k) => portBindings[k]
               .map /*<PortBinding>*/ ((Map<String, String> pb) =>
                   new PortBinding.fromJson(pb, apiVersion))
               .toList());
@@ -1156,6 +1179,7 @@ class HostConfig {
     _securityOpt = json['SecurityOpt'];
     _ulimits = json['Ulimits'];
     _utsMode = json['UTSMode'];
+    _volumeDriver = json['VolumeDriver'];
     _volumesFrom = json['VolumesFrom'] as List<String>;
 
     checkSurplusItems(
@@ -1163,74 +1187,32 @@ class HostConfig {
         {
           RemoteApiVersion.v1x15: const [
             'Binds',
-            'CapAdd',
-            'CapDrop',
-            'ContainerIDFile',
-            'Devices',
-            'Dns',
-            'DnsSearch',
-            'ExtraHosts',
-            'Links',
-            'LxcConf',
-            'NetworkMode',
-            'PortBindings',
-            'Privileged',
-            'PublishAllPorts',
-            'RestartPolicy',
-            'SecurityOpt',
-            'VolumesFrom',
-          ],
-          RemoteApiVersion.v1x18: const [
-            'Binds',
-            'CapAdd',
-            'CapDrop',
-            'CgroupParent',
-            'ContainerIDFile',
-            'CpusetCpus',
-            'CpuShares',
-            'Devices',
-            'Dns',
-            'DnsSearch',
-            'ExtraHosts',
-            'IpcMode',
-            'Links',
-            'LogConfig',
-            'LxcConf',
-            'Memory',
-            'MemorySwap',
-            'NetworkMode',
-            'PidMode',
-            'PortBindings',
-            'Privileged',
-            'PublishAllPorts',
-            'ReadonlyRootfs',
-            'RestartPolicy',
-            'SecurityOpt',
-            'Ulimits',
-            'VolumesFrom',
-          ],
-          RemoteApiVersion.v1x19: const [
-            'Binds',
             'BlkioWeight',
             'CapAdd',
             'CapDrop',
             'CgroupParent',
+            'ConsoleSize',
             'ContainerIDFile',
-            'CpusetCpus',
-            'CpusetMems',
             'CpuPeriod',
             'CpuQuota',
             'CpuShares',
+            'CpusetCpus',
+            'CpusetMems',
             'Devices',
             'Dns',
+            'DnsOptions',
             'DnsSearch',
             'ExtraHosts',
+            'GroupAdd',
             'IpcMode',
+            'KernelMemory',
             'Links',
             'LogConfig',
             'LxcConf',
             'Memory',
+            'MemoryReservation',
             'MemorySwap',
+            'MemorySwappiness',
             'NetworkMode',
             'OomKillDisable',
             'PidMode',
@@ -1242,8 +1224,73 @@ class HostConfig {
             'SecurityOpt',
             'Ulimits',
             'UTSMode',
+            'VolumeDriver',
             'VolumesFrom',
-          ]
+          ],
+//          RemoteApiVersion.v1x18: const [
+//            'Binds',
+//            'CapAdd',
+//            'CapDrop',
+//            'CgroupParent',
+//            'ContainerIDFile',
+//            'CpusetCpus',
+//            'CpuShares',
+//            'Devices',
+//            'Dns',
+//            'DnsSearch',
+//            'ExtraHosts',
+//            'IpcMode',
+//            'Links',
+//            'LogConfig',
+//            'LxcConf',
+//            'Memory',
+//            'MemorySwap',
+//            'NetworkMode',
+//            'PidMode',
+//            'PortBindings',
+//            'Privileged',
+//            'PublishAllPorts',
+//            'ReadonlyRootfs',
+//            'RestartPolicy',
+//            'SecurityOpt',
+//            'Ulimits',
+//            'VolumesFrom',
+//          ],
+//          RemoteApiVersion.v1x19: const [
+//            'Binds',
+//            'BlkioWeight',
+//            'CapAdd',
+//            'CapDrop',
+//            'CgroupParent',
+//            'ContainerIDFile',
+//            'CpusetCpus',
+//            'CpusetMems',
+//            'CpuPeriod',
+//            'CpuQuota',
+//            'CpuShares',
+//            'Devices',
+//            'Dns',
+//            'DnsSearch',
+//            'ExtraHosts',
+//            'IpcMode',
+//            'Links',
+//            'LogConfig',
+//            'LxcConf',
+//            'Memory',
+//            'MemorySwap',
+//            'NetworkMode',
+//            'OomKillDisable',
+//            'PidMode',
+//            'PortBindings',
+//            'Privileged',
+//            'PublishAllPorts',
+//            'ReadonlyRootfs',
+//            'RestartPolicy',
+//            'SecurityOpt',
+//            'Ulimits',
+//            'UTSMode',
+//            'VolumesFrom',
+//          ]
         },
         json.keys);
   }
@@ -1254,6 +1301,7 @@ class HostConfig {
     if (capAdd != null) json['CapAdd'] = capAdd;
     if (capDrop != null) json['CapDrop'] = capDrop;
     if (cGroupParent != null) json['CgroupParent'] = cGroupParent;
+    if (consoleSize != null) json['ConsoleSize'] = [consoleSize.x, consoleSize.y];
     if (containerIdFile != null) json['ContainerIDFile'] = containerIdFile;
     if (cpuPeriod != null) json['CpuPeriod'] = cpuPeriod;
     if (cpusetCpus != null) json['CpusetCpus'] = cpusetCpus;
@@ -1262,18 +1310,23 @@ class HostConfig {
     if (cpuShares != null) json['CpuShares'] = cpuShares;
     if (devices != null) json['Devices'] = devices;
     if (dns != null) json['Dns'] = dns;
+    if (dnsOptions != null) json['DnsOptions'] = dnsOptions;
     if (dnsSearch != null) json['DnsSearch'] = dnsSearch;
     if (extraHosts != null) json['ExtraHosts'] = extraHosts;
+    if (groupAdd != null) json['DnsOptions'] = groupAdd;
     if (ipcMode != null) json['IpcMode'] = ipcMode;
+    if (kernelMemory != null) json['KernelMemory'] = kernelMemory;
     if (links != null) json['Links'] = links;
     if (logConfig != null) json['LogConfig'] = logConfig;
     if (lxcConf != null) json['LxcConf'] = lxcConf;
     if (memory != null) json['Memory'] = memory;
+    if (memoryReservation != null) json['MemoryReservation'] = memoryReservation;
     if (memorySwap != null) {
       assert(memory > 0);
       assert(memorySwap > memory);
       json['MemorySwap'] = memorySwap;
     }
+    if (memorySwappiness != null) json['MemorySwappiness'] = memorySwappiness;
     if (networkMode != null) json['NetworkMode'] = networkMode;
     if (oomKillDisable != null) json['OomKillDisable'] = oomKillDisable;
     if (pidMode != null) json['PidMode'] = pidMode;
@@ -1292,6 +1345,7 @@ class HostConfig {
     if (securityOpt != null) json['SecurityOpt'] = securityOpt;
     if (ulimits != null) json['Ulimits'] = ulimits;
     if (utsMode != null) json['UTSMode'] = utsMode;
+    if (volumeDriver != null) json['VolumeDriver'] = volumeDriver;
     if (volumesFrom != null) json['VolumesFrom'] = volumesFrom;
     return json;
   }
@@ -1343,6 +1397,9 @@ class NetworkSettings {
   UnmodifiableMapView _ports;
   UnmodifiableMapView get ports => _ports;
 
+  String _sandboxId;
+  String get sandboxId => _sandboxId;
+
   String _sandboxKey;
   String get sandboxKey => _sandboxKey;
 
@@ -1371,6 +1428,7 @@ class NetworkSettings {
     _networkId = json['NetworkID'];
     _portMapping = toUnmodifiableMapView(json['PortMapping']);
     _ports = toUnmodifiableMapView(json['Ports']);
+    _sandboxId = json['SandboxID'];
     _sandboxKey = json['SandboxKey'];
     _secondaryIPAddresses =
         toUnmodifiableListView(json['SecondaryIPAddresses']);
@@ -1381,29 +1439,6 @@ class NetworkSettings {
         apiVersion,
         {
           RemoteApiVersion.v1x15: const [
-            'Bridge',
-            'Gateway',
-            'IPAddress',
-            'IPPrefixLen',
-            'MacAddress',
-            'PortMapping',
-            'Ports',
-          ],
-          RemoteApiVersion.v1x18: const [
-            'Bridge',
-            'Gateway',
-            'GlobalIPv6Address',
-            'GlobalIPv6PrefixLen',
-            'IPAddress',
-            'IPPrefixLen',
-            'IPv6Gateway',
-            'LinkLocalIPv6Address',
-            'LinkLocalIPv6PrefixLen',
-            'MacAddress',
-            'PortMapping',
-            'Ports',
-          ],
-          RemoteApiVersion.v1x19: const [
             'Bridge',
             'EndpointID',
             'Gateway',
@@ -1419,10 +1454,67 @@ class NetworkSettings {
             'NetworkID',
             'PortMapping',
             'Ports',
+            'SandboxID',
             'SandboxKey',
             'SecondaryIPAddresses',
             'SecondaryIPv6Addresses',
           ],
+          RemoteApiVersion.v1x15: const [
+            'Bridge',
+            'EndpointID',
+            'Gateway',
+            'GlobalIPv6Address',
+            'GlobalIPv6PrefixLen',
+            'HairpinMode',
+            'IPAddress',
+            'IPPrefixLen',
+            'IPv6Gateway',
+            'LinkLocalIPv6Address',
+            'LinkLocalIPv6PrefixLen',
+            'MacAddress',
+            'NetworkID',
+            'Networks', // new
+            'PortMapping',
+            'Ports',
+            'SandboxID',
+            'SandboxKey',
+            'SecondaryIPAddresses',
+            'SecondaryIPv6Addresses',
+          ],
+//          RemoteApiVersion.v1x18: const [
+//            'Bridge',
+//            'Gateway',
+//            'GlobalIPv6Address',
+//            'GlobalIPv6PrefixLen',
+//            'IPAddress',
+//            'IPPrefixLen',
+//            'IPv6Gateway',
+//            'LinkLocalIPv6Address',
+//            'LinkLocalIPv6PrefixLen',
+//            'MacAddress',
+//            'PortMapping',
+//            'Ports',
+//          ],
+//          RemoteApiVersion.v1x19: const [
+//            'Bridge',
+//            'EndpointID',
+//            'Gateway',
+//            'GlobalIPv6Address',
+//            'GlobalIPv6PrefixLen',
+//            'HairpinMode',
+//            'IPAddress',
+//            'IPPrefixLen',
+//            'IPv6Gateway',
+//            'LinkLocalIPv6Address',
+//            'LinkLocalIPv6PrefixLen',
+//            'MacAddress',
+//            'NetworkID',
+//            'PortMapping',
+//            'Ports',
+//            'SandboxKey',
+//            'SecondaryIPAddresses',
+//            'SecondaryIPv6Addresses',
+//          ],
         },
         json.keys);
   }
@@ -1591,58 +1683,6 @@ class Config {
             'ExposedPorts',
             'Hostname',
             'Image',
-            'Memory',
-            'MemorySwap',
-            'NetworkDisabled',
-            'OnBuild',
-            'OpenStdin',
-            'PortSpecs',
-            'StdinOnce',
-            'Tty',
-            'User',
-            'Volumes',
-            'WorkingDir',
-          ],
-          RemoteApiVersion.v1x18: const [
-            'AttachStderr',
-            'AttachStdin',
-            'AttachStdout',
-            'Cmd',
-            'CpuShares',
-            'Cpuset',
-            'Domainname',
-            'Entrypoint',
-            'Env',
-            'ExposedPorts',
-            'Hostname',
-            'Image',
-            'Labels',
-            'MacAddress',
-            'Memory',
-            'MemorySwap',
-            'NetworkDisabled',
-            'OnBuild',
-            'OpenStdin',
-            'PortSpecs',
-            'StdinOnce',
-            'Tty',
-            'User',
-            'Volumes',
-            'WorkingDir',
-          ],
-          RemoteApiVersion.v1x19: const [
-            'AttachStderr',
-            'AttachStdin',
-            'AttachStdout',
-            'Cmd',
-            'CpuShares',
-            'Cpuset',
-            'Domainname',
-            'Entrypoint',
-            'Env',
-            'ExposedPorts',
-            'Hostname',
-            'Image',
             'Labels',
             'MacAddress',
             'Memory',
@@ -1656,8 +1696,63 @@ class Config {
             'User',
             'VolumeDriver',
             'Volumes',
-            'WorkingDir'
+            'WorkingDir',
           ],
+//          RemoteApiVersion.v1x18: const [
+//            'AttachStderr',
+//            'AttachStdin',
+//            'AttachStdout',
+//            'Cmd',
+//            'CpuShares',
+//            'Cpuset',
+//            'Domainname',
+//            'Entrypoint',
+//            'Env',
+//            'ExposedPorts',
+//            'Hostname',
+//            'Image',
+//            'Labels',
+//            'MacAddress',
+//            'Memory',
+//            'MemorySwap',
+//            'NetworkDisabled',
+//            'OnBuild',
+//            'OpenStdin',
+//            'PortSpecs',
+//            'StdinOnce',
+//            'Tty',
+//            'User',
+//            'Volumes',
+//            'WorkingDir',
+//          ],
+//          RemoteApiVersion.v1x19: const [
+//            'AttachStderr',
+//            'AttachStdin',
+//            'AttachStdout',
+//            'Cmd',
+//            'CpuShares',
+//            'Cpuset',
+//            'Domainname',
+//            'Entrypoint',
+//            'Env',
+//            'ExposedPorts',
+//            'Hostname',
+//            'Image',
+//            'Labels',
+//            'MacAddress',
+//            'Memory',
+//            'MemorySwap',
+//            'NetworkDisabled',
+//            'OnBuild',
+//            'OpenStdin',
+//            'PortSpecs',
+//            'StdinOnce',
+//            'Tty',
+//            'User',
+//            'VolumeDriver', // new
+//            'Volumes',
+//            'WorkingDir'
+//          ],
         },
         json.keys);
   }

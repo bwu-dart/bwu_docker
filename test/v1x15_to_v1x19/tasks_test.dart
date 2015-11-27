@@ -62,7 +62,8 @@ void main() {
     /// images.
     Uri uri = Uri.parse(io.Platform.environment[dockerHostFromEnvironment]);
     uri = _uriUpdatePort(uri, uri.port + 1);
-    connection = new DockerConnection(uri, new http.Client());
+    connection = new DockerConnection.useRemoteApiVersion(
+        uri, RemoteApiVersion.v1x19, new http.Client());
     await connection.init();
     assert(connection.dockerVersion != null);
     //await ensureImageExists();

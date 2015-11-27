@@ -9,17 +9,6 @@ import 'package:test/test.dart';
 import 'package:bwu_docker/bwu_docker_v1x20.dart';
 import 'utils.dart' as utils;
 
-//const imageName = 'selenium/standalone-chrome';
-//const imageTag = '2.45.0';
-//const entryPoint = '/opt/bin/entry_point.sh';
-//const runningProcess = '/bin/bash ${entryPoint}';
-//const dockerPort = 2375;
-
-// Docker-in-Docker to allow to test with different Docker version
-// docker run --privileged -d -p 1234:1234 -e PORT=1234 docker
-// jpetazzo/dind became docker
-// // docker run --privileged -d -p 1234:1234 -e PORT=1234 jpetazzo/dind
-// See also https://github.com/bwu-dart/bwu_docker/wiki/Development-tips-&-tricks#run-docker-inside-docker
 const String imageName = 'busybox';
 const String imageTag = 'buildroot-2014.02';
 const String entryPoint = '/bin/sh';
@@ -43,7 +32,6 @@ dynamic main([List<String> args]) async {
         skip: remoteApiVersion > connection.remoteApiVersion
             ? remoteApiVersion.toString()
             : false);
-  }
 }
 
 void tests(RemoteApiVersion remoteApiVersion) {

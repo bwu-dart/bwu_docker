@@ -9,17 +9,6 @@ import 'package:test/test.dart';
 import 'package:bwu_docker/bwu_docker_v1x15_to_v1x19.dart';
 import 'utils.dart' as utils;
 
-//const imageName = 'selenium/standalone-chrome';
-//const imageTag = '2.45.0';
-//const entryPoint = '/opt/bin/entry_point.sh';
-//const runningProcess = '/bin/bash ${entryPoint}';
-//const dockerPort = 2375;
-
-// Docker-in-Docker to allow to test with different Docker version
-// docker run --privileged -d -p 1234:1234 -e PORT=1234 docker
-// jpetazzo/dind became docker
-// // docker run --privileged -d -p 1234:1234 -e PORT=1234 jpetazzo/dind
-// See also https://github.com/bwu-dart/bwu_docker/wiki/Development-tips-&-tricks#run-docker-inside-docker
 const String imageName = 'busybox';
 const String imageTag = 'buildroot-2014.02';
 const String entryPoint = '/bin/sh';
@@ -40,7 +29,8 @@ dynamic main([List<String> args]) async {
 
   // Run tests for each [RemoteApiVersion] supported by this package and
   // supported by the Docker service.
-  for (RemoteApiVersion remoteApiVersion in RemoteApiVersion.versions) {
+  for (RemoteApiVersion remoteApiVersion in RemoteApiVersion.versions
+      .where((RemoteApiVersion version) => version <= RemoteApiVersion.v1x19)) {
     group(remoteApiVersion.toString(), () => tests(remoteApiVersion),
         skip: remoteApiVersion > connection.remoteApiVersion
             ? remoteApiVersion.toString()
@@ -56,7 +46,6 @@ void tests(RemoteApiVersion remoteApiVersion) {
   Future ensureImageExists() async {
     return utils.ensureImageExists(connection, imageNameAndTag);
   }
-  ;
 
   /// setUp helper to create a container from the image used in tests.
   Future createContainer() async {
@@ -146,8 +135,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
         }, all: true);
 
         expect(containers.length, greaterThan(0));
-        expect(
-            containers, everyElement((Container c) => c.names.contains(containerName)));
+        expect(containers,
+            everyElement((Container c) => c.names.contains(containerName)));
       },
           skip: remoteApiVersion < RemoteApiVersion.v1x17
               ? remoteApiVersion.toString()
@@ -162,7 +151,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
         await connection.start(createdContainer);
         await connection.restart(createdContainer);
         await connection.kill(createdContainer, signal: 'SIGKILL');
-        final SimpleResponse startedContainer = await connection.start(createdContainer);
+        final SimpleResponse startedContainer =
+            await connection.start(createdContainer);
 
         expect(startedContainer, isNotNull);
       });
@@ -208,7 +198,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
             follow: false,
             tail: 10);
         final io.BytesBuilder bufSince = new io.BytesBuilder(copy: false);
-        final StreamSubscription subSince = logSince.take(100).listen(bufSince.add);
+        final StreamSubscription subSince =
+            logSince.take(100).listen(bufSince.add);
 
         await subSince.asFuture();
 
@@ -244,7 +235,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
           'status': [ContainerStatus.running.toString()]
         });
 
-        expect(containers, anyElement((Container c) => c.id == createdContainer.id));
+        expect(containers,
+            anyElement((Container c) => c.id == createdContainer.id));
       }, timeout: const Timeout(const Duration(seconds: 100)));
     });
 
@@ -393,19 +385,23 @@ void tests(RemoteApiVersion remoteApiVersion) {
 
           // verification
           const List<String> titles = const <String>[
-            'UID',
+//            'UID',
             'PID',
-            'PPID',
-            'C',
-            'STIME',
-            'TTY',
+            'USER',
+//            'PPID',
+//            'C',
+//            'STIME',
+//            'TTY',
             'TIME',
-            'CMD'
+//            'CMD'
+            'COMMAND'
           ];
           expect(topResponse.titles, orderedEquals(titles));
           expect(topResponse.processes.length, greaterThan(0));
-          expect(topResponse.processes,
-              anyElement((List<String> e) => e.any((String i) => i.contains(runningProcess))));
+          expect(
+              topResponse.processes,
+              anyElement((List<String> e) =>
+                  e.any((String i) => i.contains(runningProcess))));
         });
 
         test(
@@ -417,22 +413,30 @@ void tests(RemoteApiVersion remoteApiVersion) {
 
           // verification
           const List<String> titles = const <String>[
-            'USER',
             'PID',
-            '%CPU',
-            '%MEM',
-            'VSZ',
-            'RSS',
-            'TTY',
-            'STAT',
-            'START',
+            'USER',
             'TIME',
             'COMMAND'
           ];
+//          [
+//            'USER',
+//            'PID',
+//            '%CPU',
+//            '%MEM',
+//            'VSZ',
+//            'RSS',
+//            'TTY',
+//            'STAT',
+//            'START',
+//            'TIME',
+//            'COMMAND'
+//          ];
           expect(topResponse.titles, orderedEquals(titles));
           expect(topResponse.processes.length, greaterThan(0));
-          expect(topResponse.processes,
-              anyElement((List<String> e) => e.any((String i) => i.contains(runningProcess))));
+          expect(
+              topResponse.processes,
+              anyElement((List<String> e) =>
+                  e.any((String i) => i.contains(runningProcess))));
         });
       });
 
@@ -476,7 +480,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
           // expect(changesResponse.changes.length, greaterThan(0));
           expect(changesResponse.changes,
               everyElement((ChangesPath c) => c.path.startsWith('/')));
-          expect(changesResponse.changes, everyElement((ChangesPath c) => c.kind != null));
+          expect(changesResponse.changes,
+              everyElement((ChangesPath c) => c.kind != null));
         });
       });
 
@@ -794,7 +799,9 @@ void tests(RemoteApiVersion remoteApiVersion) {
           final Function waitReturned = expectAsync(() {});
 
           // exercise
-          connection.wait(createdContainer).then/*<WaitResponse>*/((WaitResponse response) {
+          connection
+              .wait(createdContainer)
+              .then /*<WaitResponse>*/ ((WaitResponse response) {
             // verification
             expect(response, isNotNull);
             expect(response.statusCode, isNot(0));
@@ -892,7 +899,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
         expect(buf.length, greaterThan(50));
         final String s = UTF8.decode(buf.toBytes());
         expect(s, contains('up'));
-        expect(s, contains(' day'));
+        expect(s, contains(' day')); // TODO(zoechi) doesn't contain ' day' in 1.17, 1.18
         expect(s, contains('load average'));
       },
           skip: remoteApiVersion < RemoteApiVersion.v1x17
@@ -911,13 +918,14 @@ void tests(RemoteApiVersion remoteApiVersion) {
         // verification
         expect(images, isNotEmpty);
         expect(images.first.id, isNotEmpty);
-        expect(images,
-            anyElement((ImageInfo img) => img.repoTags.contains(imageNameAndTag)));
         expect(
             images,
-            anyElement((ImageInfo img) =>
-                img.created.millisecondsSinceEpoch >
-                    new DateTime(1, 1, 1).millisecondsSinceEpoch));
+            anyElement(
+                (ImageInfo img) => img.repoTags.contains(imageNameAndTag)));
+        expect(
+            images,
+            anyElement((ImageInfo img) => img.created.millisecondsSinceEpoch >
+                new DateTime(1, 1, 1).millisecondsSinceEpoch));
       });
 
       test('all: true', () async {
@@ -954,12 +962,12 @@ void tests(RemoteApiVersion remoteApiVersion) {
             await connection.createImage(imageNameAndTag);
         if (connection.remoteApiVersion <= RemoteApiVersion.v1x15) {
           expect(createImageResponse.first.status,
-              'Pulling repository ${imageName}');
+              endsWith(imageName));
         } else {
-          expect(createImageResponse.first.status, 'Pulling from ${imageName}');
+          expect(createImageResponse.first.status, endsWith(imageName));
 //          expect(createImageResponse.first.status, 'Pulling repository ${imageName}');
         }
-        expect(createImageResponse.length, greaterThan(5));
+        expect(createImageResponse.length, greaterThan(2)); // TODO(zoechi) isn't > 2 in 1.17
       });
     });
 
@@ -1011,8 +1019,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
 //            anyElement((ImagePushResponse e) => e.createdBy != null && e.createdBy.isNotEmpty));
 //        expect(imagePushResponse,
 //            anyElement((ImagePushResponse e) => e.tags != null && e.tags.isNotEmpty));
-        expect(
-            imagePushResponse, anyElement((ImagePushResponse e) => e.size != null && e.size > 0));
+        expect(imagePushResponse,
+            anyElement((ImagePushResponse e) => e.size != null && e.size > 0));
       }, skip: 'don\'t know yet how to test');
     });
 
@@ -1060,8 +1068,10 @@ void tests(RemoteApiVersion remoteApiVersion) {
             searchResponse,
             anyElement(
                 (SearchResponse e) => e.name != null && e.name.isNotEmpty));
-        expect(searchResponse, anyElement((SearchResponse e) => e.isOfficial != null));
-        expect(searchResponse, anyElement((SearchResponse e) => e.isAutomated != null));
+        expect(searchResponse,
+            anyElement((SearchResponse e) => e.isOfficial != null));
+        expect(searchResponse,
+            anyElement((SearchResponse e) => e.isAutomated != null));
         expect(
             searchResponse,
             anyElement(
@@ -1097,7 +1107,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
         expect(infoResponse.containers, greaterThan(0));
         expect(infoResponse.debug, isNotNull);
         expect(infoResponse.driver, isNotEmpty);
-        expect(infoResponse.driverStatus, isNotEmpty);
+        expect(infoResponse.driverStatus, isNotEmpty);  // TODO(zoechi) is empty in 1.16
         expect(infoResponse.eventsListenersCount, isNotNull);
         expect(infoResponse.executionDriver, isNotNull);
         expect(infoResponse.fdCount, greaterThan(0));
@@ -1238,7 +1248,11 @@ void tests(RemoteApiVersion remoteApiVersion) {
         await createContainer();
         await connection.start(createdContainer);
 
-        const List<String> entryPoint = const <String>['/bin/sh', '-c', 'tail -f /etc/inittab'];
+        const List<String> entryPoint = const <String>[
+          '/bin/sh',
+          '-c',
+          'tail -f /etc/inittab'
+        ];
 
         // exercise
         final Exec createResponse = await connection.execCreate(

@@ -638,64 +638,6 @@ class ImageInfo {
   }
 }
 
-class GraphDriver {
-  String _name;
-  String get name => _name;
-
-  List<GraphDriverData> _data;
-  List<GraphDriverData> get data =>
-      new UnmodifiableListView<GraphDriverData>(_data);
-
-  GraphDriver.fromJson(Map<String, dynamic> json, Version apiVersion) {
-    if (json == null) {
-      return;
-    }
-    _name = json['Name'] as String;
-    Map<String, dynamic> dataJsonTmp = json['Data'] as Map<String, dynamic>;
-    _data = new UnmodifiableListView<GraphDriverData>(dataJsonTmp.keys
-        .map /*<GraphDriverData>*/ (
-            (String k) => new GraphDriverData.fromJson(dataJsonTmp[k], apiVersion)));
-
-    checkSurplusItems(
-        apiVersion,
-        {
-          RemoteApiVersion.v1x20: const ['Name', 'Data'],
-        },
-        json.keys);
-  }
-}
-
-class GraphDriverData {
-  String _deviceId;
-  String get deviceId => _deviceId;
-
-  String _deviceName;
-  String get deviceName => _deviceName;
-
-  String _deviceSize;
-  String get deviceSize => _deviceSize;
-
-  GraphDriverData.fromJson(Map<String, dynamic> json, Version apiVersion) {
-    if (json == null) {
-      return;
-    }
-    _deviceId = json['DeviceId'];
-    _deviceName = json['DeviceName'];
-    _deviceSize = json['DeviceSize'];
-
-    checkSurplusItems(
-        apiVersion,
-        {
-          RemoteApiVersion.v1x20: const [
-            'DeviceId',
-            'DeviceName',
-            'DeviceSize'
-          ],
-        },
-        json.keys);
-  }
-}
-
 class ContainerInfo {
   String _appArmorProfile;
   String get appArmorProfile => _appArmorProfile;
@@ -1028,7 +970,7 @@ class HostConfig {
     _capAdd = json['CapAdd'] as List<String>;
     _capDrop = json['CapDrop'] as List<String>;
     _cGroupParent = json['CgroupParent'];
-    _consoleSize = new Point(json['ConsoleSize'][0], json['ConsoleSize'][1]);
+    _consoleSize = json['ConsoleSize'] != null ? new Point(json['ConsoleSize'][0], json['ConsoleSize'][1]) : null;
     _containerIdFile = json['ContainerIDFile'];
     _cpuPeriod = json['CpuPeriod'];
     _cpusetCpus = json['CpusetCpus'];
@@ -1152,7 +1094,7 @@ class HostConfig {
         portBindings.keys,
         key: (String k) => k,
         value: (String k) => portBindings[k]
-            .map /*<List<Map<String,dynamic>>>*/ (
+            .map /*<Map<String,dynamic>>*/ (
                 (PortBinding pb) => pb.toJson())
             .toList());
     if (privileged != null) json['Privileged'] = privileged;
