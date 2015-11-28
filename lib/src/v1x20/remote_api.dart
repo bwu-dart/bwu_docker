@@ -928,9 +928,9 @@ class DockerConnection {
     if (force != null) query['force'] = force.toString();
 
     final Map<String, dynamic> response =
-        await _request /*<Map<String,dynamic>>*/ (
+    (await _request /*<Map<String,dynamic>>*/ (
             RequestType.post, '/images/${image.name}/tag',
-            query: query);
+            query: query) as Map<String,dynamic>);
     return new SimpleResponse.fromJson(response, remoteApiVersion);
   }
 

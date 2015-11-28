@@ -6,6 +6,8 @@ import 'version.dart';
 
 final RegExp containerNameRegex = new RegExp(r'^/?[a-zA-Z0-9_-]+$');
 
+bool doCheckSurplusItems = false;
+
 /// Passed as `X-Registry-Auth` header in requests that need authentication to a
 /// registry.
 /// Since API version 1.2, the auth configuration is now handled client side,
@@ -618,6 +620,76 @@ class NetworkMode {
 
   @override
   String toString() => '${value}';
+}
+
+abstract class Network {
+  factory Network.fromJson(String type, Map<String,dynamic> json, RemoteApiVersion apiVersion) {
+    switch(type) {
+      case 'bridge':
+        return new BridgeNetwork.fromJson(json, apiVersion);
+
+      default:
+        throw 'Network type "${type}" isn\'t yet supported.';
+    }
+  }
+
+  Network();
+}
+
+class BridgeNetwork extends Network {
+  String _endpointId;
+  String get endpointId => _endpointId;
+
+  String _gateway;
+  String get gateway => _gateway;
+
+  String _ipAddress;
+  String get ipAddress => _ipAddress;
+
+  int _ipPrefixLen;
+  int get ipPrefixLen => _ipPrefixLen;
+
+  String _ipv6Gateway;
+  String get ipv6Gateway => _ipv6Gateway;
+
+  String _globalIpv6Address;
+  String get globalIpv6Address => _globalIpv6Address;
+
+  int _globalIpv6PrefixLen;
+  int get globalIpv6PrefixLen => _globalIpv6PrefixLen;
+
+  String _macAddress;
+  String get macAddress => _macAddress;
+
+  BridgeNetwork.fromJson(Map<String, dynamic> json, Version apiVersion) {
+    if (json == null) {
+      return;
+    }
+    _endpointId = json['EndpointID'];
+    _gateway = json['Gateway'];
+    _ipAddress = json['IPAddress'];
+    _ipPrefixLen = json['IPPrefixLen'];
+    _ipv6Gateway = json['IPv6Gateway'];
+    _globalIpv6Address = json['GlobalIPv6Address'];
+    _globalIpv6PrefixLen = json['GlobalIPv6PrefixLen'];
+    _macAddress = json['MacAddress'];
+
+    checkSurplusItems(
+        apiVersion,
+        {
+          RemoteApiVersion.v1x17: const [
+            'EndpointID',
+            'Gateway',
+            'IPAddress',
+            'IPPrefixLen',
+            'IPv6Gateway',
+            'GlobalIPv6Address',
+            'GlobalIPv6PrefixLen',
+            'MacAddress',
+          ]
+        },
+        json.keys);
+  }
 }
 
 class PortBindingRequest extends PortBinding {

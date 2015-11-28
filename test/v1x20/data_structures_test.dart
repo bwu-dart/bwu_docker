@@ -13,6 +13,7 @@ const Map<String, dynamic> json = const <String, dynamic>{
 };
 
 void main() {
+  doCheckSurplusItems = true;
   group('PortBindings', () {
     test(
         'JSON deserialize => serialize JSON result result in same setting values',

@@ -36,6 +36,7 @@ Uri _uriUpdatePort(Uri uri, int port) {
 }
 
 void main() {
+  doCheckSurplusItems = true;
   DockerConnection connection;
   CreateResponse createdContainer;
 

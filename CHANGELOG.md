@@ -1,4 +1,6 @@
 ## UNRELEASED
+- Doesn't throw on unexpected JSON items anymore. It can be enabled by setting
+`bool doCheckSurplusItems = true`;
 - Support for Docker API v 1.20 # TODO (zoechi) implement new features
 - support in `DockerConnection` to use a specific remote API version
 - improve Docker container creation for running tests

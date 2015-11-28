@@ -119,7 +119,7 @@ UnmodifiableMapView<dynamic /*=K*/,
     } else if (map[k] is List) {
       return toUnmodifiableListView /*<V>*/ (map[k] as List) as dynamic /*=V*/;
     } else {
-      return map[k] as dynamic /*=V*/;
+      return map[k];
     }
   }));
 }

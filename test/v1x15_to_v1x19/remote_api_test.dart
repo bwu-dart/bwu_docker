@@ -18,6 +18,7 @@ const String imageNameAndTag = '${imageName}:${imageTag}';
 String envDockerHost;
 
 dynamic main([List<String> args]) async {
+  doCheckSurplusItems = true;
   envDockerHost = io.Platform.environment[dockerHostFromEnvironment];
   if (envDockerHost == null) {
     throw '$dockerHostFromEnvironment must be set in ENV';
@@ -30,7 +31,7 @@ dynamic main([List<String> args]) async {
   // Run tests for each [RemoteApiVersion] supported by this package and
   // supported by the Docker service.
   for (RemoteApiVersion remoteApiVersion in RemoteApiVersion.versions
-      .where((RemoteApiVersion version) => version <= RemoteApiVersion.v1x19)) {
+      .where((RemoteApiVersion version) => version <= RemoteApiVersion.v1x20)) { //TODO(zoechi) restore to 1.19
     group(remoteApiVersion.toString(), () => tests(remoteApiVersion),
         skip: remoteApiVersion > connection.remoteApiVersion
             ? remoteApiVersion.toString()
@@ -369,7 +370,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
 
           // verification
           expect(container, new isInstanceOf<ContainerInfo>());
-          expect(container.id, createdContainer.id);
+          expect(container.id, createdContainer.id); // TODO(zoechi) brittle, sometimes returns a different id
           expect(container.config.cmd, [entryPoint]);
           expect(container.config.image, imageNameAndTag);
           expect(container.state.running, isTrue);
@@ -899,7 +900,10 @@ void tests(RemoteApiVersion remoteApiVersion) {
         expect(buf.length, greaterThan(50));
         final String s = UTF8.decode(buf.toBytes());
         expect(s, contains('up'));
-        expect(s, contains(' day')); // TODO(zoechi) doesn't contain ' day' in 1.17, 1.18
+        if (![RemoteApiVersion.v1x17, RemoteApiVersion.v1x17]
+            .contains(connection.remoteApiVersion)) {
+          expect(s, contains(' day'));
+        }
         expect(s, contains('load average'));
       },
           skip: remoteApiVersion < RemoteApiVersion.v1x17
@@ -961,13 +965,13 @@ void tests(RemoteApiVersion remoteApiVersion) {
         final Iterable<CreateImageResponse> createImageResponse =
             await connection.createImage(imageNameAndTag);
         if (connection.remoteApiVersion <= RemoteApiVersion.v1x15) {
-          expect(createImageResponse.first.status,
-              endsWith(imageName));
+          expect(createImageResponse.first.status, endsWith(imageName));
         } else {
           expect(createImageResponse.first.status, endsWith(imageName));
 //          expect(createImageResponse.first.status, 'Pulling repository ${imageName}');
         }
-        expect(createImageResponse.length, greaterThan(2)); // TODO(zoechi) isn't > 2 in 1.17
+        expect(createImageResponse.length,
+            greaterThan(2)); // TODO(zoechi) isn't > 2 in 1.17
       });
     });
 
@@ -1107,7 +1111,10 @@ void tests(RemoteApiVersion remoteApiVersion) {
         expect(infoResponse.containers, greaterThan(0));
         expect(infoResponse.debug, isNotNull);
         expect(infoResponse.driver, isNotEmpty);
-        expect(infoResponse.driverStatus, isNotEmpty);  // TODO(zoechi) is empty in 1.16
+        if (![RemoteApiVersion.v1x16].contains(connection.remoteApiVersion)) {
+          expect(infoResponse.driverStatus,
+              isNotEmpty); // TODO(zoechi) is empty in 1.16, now also in 1.15, 1.17 seems brittle
+        }
         expect(infoResponse.eventsListenersCount, isNotNull);
         expect(infoResponse.executionDriver, isNotNull);
         expect(infoResponse.fdCount, greaterThan(0));
@@ -1414,7 +1421,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
           .events(
               since: new DateTime.now(),
               until: new DateTime.now().add(const Duration(minutes: 2)))
-          .listen((EventsResponse event) {
+          .listen((EventsResponse event) { // TODO(zoechi) fails with timeouts
         // verify
         if (event.id == createdContainer.id &&
             event.from == imageNameAndTag &&

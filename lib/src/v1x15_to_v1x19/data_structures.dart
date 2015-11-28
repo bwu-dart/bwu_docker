@@ -348,38 +348,6 @@ class InfoResponse {
           RemoteApiVersion.v1x15: const [
             'BridgeNfIp6tables',
             'BridgeNfIptables',
-            'Containers',
-            'CpuCfsPeriod',
-            'CpuCfsQuota',
-            'Debug',
-            'DockerRootDir',
-            'Driver',
-            'DriverStatus',
-            'ExecutionDriver',
-            'HttpProxy',
-            'HttpsProxy',
-            'ID',
-            'Images',
-            'IndexServerAddress',
-            'InitPath',
-            'InitSha1',
-            'IPv4Forwarding',
-            'KernelVersion',
-            'Labels',
-            'MemoryLimit',
-            'MemTotal',
-            'Name',
-            'NCPU',
-            'NEventsListener',
-            'NFd',
-            'NGoroutines',
-            'OperatingSystem',
-            'SwapLimit',
-            'SystemTime'
-          ],
-          RemoteApiVersion.v1x16: const [
-            'BridgeNfIp6tables',
-            'BridgeNfIptables',
             'ClusterAdvertise',
             'ClusterStore',
             'Containers',
@@ -405,11 +373,11 @@ class InfoResponse {
             'MemoryLimit',
             'MemTotal',
             'Name',
+            'NoProxy',
             'NCPU',
             'NEventsListener',
             'NFd',
             'NGoroutines',
-            'NoProxy',
             'OomKillDisable',
             'OperatingSystem',
             'RegistryConfig',
@@ -550,7 +518,10 @@ class Container {
   Container.fromJson(Map<String, dynamic> json, Version apiVersion) {
     _command = json['Command'];
     _created = parseDate(json['Created']);
-    _hostConfig = json['hostConfig'] != null ? new HostConfig.fromJson(json['hostConfig'] as Map<String,dynamic>, apiVersion) : null;
+    _hostConfig = json['hostConfig'] != null
+        ? new HostConfig.fromJson(
+            json['hostConfig'] as Map<String, dynamic>, apiVersion)
+        : null;
     _id = json['Id'];
     _image = json['Image'];
     _imageId = json['ImageID'];
@@ -609,7 +580,7 @@ class Container {
     final Map<String, dynamic> json = <String, dynamic>{};
     if (command != null) json['Command'] = command;
     if (created != null) json['Created'] = created.toIso8601String();
-    if(hostConfig != null) json['HostConfig'] = hostConfig.toJson();
+    if (hostConfig != null) json['HostConfig'] = hostConfig.toJson();
     if (id != null) json['Id'] = id;
     if (image != null) json['Image'] = image;
     if (imageId != null) json['ImageID'] = imageId;
@@ -687,7 +658,8 @@ class ImageInfo {
         json['ContainerConfig'] as Map<String, dynamic>, apiVersion);
     _created = parseDate(json['Created']);
     _dockerVersion = json['DockerVersion'];
-    _graphDriver = new GraphDriver.fromJson(json['GraphDriver'] as Map<String,dynamic>, apiVersion);
+    _graphDriver = new GraphDriver.fromJson(
+        json['GraphDriver'] as Map<String, dynamic>, apiVersion);
     _id = json['Id'];
     _labels = parseLabels(json['Labels'] as Map<String, List<String>>);
     _os = json['Os'];
@@ -864,7 +836,8 @@ class ContainerInfo {
     _driver = json['Driver'];
     _execDriver = json['ExecDriver'];
     _execIds = json['ExecIDs'];
-    _graphDriver = new GraphDriver.fromJson(json['GraphDriver'] as Map<String,dynamic>, apiVersion);
+    _graphDriver = new GraphDriver.fromJson(
+        json['GraphDriver'] as Map<String, dynamic>, apiVersion);
     _hostConfig = new HostConfig.fromJson(
         json['HostConfig'] as Map<String, dynamic>, apiVersion);
     _hostnamePath = json['HostnamePath'];
@@ -955,7 +928,7 @@ class ContainerInfo {
             'ResolvConfPath',
             'RestartCount',
             'State',
-            'UpdateDns',
+            'UpdateDns', // new
             'Volumes',
             'VolumesRW'
           ],
@@ -1081,7 +1054,7 @@ class HostConfig {
 
   // TODO(zoechi) check actual type
   int _memorySwappiness;
-    int get memorySwappiness => _memorySwappiness;
+  int get memorySwappiness => _memorySwappiness;
 
   String _networkMode;
   String get networkMode => _networkMode;
@@ -1135,7 +1108,9 @@ class HostConfig {
     _capAdd = json['CapAdd'] as List<String>;
     _capDrop = json['CapDrop'] as List<String>;
     _cGroupParent = json['CgroupParent'];
-    _consoleSize = json['ConsoleSize'] != null ? new Point(json['ConsoleSize'][0], json['ConsoleSize'][1]) : null;
+    _consoleSize = json['ConsoleSize'] != null
+        ? new Point(json['ConsoleSize'][0], json['ConsoleSize'][1])
+        : null;
     _containerIdFile = json['ContainerIDFile'];
     _cpuPeriod = json['CpuPeriod'];
     _cpuQuota = json['CpuQuota'];
@@ -1301,7 +1276,10 @@ class HostConfig {
     if (capAdd != null) json['CapAdd'] = capAdd;
     if (capDrop != null) json['CapDrop'] = capDrop;
     if (cGroupParent != null) json['CgroupParent'] = cGroupParent;
-    if (consoleSize != null) json['ConsoleSize'] = [consoleSize.x, consoleSize.y];
+    if (consoleSize != null) json['ConsoleSize'] = [
+      consoleSize.x,
+      consoleSize.y
+    ];
     if (containerIdFile != null) json['ContainerIDFile'] = containerIdFile;
     if (cpuPeriod != null) json['CpuPeriod'] = cpuPeriod;
     if (cpusetCpus != null) json['CpusetCpus'] = cpusetCpus;
@@ -1320,7 +1298,8 @@ class HostConfig {
     if (logConfig != null) json['LogConfig'] = logConfig;
     if (lxcConf != null) json['LxcConf'] = lxcConf;
     if (memory != null) json['Memory'] = memory;
-    if (memoryReservation != null) json['MemoryReservation'] = memoryReservation;
+    if (memoryReservation != null) json['MemoryReservation'] =
+        memoryReservation;
     if (memorySwap != null) {
       assert(memory > 0);
       assert(memorySwap > memory);
@@ -1379,6 +1358,9 @@ class NetworkSettings {
   String _ipv6Gateway;
   String get ipv6Gateway => _ipv6Gateway;
 
+  bool _isAnonymousEndpoint;
+  bool get isAnonymousEndpoint => _isAnonymousEndpoint;
+
   String _linkLocalIPv6Address;
   String get linkLocalIPv6Address => _linkLocalIPv6Address;
 
@@ -1390,6 +1372,9 @@ class NetworkSettings {
 
   String _networkId;
   String get networkId => _networkId;
+
+  List<Network> _networks;
+  List<Network> get networks => new UnmodifiableListView<Network>(_networks);
 
   UnmodifiableMapView _portMapping;
   UnmodifiableMapView get portMapping => _portMapping;
@@ -1422,10 +1407,19 @@ class NetworkSettings {
     _ipAddress = json['IPAddress'];
     _ipPrefixLen = json['IPPrefixLen'];
     _ipv6Gateway = json['IPv6Gateway'];
+    _isAnonymousEndpoint = json['IsAnonymousEndpoint'];
     _linkLocalIPv6Address = json['LinkLocalIPv6Address'];
     _linkLocalIPv6PrefixLen = json['LinkLocalIPv6PrefixLen'];
     _macAddress = json['MacAddress'];
     _networkId = json['NetworkID'];
+    Map<String, dynamic> networksJson =
+        json['Networks'] as Map<String, dynamic>;
+    if (networksJson != null) {
+      _networks = networksJson.keys
+          .map /*<Network>*/ ((String type) => new Network.fromJson(
+              type, networksJson[type] as Map<String, dynamic>, apiVersion))
+          .toList();
+    }
     _portMapping = toUnmodifiableMapView(json['PortMapping']);
     _ports = toUnmodifiableMapView(json['Ports']);
     _sandboxId = json['SandboxID'];
@@ -1459,13 +1453,14 @@ class NetworkSettings {
             'SecondaryIPAddresses',
             'SecondaryIPv6Addresses',
           ],
-          RemoteApiVersion.v1x15: const [
+          RemoteApiVersion.v1x17: const [
             'Bridge',
             'EndpointID',
             'Gateway',
             'GlobalIPv6Address',
             'GlobalIPv6PrefixLen',
             'HairpinMode',
+            'IsAnonymouseEndpoint', // new
             'IPAddress',
             'IPPrefixLen',
             'IPv6Gateway',
@@ -1532,6 +1527,7 @@ class NetworkSettings {
     if (ipAddress != null) json['IPAddress'] = ipAddress;
     if (ipPrefixLen != null) json['IPPrefixLen'] = ipPrefixLen;
     if (ipv6Gateway != null) json['IPv6Gateway'] = ipv6Gateway;
+    if(isAnonymousEndpoint != null) json['IsAnonymousEndpoint'] = _isAnonymousEndpoint;
     if (linkLocalIPv6Address != null) json['LinkLocalIPv6Address'] =
         linkLocalIPv6Address;
     if (linkLocalIPv6PrefixLen != null) json['LinkLocalIPv6PrefixLen'] =

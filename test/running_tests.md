@@ -31,7 +31,8 @@ Debug the tests from your IDE like any other Dart script.
 ## Tips
 
 - before running tests, ensure no container (running or not) are left in the
-Docker services started above.
+Docker services started above. This shouldn't happen but there seem to be 
+issues with reliable cleanup.
 
 ```
 # list containers

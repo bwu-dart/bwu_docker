@@ -264,15 +264,15 @@ class DockerConnection {
   Future<TopResponse> top(Container container, {String psArgs}) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
-    Map<String, dynamic> query;
+    Map<String, String> query;
     if (psArgs != null) {
-      query = <String, dynamic>{'ps_args': psArgs};
+      query = <String, String>{'ps_args': psArgs};
     }
 
     final Map<String, dynamic> response =
-        await _request /*<Map<String,dynamic>>*/ (
+    (await _request /*<Map<String,dynamic>>*/ (
             RequestType.get, '/containers/${container.id}/top',
-            query: query);
+            query: query) as Map<String,dynamic>);
     return new TopResponse.fromJson(response, remoteApiVersion);
   }
 

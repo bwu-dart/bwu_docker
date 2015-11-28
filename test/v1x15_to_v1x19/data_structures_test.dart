@@ -3,6 +3,7 @@ library bwu_docker.test.v1x15_to_v1x19.data_structures;
 
 import 'package:test/test.dart';
 import 'package:bwu_docker/bwu_docker_v1x15_to_v1x19.dart';
+import 'package:bwu_docker/src/shared/data_structures.dart' show doCheckSurplusItems;
 
 const Map<String, dynamic> json = const <String, dynamic>{
   "PortBindings": const {
@@ -13,6 +14,7 @@ const Map<String, dynamic> json = const <String, dynamic>{
 };
 
 void main() {
+  doCheckSurplusItems = true;
   group('PortBindings', () {
     test(
         'JSON deserialize => serialize JSON result result in same setting values',

@@ -18,6 +18,7 @@ const String imageNameAndTag = '${imageName}:${imageTag}';
 String envDockerHost;
 
 dynamic main([List<String> args]) async {
+  doCheckSurplusItems = true;
   envDockerHost = io.Platform.environment[dockerHostFromEnvironment];
   if (envDockerHost == null) {
     throw '$dockerHostFromEnvironment must be set in ENV';
