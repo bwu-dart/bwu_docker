@@ -507,6 +507,14 @@ class GraphDriver {
         },
         json.keys);
   }
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> json = <String, dynamic>{};
+    if (name != null) json['Name'] = name;
+    if (data != null) json['Data'] =
+        data.map /*<String,dynamic>*/ ((GraphDriverData data) => data.toJson());
+    return json;
+  }
 }
 
 class GraphDriverData {
@@ -537,6 +545,14 @@ class GraphDriverData {
           ],
         },
         json.keys);
+  }
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> json = <String, dynamic>{};
+    if (deviceId != null) json['DeviceId'] = deviceId;
+    if (deviceName != null) json['DeviceName'] = deviceName;
+    if (deviceSize != null) json['DeviceSize'] = deviceSize;
+    return json;
   }
 }
 
@@ -623,8 +639,9 @@ class NetworkMode {
 }
 
 abstract class Network {
-  factory Network.fromJson(String type, Map<String,dynamic> json, RemoteApiVersion apiVersion) {
-    switch(type) {
+  factory Network.fromJson(
+      String type, Map<String, dynamic> json, RemoteApiVersion apiVersion) {
+    switch (type) {
       case 'bridge':
         return new BridgeNetwork.fromJson(json, apiVersion);
 

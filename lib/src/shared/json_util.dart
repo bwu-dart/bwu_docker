@@ -18,19 +18,22 @@ void checkSurplusItems(Version apiVersion, Map<Version, List<String>> expected,
     } else {
       final List<Version> ascSortedKeys = expected.keys.toList()..sort();
       expectedForVersion =
-          expected[ascSortedKeys..lastWhere((Version k) => k < apiVersion)];
+          expected[ascSortedKeys.lastWhere((Version k) => k <= apiVersion)];
       if (expectedForVersion == null) {
-        expectedForVersion = expected[ascSortedKeys.first];
+        expectedForVersion = <String>[];
       }
     }
   }
-  assert(actual.every((String k) {
-    if (!expectedForVersion.contains(k)) {
-      print('Unsupported key: "${k}"');
-      return false;
+  List<String> result = <String>[];
+  for(String key in actual) {
+    if(!expectedForVersion.contains(key)) {
+      result.add(key);
     }
-    return true;
-  }));
+  }
+  if(result.isNotEmpty) {
+    print('Unsupported keys: ${result}".');
+  }
+  assert(result.isEmpty);
 }
 
 DateTime parseDate(Object dateValue) {
@@ -129,7 +132,7 @@ UnmodifiableListView /*<T>*/ toUnmodifiableListView /*<T>*/ (Iterable list) {
     return null;
   }
   if (list.length == 0) {
-    return new UnmodifiableListView /*<T>*/ (const []);
+    return new UnmodifiableListView /*<T>*/ (const /*<T>*/[]);
   }
 
   return new UnmodifiableListView /*<T>*/ (list.map /*<T>*/ ((dynamic e) {

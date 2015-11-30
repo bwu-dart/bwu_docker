@@ -31,7 +31,7 @@ dynamic main([List<String> args]) async {
   // Run tests for each [RemoteApiVersion] supported by this package and
   // supported by the Docker service.
   for (RemoteApiVersion remoteApiVersion in RemoteApiVersion.versions
-      .where((RemoteApiVersion version) => version <= RemoteApiVersion.v1x20)) { //TODO(zoechi) restore to 1.19
+      .where((RemoteApiVersion version) => version <= RemoteApiVersion.v1x21)) { //TODO(zoechi) restore to 1.19
     group(remoteApiVersion.toString(), () => tests(remoteApiVersion),
         skip: remoteApiVersion > connection.remoteApiVersion
             ? remoteApiVersion.toString()
@@ -63,14 +63,12 @@ void tests(RemoteApiVersion remoteApiVersion) {
               ..hostConfig.logConfig = <String, String>{'Type': 'json-file'}))
         .container;
   }
-  ;
 
   /// tearDown helper to remove the container created in setUp
   Future removeContainer() async {
     await utils.removeContainer(connection, createdContainer);
     createdContainer = null;
   }
-  ;
 
   setUp(() async {
     connection = new DockerConnection.useRemoteApiVersion(
@@ -82,6 +80,16 @@ void tests(RemoteApiVersion remoteApiVersion) {
 
   tearDown(() async {
     await removeContainer();
+    Iterable<Container> containers = await connection.containers();
+    if(containers.isNotEmpty) {
+      for(final Container container in containers) {
+        print(container.id);
+        await removeContainer(connection, container);
+      }
+      assert(containers.isEmpty); // Otherwise the test left a container running
+    }
+
+    assert(containers.isEmpty);
   });
 
   /// If the used Docker image is not available the download takes some time and
@@ -207,6 +215,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
         // verification
 //        if (bufSince.isNotEmpty) {
 // TODO(zoechi) this check is flaky. Find out why it sometimes contains log output
+        // seems to start with 1.20
 // when it shouldn't
 //          print('x');
 //        }
@@ -862,7 +871,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
           expect(buf.toString(), contains('some text'));
 
           // tear down
-          createdContainer = null; // prevent removing again in tearDown
+//          createdContainer = null; // prevent removing again in tearDown
         }, timeout: const Timeout(const Duration(seconds: 60)));
       });
     });
@@ -900,10 +909,6 @@ void tests(RemoteApiVersion remoteApiVersion) {
         expect(buf.length, greaterThan(50));
         final String s = UTF8.decode(buf.toBytes());
         expect(s, contains('up'));
-        if (![RemoteApiVersion.v1x17, RemoteApiVersion.v1x17]
-            .contains(connection.remoteApiVersion)) {
-          expect(s, contains(' day'));
-        }
         expect(s, contains('load average'));
       },
           skip: remoteApiVersion < RemoteApiVersion.v1x17
@@ -1106,15 +1111,16 @@ void tests(RemoteApiVersion remoteApiVersion) {
 
     group('info', () {
       test('should return system-wide information', () async {
+        await createContainer();
+
         final InfoResponse infoResponse = await connection.info();
         expect(infoResponse, isNotNull);
-        expect(infoResponse.containers, greaterThan(0));
+        expect(infoResponse.containers, 1);
         expect(infoResponse.debug, isNotNull);
         expect(infoResponse.driver, isNotEmpty);
-        if (![RemoteApiVersion.v1x16].contains(connection.remoteApiVersion)) {
-          expect(infoResponse.driverStatus,
-              isNotEmpty); // TODO(zoechi) is empty in 1.16, now also in 1.15, 1.17 seems brittle
-        }
+// Doesn't seem to be set anymore
+//        expect(infoResponse.driverStatus,
+//              isNotEmpty); // TODO(zoechi) seems brittle, often empty
         expect(infoResponse.eventsListenersCount, isNotNull);
         expect(infoResponse.executionDriver, isNotNull);
         expect(infoResponse.fdCount, greaterThan(0));
@@ -1422,6 +1428,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
               since: new DateTime.now(),
               until: new DateTime.now().add(const Duration(minutes: 2)))
           .listen((EventsResponse event) { // TODO(zoechi) fails with timeouts
+        print('event.status: ${event.status}');
         // verify
         if (event.id == createdContainer.id &&
             event.from == imageNameAndTag &&
@@ -1433,9 +1440,9 @@ void tests(RemoteApiVersion remoteApiVersion) {
             connection.stop(createdContainer);
             //
           } else if (event.status == ContainerEvent.die) {
-            if (connection.remoteApiVersion >= RemoteApiVersion.v1x17) {
+//            if (connection.remoteApiVersion >= RemoteApiVersion.v1x17) {
               dieReceived();
-            }
+//            }
             //
           } else if (event.status == ContainerEvent.stop) {
             stopReceived();

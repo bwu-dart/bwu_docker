@@ -460,10 +460,11 @@ class StatsResponse {
         json['cpu_stats'] as Map<String, dynamic>, apiVersion);
     _memoryStats = new StatsResponseMemoryStats.fromJson(
         json['memory_stats'] as Map<String, dynamic>, apiVersion);
-    _network = new StatsResponseNetwork.fromJson(
+    if (json['network'] != null) _network = new StatsResponseNetwork.fromJson(
         json['network'] as Map<String, dynamic>, apiVersion);
-    _preCpuStats = new StatsResponseCpuStats.fromJson(
-        json['precpu_stats'] as Map<String, dynamic>, apiVersion);
+    if (json['precpu_stats'] != null) _preCpuStats =
+        new StatsResponseCpuStats.fromJson(
+            json['precpu_stats'] as Map<String, dynamic>, apiVersion);
     _read = parseDate(json['read']);
     checkSurplusItems(
         apiVersion,
@@ -768,6 +769,12 @@ class ContainerInfo {
   GraphDriver _graphDriver;
   GraphDriver get graphDriver => _graphDriver;
 
+  bool _hasBeenManuallyStopped;
+  bool get hasBeenManuallyStopped => _hasBeenManuallyStopped;
+
+  bool _hasBeenStartedBefore;
+  bool get hasBeenStartedBefore => _hasBeenStartedBefore;
+
   HostConfig _hostConfig;
   HostConfig get hostConfig => _hostConfig;
 
@@ -796,6 +803,9 @@ class ContainerInfo {
   UnmodifiableMapView<String, UnmodifiableListView<String>> get mountPoints =>
       _mountPoints;
 
+  String _mqueuePath;
+  String get mqueuePath => _mqueuePath;
+
   String _name;
   String get name => _name;
 
@@ -813,6 +823,9 @@ class ContainerInfo {
 
   int _restartCount;
   int get restartCount => _restartCount;
+
+  String _shmPath;
+  String get shmPath => _shmPath;
 
   State _state;
   State get state => _state;
@@ -856,6 +869,7 @@ class ContainerInfo {
               String>>*/
             (json['MountPoints']
                 as Map<String, List<String>>); // TODO check with actual data
+    _mqueuePath = json['MqueuePath'];
     _name = json['Name'];
     _networkSettings = new NetworkSettings.fromJson(
         json['NetworkSettings'] as Map<String, dynamic>, apiVersion);
@@ -863,6 +877,7 @@ class ContainerInfo {
     _processLabel = json['ProcessLabel'];
     _resolveConfPath = json['ResolvConfPath'];
     _restartCount = json['RestartCount'];
+    _shmPath = json['ShmPath'];
     _state =
         new State.fromJson(json['State'] as Map<String, dynamic>, apiVersion);
     _updateDns = json['UpdateDns'];
@@ -902,6 +917,39 @@ class ContainerInfo {
             'Volumes',
             'VolumesRW'
           ],
+          RemoteApiVersion.v1x15: const [
+            'AppArmorProfile',
+            'AppliedVolumesFrom',
+            'Args',
+            'Config',
+            'Created',
+            'Driver',
+            'ExecDriver',
+            'ExecIDs',
+            'GraphDriver',
+            'HasBeenManuallyStopped', // new
+            'HasBeenStartedBefore', // new
+            'HostConfig',
+            'HostnamePath',
+            'HostsPath',
+            'Id',
+            'ID',
+            'Image',
+            'LogPath',
+            'MountLabel',
+            'MqueuePath', // new
+            'MountPoints', // new
+            'Name',
+            'NetworkSettings',
+            'Path',
+            'ProcessLabel',
+            'ResolvConfPath',
+            'RestartCount',
+            'ShmPath', // new
+            'State',
+            'Volumes',
+            'VolumesRW'
+          ],
           RemoteApiVersion.v1x19: const [
             'AppArmorProfile',
             'AppliedVolumesFrom',
@@ -912,6 +960,8 @@ class ContainerInfo {
             'ExecDriver',
             'ExecIDs',
             'GraphDriver',
+            'HasBeenManuallyStopped',
+            'HasBeenStartedBefore',
             'HostConfig',
             'HostnamePath',
             'HostsPath',
@@ -920,13 +970,50 @@ class ContainerInfo {
             'Image',
             'LogPath',
             'MountLabel',
-            'MountPoints', // new
+            'MqueuePath',
+            'MountPoints',
             'Name',
             'NetworkSettings',
             'Path',
             'ProcessLabel',
             'ResolvConfPath',
             'RestartCount',
+            'ShmPath',
+            'State',
+            'UpdateDns', // new
+            'Volumes',
+            'VolumesRW'
+          ],
+          RemoteApiVersion.v1x20: const [
+            'AppArmorProfile',
+            'AppliedVolumesFrom',
+            'Args',
+            'Config',
+            'Created',
+            'Driver',
+            'ExecDriver',
+            'ExecIDs',
+            'GraphDriver',
+            'HasBeenManuallyStopped',
+            'HasBeenStartedBefore',
+            'HostConfig',
+            'HostnamePath',
+            'HostsPath',
+            'Id',
+            'ID',
+            'Image',
+            'LogPath',
+            'MountLabel',
+            'MqueuePath',
+            'MountPoints',
+            'Mounts', // new TODO(zoechi) implement
+            'Name',
+            'NetworkSettings',
+            'Path',
+            'ProcessLabel',
+            'ResolvConfPath',
+            'RestartCount',
+            'ShmPath',
             'State',
             'UpdateDns', // new
             'Volumes',
@@ -945,6 +1032,10 @@ class ContainerInfo {
     if (driver != null) json['Driver'] = driver;
     if (execDriver != null) json['ExecDriver'] = execDriver;
     if (graphDriver != null) json['GraphDriver'] = graphDriver.toJson();
+    if (hasBeenManuallyStopped != null) json['HasBeenManuallyStopped'] =
+        hasBeenManuallyStopped;
+    if (hasBeenStartedBefore != null) json['HasBeenStartedBefore'] =
+        hasBeenStartedBefore;
     if (hostConfig != null) json['HostConfig'] = hostConfig.toJson();
     if (hostnamePath != null) json['HostnamePath'] = hostnamePath;
     if (hostsPath != null) json['HostsPath'] = hostsPath;
@@ -952,12 +1043,14 @@ class ContainerInfo {
     if (image != null) json['Image'] = image;
     if (mountLabel != null) json['MountLabel'] = mountLabel;
     if (mountPoints != null) json['MountPoints'] = mountPoints;
+    if (mqueuePath != null) json['MqueuePath'] = mqueuePath;
     if (name != null) json['Name'] = name;
     if (networkSettings != null) json['NetworkSettings'] =
         networkSettings.toJson();
     if (path != null) json['Path'] = path;
     if (processLabel != null) json['ProcessLabel'] = processLabel;
     if (resolveConfPath != null) json['ResolvConfPath'] = resolveConfPath;
+    if (shmPath != null) json['ShmPath'] = shmPath;
     if (state != null) json['State'] = state.toJson();
     if (volumes != null) json['Volumes'] = volumes.toJson();
     if (volumesRw != null) json['VolumesRW'] = volumesRw.toJson();
@@ -1460,7 +1553,7 @@ class NetworkSettings {
             'GlobalIPv6Address',
             'GlobalIPv6PrefixLen',
             'HairpinMode',
-            'IsAnonymouseEndpoint', // new
+            'IsAnonymousEndpoint', // new
             'IPAddress',
             'IPPrefixLen',
             'IPv6Gateway',
@@ -1476,40 +1569,6 @@ class NetworkSettings {
             'SecondaryIPAddresses',
             'SecondaryIPv6Addresses',
           ],
-//          RemoteApiVersion.v1x18: const [
-//            'Bridge',
-//            'Gateway',
-//            'GlobalIPv6Address',
-//            'GlobalIPv6PrefixLen',
-//            'IPAddress',
-//            'IPPrefixLen',
-//            'IPv6Gateway',
-//            'LinkLocalIPv6Address',
-//            'LinkLocalIPv6PrefixLen',
-//            'MacAddress',
-//            'PortMapping',
-//            'Ports',
-//          ],
-//          RemoteApiVersion.v1x19: const [
-//            'Bridge',
-//            'EndpointID',
-//            'Gateway',
-//            'GlobalIPv6Address',
-//            'GlobalIPv6PrefixLen',
-//            'HairpinMode',
-//            'IPAddress',
-//            'IPPrefixLen',
-//            'IPv6Gateway',
-//            'LinkLocalIPv6Address',
-//            'LinkLocalIPv6PrefixLen',
-//            'MacAddress',
-//            'NetworkID',
-//            'PortMapping',
-//            'Ports',
-//            'SandboxKey',
-//            'SecondaryIPAddresses',
-//            'SecondaryIPv6Addresses',
-//          ],
         },
         json.keys);
   }
@@ -1527,7 +1586,8 @@ class NetworkSettings {
     if (ipAddress != null) json['IPAddress'] = ipAddress;
     if (ipPrefixLen != null) json['IPPrefixLen'] = ipPrefixLen;
     if (ipv6Gateway != null) json['IPv6Gateway'] = ipv6Gateway;
-    if(isAnonymousEndpoint != null) json['IsAnonymousEndpoint'] = _isAnonymousEndpoint;
+    if (isAnonymousEndpoint != null) json['IsAnonymousEndpoint'] =
+        _isAnonymousEndpoint;
     if (linkLocalIPv6Address != null) json['LinkLocalIPv6Address'] =
         linkLocalIPv6Address;
     if (linkLocalIPv6PrefixLen != null) json['LinkLocalIPv6PrefixLen'] =
