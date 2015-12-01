@@ -1003,6 +1003,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
         final Iterable<ImagePushResponse> imagePushResponse =
             await connection.push(new Image(imageName));
         expect(imagePushResponse.length, greaterThan(3));
+        // TODO(zoechi) launch a local registry to test
 //        expect(
 //            imagePushResponse,
         // TODO(zoechi) this seems to have worked already. Now `e.created` doesn't exist
@@ -1013,8 +1014,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
 //            anyElement((ImagePushResponse e) => e.createdBy != null && e.createdBy.isNotEmpty));
 //        expect(imagePushResponse,
 //            anyElement((ImagePushResponse e) => e.tags != null && e.tags.isNotEmpty));
-        expect(imagePushResponse,
-            anyElement((ImagePushResponse e) => e.size != null && e.size > 0));
+//        expect(imagePushResponse,
+//            anyElement((ImagePushResponse e) => e.size != null && e.size > 0));
       }, skip: 'don\'t know yet how to test');
     });
 

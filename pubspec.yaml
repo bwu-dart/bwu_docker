@@ -1,15 +1,12 @@
 name: bwu_docker
 author: Guenter Zoechbauer <guenter@gzoechbauer.com>
 homepage: http://github.com/bwu-dart/bwu_docker
-description: Object-oriented API to the Docker JSON remote API. This makes it
-  easy to automate Docker related tasks or allows to easily build a dashboard
-  for Docker.
+description: Typed Dart client for the Docker JSON remote API.
+  Makes it easy to automate Docker tasks or build a Docker-dashboard.
 version: 0.3.0
 environment:
   sdk: '>=1.9.0 <2.0.0'
 
-description: Dart client for the Docker remote API
-                           d
 dependencies:
   collection: '^1.1.0'
   crypto: '^0.9.0'

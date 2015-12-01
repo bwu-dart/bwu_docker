@@ -5,7 +5,7 @@
 [![Build Status](https://travis-ci.org/bwu-dart/bwu_docker.svg?branch=master)](https://travis-ci.org/bwu-dart/bwu_docker)
 [![Coverage Status](https://coveralls.io/repos/bwu-dart/bwu_docker/badge.svg?branch=master)](https://coveralls.io/r/bwu-dart/bwu_docker)
 
-See [Docker Remote API v1.19](https://docs.docker.com/reference/api/docker_remote_api_v1.19/#image-tarball-format) 
+See [Docker Remote API v1.21](https://docs.docker.com/reference/api/docker_remote_api_v1.21) 
 for more details.
 
 This package provides a typed interface to the Docker REST API and deserializes
@@ -18,7 +18,7 @@ This package also makes it easy to build a dashboard for the Docker service.
 ## Usage
 
 See example below or the 
-[unit tests](https://github.com/bwu-dart/bwu_docker/blob/master/test/remote_api_test.dart).
+[unit tests](https://github.com/bwu-dart/bwu_docker/blob/master/test/v1x15_and_up/remote_api_test.dart).
 
 Ensure you have Docker listening on a TCP port (for more details see 
 [Bind Docker to another host/port or a Unix socket](https://docs.docker.com/articles/basics/#bind-docker-to-another-hostport-or-a-unix-socket)),

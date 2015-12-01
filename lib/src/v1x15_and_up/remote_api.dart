@@ -315,7 +315,7 @@ class DockerConnection {
     }
 
     return _requestStream(RequestType.get, '/containers/${container.id}/logs',
-        query: query) as Future<Stream<List<int>>>;
+        query: query);
   }
 
   /// Inspect changes on [container]'s filesystem
@@ -340,8 +340,7 @@ class DockerConnection {
   Future<Stream<List<int>>> export(Container container) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
-    return _requestStream(RequestType.get, '/containers/${container.id}/export')
-        as Future<Stream<List<int>>>;
+    return _requestStream(RequestType.get, '/containers/${container.id}/export');
   }
 
   /// This endpoint returns a live stream of a [container]'s resource usage
@@ -674,7 +673,7 @@ class DockerConnection {
         container != null && container.id != null && container.id.isNotEmpty);
     final Map<String, dynamic> json = new CopyRequestPath(resource).toJson();
     return _requestStream(RequestType.post, '/containers/${container.id}/copy',
-        body: json) as Future<Stream<List<int>>>;
+        body: json);
   }
 
   /// List images.
@@ -1094,8 +1093,7 @@ class DockerConnection {
   /// 500 - server error
   Future<Stream<List<int>>> get(Image image) async {
     assert(image != null && image.name != null && image.name.isNotEmpty);
-    return _requestStream(RequestType.get, '/images/${image.name}/get')
-        as Future<Stream<List<int>>>;
+    return _requestStream(RequestType.get, '/images/${image.name}/get');
   }
 
   /// Get a tarball containing all images and metadata for one or more
