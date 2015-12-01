@@ -1,9 +1,10 @@
-library bwu_docker.src.v1x15_to_v1x19.tasks;
+library bwu_docker.src.v1x15_and_up.tasks;
 
 import 'dart:async' show Future, StreamSubscription;
-
-import 'package:bwu_docker/bwu_docker_v1x15_to_v1x19.dart';
 import 'dart:collection';
+
+import 'data_structures.dart';
+import 'remote_api.dart';
 
 /// Stops and removes all containers and removes all images.
 ///

@@ -111,7 +111,6 @@ class DeMux {
           }
         }
         if (byteCountdown > 0) {
-          // print('${UTF8.decode(buf.sublist(0,10))}...'); // TODO(zoechi) remove
           if (buf.length <= byteCountdown) {
             current.add(buf);
             byteCountdown -= buf.length;

@@ -6,7 +6,7 @@ import 'dart:convert' show JSON, UTF8;
 import 'dart:async' show Completer, Future, Stream, StreamSubscription;
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
-import 'package:bwu_docker/bwu_docker_v1x20.dart';
+import 'package:bwu_docker/bwu_docker.dart';
 import 'utils.dart' as utils;
 
 const String imageName = 'busybox';
@@ -28,11 +28,17 @@ dynamic main([List<String> args]) async {
       new DockerConnection(Uri.parse(envDockerHost), new http.Client());
   await connection.init();
 
-  RemoteApiVersion remoteApiVersion = RemoteApiVersion.v1x20;
-    group(remoteApiVersion.toString(), () => tests(remoteApiVersion),
+  // Run tests for each [RemoteApiVersion] supported by this package and
+  // supported by the Docker service.
+  for (RemoteApiVersion remoteApiVersion in RemoteApiVersion.versions /*.where(
+      (RemoteApiVersion version) => version > RemoteApiVersion.v1x20 &&
+          version <= RemoteApiVersion.v1x21)*/) {
+    //TO DO(zoechi) restore to 1.19 and remove lower bound
+    group('remote_api version ${remoteApiVersion}', () => tests(remoteApiVersion),
         skip: remoteApiVersion > connection.remoteApiVersion
             ? remoteApiVersion.toString()
             : false);
+  }
 }
 
 void tests(RemoteApiVersion remoteApiVersion) {
@@ -43,7 +49,6 @@ void tests(RemoteApiVersion remoteApiVersion) {
   Future ensureImageExists() async {
     return utils.ensureImageExists(connection, imageNameAndTag);
   }
-  ;
 
   /// setUp helper to create a container from the image used in tests.
   Future createContainer() async {
@@ -60,14 +65,12 @@ void tests(RemoteApiVersion remoteApiVersion) {
               ..hostConfig.logConfig = <String, String>{'Type': 'json-file'}))
         .container;
   }
-  ;
 
   /// tearDown helper to remove the container created in setUp
   Future removeContainer() async {
     await utils.removeContainer(connection, createdContainer);
     createdContainer = null;
   }
-  ;
 
   setUp(() async {
     connection = new DockerConnection.useRemoteApiVersion(
@@ -79,6 +82,17 @@ void tests(RemoteApiVersion remoteApiVersion) {
 
   tearDown(() async {
     await removeContainer();
+    Iterable<Container> containers = await connection.containers();
+    if (containers.isNotEmpty) {
+      for (final Container container in containers) {
+        print(
+            'Container with id "${container.id}" was left over by the previous test.');
+        await utils.removeContainer(connection, container);
+      }
+      assert(containers.isEmpty); // Otherwise the test left a container running
+    }
+
+    assert(containers.isEmpty);
   });
 
   /// If the used Docker image is not available the download takes some time and
@@ -133,8 +147,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
         }, all: true);
 
         expect(containers.length, greaterThan(0));
-        expect(
-            containers, everyElement((Container c) => c.names.contains(containerName)));
+        expect(containers,
+            everyElement((Container c) => c.names.contains(containerName)));
       },
           skip: remoteApiVersion < RemoteApiVersion.v1x17
               ? remoteApiVersion.toString()
@@ -145,11 +159,12 @@ void tests(RemoteApiVersion remoteApiVersion) {
       setUp(() async {
         await ensureImageExists();
         await createContainer();
-        // produce some log output - TODO(zoechi) find a better way
+        // produce some log output - TODO(zoechi) find a better way to produce log output
         await connection.start(createdContainer);
         await connection.restart(createdContainer);
         await connection.kill(createdContainer, signal: 'SIGKILL');
-        final SimpleResponse startedContainer = await connection.start(createdContainer);
+        final SimpleResponse startedContainer =
+            await connection.start(createdContainer);
 
         expect(startedContainer, isNotNull);
       });
@@ -187,7 +202,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
         expect(buf.isNotEmpty, isTrue);
 
         // exercise
-        Stream logSince = await connection.logs(createdContainer,
+        Stream<List<int>> logSince = await connection.logs(createdContainer,
             stdout: true,
             stderr: true,
             since: new DateTime.now()..add(const Duration(seconds: 1)),
@@ -195,16 +210,14 @@ void tests(RemoteApiVersion remoteApiVersion) {
             follow: false,
             tail: 10);
         final io.BytesBuilder bufSince = new io.BytesBuilder(copy: false);
-        final StreamSubscription subSince = logSince.take(100).listen(bufSince.add);
+        final StreamSubscription subSince =
+            logSince.take(100).listen(bufSince.add);
 
         await subSince.asFuture();
-
-        // verification
-//        if (bufSince.isNotEmpty) {
-// TODO(zoechi) this check is flaky. Find out why it sometimes contains log output
-// when it shouldn't
-//          print('x');
-//        }
+        if (bufSince.isNotEmpty) {
+          print(new String.fromCharCodes(
+              bufSince.takeBytes())); // TODO(zoechi) remove debug code
+        }
         expect(bufSince.isEmpty, isTrue);
       },
           skip: remoteApiVersion < RemoteApiVersion.v1x19
@@ -231,7 +244,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
           'status': [ContainerStatus.running.toString()]
         });
 
-        expect(containers, anyElement((Container c) => c.id == createdContainer.id));
+        expect(containers,
+            anyElement((Container c) => c.id == createdContainer.id));
       }, timeout: const Timeout(const Duration(seconds: 100)));
     });
 
@@ -364,7 +378,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
 
           // verification
           expect(container, new isInstanceOf<ContainerInfo>());
-          expect(container.id, createdContainer.id);
+          expect(container.id,
+              createdContainer.id); // TODO(zoechi) brittle, sometimes returns a different id
           expect(container.config.cmd, [entryPoint]);
           expect(container.config.image, imageNameAndTag);
           expect(container.state.running, isTrue);
@@ -380,19 +395,17 @@ void tests(RemoteApiVersion remoteApiVersion) {
 
           // verification
           const List<String> titles = const <String>[
-            'UID',
             'PID',
-            'PPID',
-            'C',
-            'STIME',
-            'TTY',
+            'USER',
             'TIME',
-            'CMD'
+            'COMMAND'
           ];
           expect(topResponse.titles, orderedEquals(titles));
           expect(topResponse.processes.length, greaterThan(0));
-          expect(topResponse.processes,
-              anyElement((List<String> e) => e.any((String i) => i.contains(runningProcess))));
+          expect(
+              topResponse.processes,
+              anyElement((List<String> e) =>
+                  e.any((String i) => i.contains(runningProcess))));
         });
 
         test(
@@ -404,22 +417,17 @@ void tests(RemoteApiVersion remoteApiVersion) {
 
           // verification
           const List<String> titles = const <String>[
-            'USER',
             'PID',
-            '%CPU',
-            '%MEM',
-            'VSZ',
-            'RSS',
-            'TTY',
-            'STAT',
-            'START',
+            'USER',
             'TIME',
             'COMMAND'
           ];
           expect(topResponse.titles, orderedEquals(titles));
           expect(topResponse.processes.length, greaterThan(0));
-          expect(topResponse.processes,
-              anyElement((List<String> e) => e.any((String i) => i.contains(runningProcess))));
+          expect(
+              topResponse.processes,
+              anyElement((List<String> e) =>
+                  e.any((String i) => i.contains(runningProcess))));
         });
       });
 
@@ -451,7 +459,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
 //            print('stderr: ${UTF8.decode(_)}');
           }
 
-          await utils.waitMilliseconds(1500); // TODO(zoechi) check if necessary
+          // await utils.waitMilliseconds(1500); // TODO(zoechi) check if necessary
 
           // exercise
           final ChangesResponse changesResponse =
@@ -459,11 +467,11 @@ void tests(RemoteApiVersion remoteApiVersion) {
 //          print('changes: ${changesResponse.changes}');
 
           // verification
-          // TODO(zoechi) provoke some changes and check the result
-          // expect(changesResponse.changes.length, greaterThan(0));
+          expect(changesResponse.changes.length, greaterThan(0));
           expect(changesResponse.changes,
               everyElement((ChangesPath c) => c.path.startsWith('/')));
-          expect(changesResponse.changes, everyElement((ChangesPath c) => c.kind != null));
+          expect(changesResponse.changes,
+              everyElement((ChangesPath c) => c.kind != null));
         });
       });
 
@@ -508,7 +516,11 @@ void tests(RemoteApiVersion remoteApiVersion) {
             expect(item.read, isNotNull);
             expect(item.read.millisecondsSinceEpoch,
                 greaterThan(new DateTime(1, 1, 1).millisecondsSinceEpoch));
-            expect(item.network.rxBytes, greaterThan(0));
+            if (connection.remoteApiVersion <= RemoteApiVersion.v1x20) {
+              expect(item.network.rxBytes, greaterThan(0));
+            } else {
+              expect(item.networks['eth0'].rxBytes, greaterThan(0));
+            }
             expect(item.cpuStats.cupUsage.totalUsage, greaterThan(0));
             expect(item.memoryStats.limit, greaterThan(0));
           }
@@ -529,7 +541,11 @@ void tests(RemoteApiVersion remoteApiVersion) {
           expect(item.read, isNotNull);
           expect(item.read.millisecondsSinceEpoch,
               greaterThan(new DateTime(1, 1, 1).millisecondsSinceEpoch));
-          expect(item.network.rxBytes, greaterThan(0));
+          if (connection.remoteApiVersion <= RemoteApiVersion.v1x20) {
+            expect(item.network.rxBytes, greaterThan(0));
+          } else {
+            expect(item.networks['eth0'].rxBytes, greaterThan(0));
+          }
           expect(item.cpuStats.cupUsage.totalUsage, greaterThan(0));
           expect(item.memoryStats.limit, greaterThan(0));
         },
@@ -552,7 +568,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
           expect(resizeResponse, isNotNull);
           expect(containerResponse.state.running, isTrue);
 
-          // TODO(zoechi) find a way to check the tty size
+          // TODO(zoechi) find a way to check the tty size, I think I saw
+          // something in newer API versions 1.20+ (like tty resize event)
         });
       });
 
@@ -613,10 +630,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
 
           // verification
           expect(restartResponse, isNotNull);
-          // I expected it to be true but [restarting] seems not to be set
-          //expect(restartedStatus.state.restarting, isTrue);
-          // TODO(zoechi) check why running is false after restarting
-          //expect(restartedStatus.state.running, isFalse);
+          expect(restartedStatus.state.running, isTrue);
           expect(
               restartedStatus.state.startedAt.millisecondsSinceEpoch,
               greaterThan(
@@ -781,7 +795,9 @@ void tests(RemoteApiVersion remoteApiVersion) {
           final Function waitReturned = expectAsync(() {});
 
           // exercise
-          connection.wait(createdContainer).then/*<WaitResponse>*/((WaitResponse response) {
+          connection
+              .wait(createdContainer)
+              .then /*<WaitResponse>*/ ((WaitResponse response) {
             // verification
             expect(response, isNotNull);
             expect(response.statusCode, isNot(0));
@@ -841,7 +857,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
           expect(buf.toString(), contains('some text'));
 
           // tear down
-          createdContainer = null; // prevent removing again in tearDown
+//          createdContainer = null; // prevent removing again in tearDown
         }, timeout: const Timeout(const Duration(seconds: 60)));
       });
     });
@@ -879,7 +895,6 @@ void tests(RemoteApiVersion remoteApiVersion) {
         expect(buf.length, greaterThan(50));
         final String s = UTF8.decode(buf.toBytes());
         expect(s, contains('up'));
-        expect(s, contains(' day'));
         expect(s, contains('load average'));
       },
           skip: remoteApiVersion < RemoteApiVersion.v1x17
@@ -898,13 +913,14 @@ void tests(RemoteApiVersion remoteApiVersion) {
         // verification
         expect(images, isNotEmpty);
         expect(images.first.id, isNotEmpty);
-        expect(images,
-            anyElement((ImageInfo img) => img.repoTags.contains(imageNameAndTag)));
         expect(
             images,
-            anyElement((ImageInfo img) =>
-                img.created.millisecondsSinceEpoch >
-                    new DateTime(1, 1, 1).millisecondsSinceEpoch));
+            anyElement(
+                (ImageInfo img) => img.repoTags.contains(imageNameAndTag)));
+        expect(
+            images,
+            anyElement((ImageInfo img) => img.created.millisecondsSinceEpoch >
+                new DateTime(1, 1, 1).millisecondsSinceEpoch));
       });
 
       test('all: true', () async {
@@ -940,13 +956,12 @@ void tests(RemoteApiVersion remoteApiVersion) {
         final Iterable<CreateImageResponse> createImageResponse =
             await connection.createImage(imageNameAndTag);
         if (connection.remoteApiVersion <= RemoteApiVersion.v1x15) {
-          expect(createImageResponse.first.status,
-              'Pulling repository ${imageName}');
+          expect(createImageResponse.first.status, endsWith(imageName));
         } else {
-          expect(createImageResponse.first.status, 'Pulling from ${imageName}');
+          expect(createImageResponse.first.status, endsWith(imageName));
 //          expect(createImageResponse.first.status, 'Pulling repository ${imageName}');
         }
-        expect(createImageResponse.length, greaterThan(5));
+        expect(createImageResponse.length, greaterThan(2));
       });
     });
 
@@ -998,8 +1013,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
 //            anyElement((ImagePushResponse e) => e.createdBy != null && e.createdBy.isNotEmpty));
 //        expect(imagePushResponse,
 //            anyElement((ImagePushResponse e) => e.tags != null && e.tags.isNotEmpty));
-        expect(
-            imagePushResponse, anyElement((ImagePushResponse e) => e.size != null && e.size > 0));
+        expect(imagePushResponse,
+            anyElement((ImagePushResponse e) => e.size != null && e.size > 0));
       }, skip: 'don\'t know yet how to test');
     });
 
@@ -1047,8 +1062,10 @@ void tests(RemoteApiVersion remoteApiVersion) {
             searchResponse,
             anyElement(
                 (SearchResponse e) => e.name != null && e.name.isNotEmpty));
-        expect(searchResponse, anyElement((SearchResponse e) => e.isOfficial != null));
-        expect(searchResponse, anyElement((SearchResponse e) => e.isAutomated != null));
+        expect(searchResponse,
+            anyElement((SearchResponse e) => e.isOfficial != null));
+        expect(searchResponse,
+            anyElement((SearchResponse e) => e.isAutomated != null));
         expect(
             searchResponse,
             anyElement(
@@ -1079,12 +1096,16 @@ void tests(RemoteApiVersion remoteApiVersion) {
 
     group('info', () {
       test('should return system-wide information', () async {
+        await createContainer();
+
         final InfoResponse infoResponse = await connection.info();
         expect(infoResponse, isNotNull);
-        expect(infoResponse.containers, greaterThan(0));
+        expect(infoResponse.containers, 1);
         expect(infoResponse.debug, isNotNull);
         expect(infoResponse.driver, isNotEmpty);
-        expect(infoResponse.driverStatus, isNotEmpty);
+// Doesn't seem to be set anymore
+//        expect(infoResponse.driverStatus,
+//              isNotEmpty); // TODO(zoechi) seems brittle, often empty
         expect(infoResponse.eventsListenersCount, isNotNull);
         expect(infoResponse.executionDriver, isNotNull);
         expect(infoResponse.fdCount, greaterThan(0));
@@ -1225,7 +1246,11 @@ void tests(RemoteApiVersion remoteApiVersion) {
         await createContainer();
         await connection.start(createdContainer);
 
-        const List<String> entryPoint = const <String>['/bin/sh', '-c', 'tail -f /etc/inittab'];
+        const List<String> entryPoint = const <String>[
+          '/bin/sh',
+          '-c',
+          'tail -f /etc/inittab'
+        ];
 
         // exercise
         final Exec createResponse = await connection.execCreate(
@@ -1399,9 +1424,9 @@ void tests(RemoteApiVersion remoteApiVersion) {
             connection.stop(createdContainer);
             //
           } else if (event.status == ContainerEvent.die) {
-            if (connection.remoteApiVersion >= RemoteApiVersion.v1x17) {
-              dieReceived();
-            }
+//            if (connection.remoteApiVersion >= RemoteApiVersion.v1x17) {
+            dieReceived();
+//            }
             //
           } else if (event.status == ContainerEvent.stop) {
             stopReceived();

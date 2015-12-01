@@ -1,8 +1,8 @@
 /// Some helpers used in tests.
-library bwu_docker.test.utils;
+library bwu_docker.test.v1x15_and_up.utils;
 
 import 'dart:async' show Future;
-import 'package:bwu_docker/bwu_docker_v1x15_to_v1x19.dart';
+import 'package:bwu_docker/bwu_docker.dart';
 
 /// Check if image exists or create it.
 Future ensureImageExists(DockerConnection connection, String imageName) async {

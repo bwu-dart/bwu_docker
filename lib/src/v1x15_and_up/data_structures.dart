@@ -1,4 +1,4 @@
-library bwu_docker.src.v1x15_to_v1x19.data_structures;
+library bwu_docker.src.v1x15_and_up.data_structures;
 
 import 'dart:collection';
 import 'package:bwu_docker/src/shared/version.dart';
@@ -447,6 +447,9 @@ class StatsResponse {
   StatsResponseNetwork _network;
   StatsResponseNetwork get network => _network;
 
+  UnmodifiableMapView<String, StatsResponseNetwork> _networks;
+  Map<String, StatsResponseNetwork> get networks => _networks;
+
   StatsResponseCpuStats _preCpuStats;
   StatsResponseCpuStats get preCpuStats => _preCpuStats;
 
@@ -462,6 +465,15 @@ class StatsResponse {
         json['memory_stats'] as Map<String, dynamic>, apiVersion);
     if (json['network'] != null) _network = new StatsResponseNetwork.fromJson(
         json['network'] as Map<String, dynamic>, apiVersion);
+    if (json['networks'] != null) {
+      Map<String, dynamic> tmpNetworks =
+          json['networks'] as Map<String, dynamic>;
+      _networks = toUnmodifiableMapView(new Map<String, StatsResponseNetwork>.fromIterable(
+          tmpNetworks.keys,
+          key: (String key) => key,
+          value: (String key) => new StatsResponseNetwork.fromJson(
+              tmpNetworks[key] as Map<String, dynamic>, apiVersion)));
+    }
     if (json['precpu_stats'] != null) _preCpuStats =
         new StatsResponseCpuStats.fromJson(
             json['precpu_stats'] as Map<String, dynamic>, apiVersion);
@@ -473,7 +485,15 @@ class StatsResponse {
             'blkio_stats',
             'cpu_stats',
             'memory_stats',
-            'network',
+            'network', // up to v1.20 then replace by 'networks'
+            'precpu_stats',
+            'read',
+          ],
+          RemoteApiVersion.v1x21: const [
+            'blkio_stats',
+            'cpu_stats',
+            'memory_stats',
+            'networks',
             'precpu_stats',
             'read',
           ],
@@ -863,12 +883,17 @@ class ContainerInfo {
     _image = json['Image'];
     _logPath = json['LogPath'];
     _mountLabel = json['MountLabel'];
+    if (json['MountPoints'] != null &&
+        (json['MountPoints'] as Map).isNotEmpty) {
+      // TODO(zoechi) remove
+      print('MountPoints');
+    }
     _mountPoints =
         toUnmodifiableMapView /*<String,
           UnmodifiableListView<
               String>>*/
-            (json['MountPoints']
-                as Map<String, List<String>>); // TODO check with actual data
+            (json['MountPoints'] as Map<String,
+                List<String>>); // TODO(zoech) check with actual data
     _mqueuePath = json['MqueuePath'];
     _name = json['Name'];
     _networkSettings = new NetworkSettings.fromJson(
@@ -917,7 +942,8 @@ class ContainerInfo {
             'Volumes',
             'VolumesRW'
           ],
-          RemoteApiVersion.v1x15: const [
+          RemoteApiVersion.v1x17: const [
+            // TODO(zoechi) what's the correct constraint
             'AppArmorProfile',
             'AppliedVolumesFrom',
             'Args',

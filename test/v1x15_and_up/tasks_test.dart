@@ -17,8 +17,8 @@ import 'dart:io' as io;
 import 'dart:async' show Future, Stream;
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
-import 'package:bwu_docker/bwu_docker_v1x20.dart';
-import 'package:bwu_docker/tasks_v1x20.dart';
+import 'package:bwu_docker/bwu_docker.dart';
+import 'package:bwu_docker/tasks.dart';
 import 'utils.dart' as utils;
 
 const String imageName = 'busybox';
@@ -37,6 +37,7 @@ Uri _uriUpdatePort(Uri uri, int port) {
 
 void main() {
   doCheckSurplusItems = true;
+
   DockerConnection connection;
   CreateResponse createdContainer;
 
@@ -63,7 +64,8 @@ void main() {
     /// images.
     Uri uri = Uri.parse(io.Platform.environment[dockerHostFromEnvironment]);
     uri = _uriUpdatePort(uri, uri.port + 1);
-    connection = new DockerConnection(uri, new http.Client());
+    connection = new DockerConnection.useRemoteApiVersion(
+        uri, RemoteApiVersion.v1x19, new http.Client());
     await connection.init();
     assert(connection.dockerVersion != null);
     //await ensureImageExists();

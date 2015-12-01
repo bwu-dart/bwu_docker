@@ -1,8 +1,8 @@
 @TestOn('vm')
-library bwu_docker.test.v1x15_to_v1x19.data_structures;
+library bwu_docker.test.v1x15_and_up.data_structures;
 
 import 'package:test/test.dart';
-import 'package:bwu_docker/bwu_docker_v1x15_to_v1x19.dart';
+import 'package:bwu_docker/bwu_docker.dart';
 import 'package:bwu_docker/src/shared/data_structures.dart' show doCheckSurplusItems;
 
 const Map<String, dynamic> json = const <String, dynamic>{

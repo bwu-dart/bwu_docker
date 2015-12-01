@@ -1,3 +1,5 @@
-library bwu_docker;
+library bwu_docker_v1x15_and_up;
 
-export 'bwu_docker_v1x20.dart';
+export 'src/v1x15_and_up/remote_api.dart';
+export 'src/v1x15_and_up/data_structures.dart';
+

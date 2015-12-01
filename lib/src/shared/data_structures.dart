@@ -1,8 +1,13 @@
+// This code was moved to shared because it seemed a split between Remote API
+// version < 1.21 and >= 1.21 is necessary and this code seemed to be still
+// shareable without complicating things.
+// In the end it seems not yet necessary to split yet.
 library bwu_docker.src.shared.exception;
 
 import 'dart:collection';
 import 'package:bwu_docker/src/shared/json_util.dart';
 import 'version.dart';
+import 'package:quiver_hashcode/hashcode.dart' show hash2;
 
 final RegExp containerNameRegex = new RegExp(r'^/?[a-zA-Z0-9_-]+$');
 
@@ -202,8 +207,7 @@ class ChangesPath {
   }
 
   @override
-  // TODO(zoechi) use quiver once it supports the test package // hash2(path, kind);
-  int get hashCode => '${path}-${kind}'.hashCode;
+  int get hashCode => hash2(path,kind);
 
   @override
   bool operator ==(Object other) {
@@ -1350,26 +1354,26 @@ class StatsResponseNetwork {
   int get txBytes => _txBytes;
 
   StatsResponseNetwork.fromJson(Map<String, dynamic> json, Version apiVersion) {
-    _rxDropped = json['rx_dropped'];
     _rxBytes = json['rx_bytes'];
+    _rxDropped = json['rx_dropped'];
     _rxErrors = json['rx_errors'];
-    _txPackets = json['tx_packets'];
-    _txDropped = json['tx_dropped'];
     _rxPackets = json['rx_packets'];
-    _txErrors = json['tx_errors'];
     _txBytes = json['tx_bytes'];
+    _txDropped = json['tx_dropped'];
+    _txErrors = json['tx_errors'];
+    _txPackets = json['tx_packets'];
     checkSurplusItems(
         apiVersion,
         {
           RemoteApiVersion.v1x15: const [
-            'rx_dropped',
             'rx_bytes',
+            'rx_dropped',
             'rx_errors',
-            'tx_packets',
-            'tx_dropped',
             'rx_packets',
+            'tx_bytes',
             'tx_errors',
-            'tx_bytes'
+            'tx_dropped',
+            'tx_packets',
           ]
         },
         json.keys);
