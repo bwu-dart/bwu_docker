@@ -3,7 +3,8 @@ library bwu_docker.test.v1x15_and_up.data_structures;
 
 import 'package:test/test.dart';
 import 'package:bwu_docker/bwu_docker.dart';
-import 'package:bwu_docker/src/shared/data_structures.dart' show doCheckSurplusItems;
+import 'package:bwu_docker/src/shared/data_structures.dart'
+    show doCheckSurplusItems;
 
 const Map<String, dynamic> json = const <String, dynamic>{
   "PortBindings": const {

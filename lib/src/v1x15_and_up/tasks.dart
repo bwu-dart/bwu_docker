@@ -57,7 +57,8 @@ class PurgeAllResult {
 Future<Iterable<Container>> stopAllContainers(
     DockerConnection connection) async {
   final Iterable<Container> containers = await connection.containers();
-  await Future.wait(containers.map/*<Future>*/((Container c) => connection.stop(c)));
+  await Future
+      .wait(containers.map /*<Future>*/ ((Container c) => connection.stop(c)));
   return containers;
 }
 
@@ -78,8 +79,8 @@ Future<Iterable<Container>> removeAllExitedContainers(
 /// If images are referenced by containers they can't be removed.
 Future<Iterable<ImageInfo>> removeAllImages(DockerConnection connection) async {
   final Iterable<ImageInfo> images = await connection.images();
-  await Future.wait(
-      images.map /*<Future>*/ ((ImageInfo i) => connection.removeImage(new Image(i.id))));
+  await Future.wait(images.map /*<Future>*/ (
+      (ImageInfo i) => connection.removeImage(new Image(i.id))));
   return images;
 }
 
@@ -110,9 +111,10 @@ Future<CreateResponse> run(DockerConnection connection, String image,
   assert(privileged != null);
   assert(rm != null);
 
-  final CreateContainerRequest createContainerRequest = new CreateContainerRequest()
-    ..image = image
-    ..hostConfig = new HostConfigRequest();
+  final CreateContainerRequest createContainerRequest =
+      new CreateContainerRequest()
+        ..image = image
+        ..hostConfig = new HostConfigRequest();
 
   if (addHost != null && addHost.isNotEmpty) {
     createContainerRequest.hostConfig.extraHosts = addHost;
@@ -170,7 +172,8 @@ Future<CreateResponse> run(DockerConnection connection, String image,
             await connection.containers(filters: {
           'status': [ContainerStatus.exited.toString()]
         });
-        if (containers.any((Container c) => c.id == createdResponse.container.id)) {
+        if (containers
+            .any((Container c) => c.id == createdResponse.container.id)) {
           try {
             await connection.removeContainer(createdResponse.container);
           } catch (e) {

@@ -34,7 +34,7 @@ Future removeContainer(DockerConnection connection, Container container) async {
         await connection.removeContainer(container,
             force: true, removeVolumes: true);
         removed = true;
-      } on DockerRemoteApiError catch ( error) {
+      } on DockerRemoteApiError catch (error) {
         if (error.statusCode == 404) {
           removed = true;
           break;

@@ -30,11 +30,14 @@ dynamic main([List<String> args]) async {
 
   // Run tests for each [RemoteApiVersion] supported by this package and
   // supported by the Docker service.
-  for (RemoteApiVersion remoteApiVersion in RemoteApiVersion.versions /*.where(
+  for (RemoteApiVersion remoteApiVersion
+      in RemoteApiVersion.versions /*.where(
       (RemoteApiVersion version) => version > RemoteApiVersion.v1x20 &&
-          version <= RemoteApiVersion.v1x21)*/) {
+          version <= RemoteApiVersion.v1x21)*/
+      ) {
     //TO DO(zoechi) restore to 1.19 and remove lower bound
-    group('remote_api version ${remoteApiVersion}', () => tests(remoteApiVersion),
+    group(
+        'remote_api version ${remoteApiVersion}', () => tests(remoteApiVersion),
         skip: remoteApiVersion > connection.remoteApiVersion
             ? remoteApiVersion.toString()
             : false);
@@ -265,9 +268,9 @@ void tests(RemoteApiVersion remoteApiVersion) {
         final CommitResponse commitResponse = await connection.commit(
             new CommitRequest(
                 attachStdout: true,
-                cmd: ['date'],
+                cmd: <String>['date'],
                 volumes: new Volumes()..add('/tmp', {}),
-                exposedPorts: {'22/tcp': {}}),
+                exposedPorts: <String, Map>{'22/tcp': {}}),
             createdContainer,
             tag: 'commitTest',
             comment: 'remove',

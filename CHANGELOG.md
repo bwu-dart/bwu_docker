@@ -1,4 +1,6 @@
 ## UNRELEASED
+
+# 0.3.0
 - Some code restructuring because at some point it seemed necessary to split 
  code int pre 1.20 and 1.20 or higher but actually wasn't. 
 - Doesn't throw on unexpected JSON items anymore. This can be enabled by setting
@@ -6,7 +8,6 @@
 - Partial support for Docker API v 1.20 and v.121 # TODO (zoechi) implement all new features
 - support in `DockerConnection` to use a specific remote API version
 - improve Docker container creation for running tests
-- apply new dartformat
 - update config for linter (Grinder task)
 - Started implementation of a `run` task
   - add `publish` parameter

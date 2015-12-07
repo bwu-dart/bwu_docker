@@ -93,7 +93,7 @@ dynamic _testTaskImpl() async {
   try {
     await _dindStartForTest(docker);
     new PubApp.local('test').run(['-rexpanded', '-j1'],
-        runOptions: new RunOptions(environment: {
+        runOptions: new RunOptions(environment: <String, String>{
           dockerHostFromEnvironment:
               _uriUpdatePort(dockerHost, _dindPort1).toString()
         }));
@@ -107,9 +107,9 @@ dynamic _testTaskImpl() async {
 /// Prepare Docker-in-Docker instances for running tests.
 Future _dindStartForTest(DockerConnection docker) async {
   await _dindCreateContainer(docker, _dindPort1).then /*<Container>*/ (
-      (dynamic container) => _dindRemoteApiTest = container);
+      (Container container) => _dindRemoteApiTest = container);
   await _dindCreateContainer(docker, _dindPort1 + 1)
-      .then /*<Container>*/ ((dynamic container) => _dindTasksTest = container);
+      .then /*<Container>*/ ((Container container) => _dindTasksTest = container);
 }
 
 /// Create and start a Docker-in-Docker container.
@@ -173,7 +173,7 @@ Future<Container> _dindCreateContainer(
 
 /// Remove Docker-in-Docker containers after tests are done.
 Future _dindCleanupAfterTest(DockerConnection docker) {
-  return Future.wait([
+  return Future.wait(<Future>[
     _dindRemoveContainer(docker, _dindRemoteApiTest),
     _dindRemoveContainer(docker, _dindTasksTest)
   ]);

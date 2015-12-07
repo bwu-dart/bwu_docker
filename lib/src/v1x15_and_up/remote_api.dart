@@ -340,7 +340,8 @@ class DockerConnection {
   Future<Stream<List<int>>> export(Container container) async {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
-    return _requestStream(RequestType.get, '/containers/${container.id}/export');
+    return _requestStream(
+        RequestType.get, '/containers/${container.id}/export');
   }
 
   /// This endpoint returns a live stream of a [container]'s resource usage

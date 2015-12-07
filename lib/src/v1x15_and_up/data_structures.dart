@@ -468,11 +468,11 @@ class StatsResponse {
     if (json['networks'] != null) {
       Map<String, dynamic> tmpNetworks =
           json['networks'] as Map<String, dynamic>;
-      _networks = toUnmodifiableMapView(new Map<String, StatsResponseNetwork>.fromIterable(
-          tmpNetworks.keys,
-          key: (String key) => key,
-          value: (String key) => new StatsResponseNetwork.fromJson(
-              tmpNetworks[key] as Map<String, dynamic>, apiVersion)));
+      _networks = toUnmodifiableMapView(
+          new Map<String, StatsResponseNetwork>.fromIterable(tmpNetworks.keys,
+              key: (String key) => key,
+              value: (String key) => new StatsResponseNetwork.fromJson(
+                  tmpNetworks[key] as Map<String, dynamic>, apiVersion)));
     }
     if (json['precpu_stats'] != null) _preCpuStats =
         new StatsResponseCpuStats.fromJson(

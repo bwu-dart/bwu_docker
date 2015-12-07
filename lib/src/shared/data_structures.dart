@@ -207,7 +207,7 @@ class ChangesPath {
   }
 
   @override
-  int get hashCode => hash2(path,kind);
+  int get hashCode => hash2(path, kind);
 
   @override
   bool operator ==(Object other) {

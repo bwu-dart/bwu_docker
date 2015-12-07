@@ -8,7 +8,9 @@ void checkSurplusItems(Version apiVersion, Map<Version, List<String>> expected,
     Iterable<String> actual) {
   assert(expected != null);
   assert(actual != null);
-  if (apiVersion == null || apiVersion == new RemoteApiVersion(0,0,0) || expected.isEmpty ) {
+  if (apiVersion == null ||
+      apiVersion == new RemoteApiVersion(0, 0, 0) ||
+      expected.isEmpty) {
     return;
   }
   List<String> expectedForVersion = expected[apiVersion];
@@ -25,12 +27,12 @@ void checkSurplusItems(Version apiVersion, Map<Version, List<String>> expected,
     }
   }
   List<String> result = <String>[];
-  for(String key in actual) {
-    if(!expectedForVersion.contains(key)) {
+  for (String key in actual) {
+    if (!expectedForVersion.contains(key)) {
       result.add(key);
     }
   }
-  if(result.isNotEmpty) {
+  if (result.isNotEmpty) {
     print('Unsupported keys: ${result}".');
   }
   assert(result.isEmpty);
@@ -110,7 +112,7 @@ UnmodifiableMapView<dynamic /*=K*/,
   if (map == null) {
     return null;
   }
-  return new UnmodifiableMapView /*<K,V>*/ (
+  return new UnmodifiableMapView<dynamic /*=K*/, dynamic /*=V*/ >(
       new Map<dynamic /*=K*/, dynamic /*=V*/ >.fromIterable(map.keys,
           key: (dynamic /*=K*/ k) => k, value: (dynamic k) {
     if (map == null) {
@@ -132,16 +134,17 @@ UnmodifiableListView /*<T>*/ toUnmodifiableListView /*<T>*/ (Iterable list) {
     return null;
   }
   if (list.length == 0) {
-    return new UnmodifiableListView /*<T>*/ (const /*<T>*/[]);
+    return new UnmodifiableListView<dynamic /*=T*/ >(<dynamic /*=T*/ >[]);
   }
 
-  return new UnmodifiableListView /*<T>*/ (list.map /*<T>*/ ((dynamic e) {
+  return new UnmodifiableListView<dynamic /*=T*/ >(
+      list.map /*<T>*/ ((dynamic e) {
     if (e is Map) {
-      return toUnmodifiableMapView /*<T>*/ (e);
+      return toUnmodifiableMapView(e) as dynamic /*=T*/;
     } else if (e is List) {
-      return toUnmodifiableListView /*<T>*/ (e);
+      return toUnmodifiableListView(e) as dynamic /*=T*/;
     } else {
-      return e;
+      return e as dynamic /*=T*/;
     }
   }));
 }

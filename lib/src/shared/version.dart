@@ -134,7 +134,6 @@ class RemoteApiVersion extends Version {
   static final RemoteApiVersion v1x20 = new RemoteApiVersion(1, 20, null);
   static final RemoteApiVersion v1x21 = new RemoteApiVersion(1, 21, null);
 
-
   static final List<RemoteApiVersion> versions = <RemoteApiVersion>[
     v1x15,
     v1x16,
