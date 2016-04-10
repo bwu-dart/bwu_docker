@@ -113,26 +113,33 @@ class Version implements Comparable {
 class RemoteApiVersion extends Version {
   static final RemoteApiVersion v1x15 = new RemoteApiVersion(1, 15, null);
   @Deprecated('See v1x15') // deprecated 2015-11-26
+  // ignore: non_constant_identifier_names
   static final RemoteApiVersion v1_15 = v1x15;
 
   static final RemoteApiVersion v1x16 = new RemoteApiVersion(1, 16, null);
   @Deprecated('See v1x16')
+  // ignore: non_constant_identifier_names
   static final RemoteApiVersion v1_16 = v1x16;
 
   static final RemoteApiVersion v1x17 = new RemoteApiVersion(1, 17, null);
   @Deprecated('See v1x17')
+  // ignore: non_constant_identifier_names
   static final RemoteApiVersion v1_17 = v1x17;
 
   static final RemoteApiVersion v1x18 = new RemoteApiVersion(1, 18, null);
   @Deprecated('See v1x18')
+  // ignore: non_constant_identifier_names
   static final RemoteApiVersion v1_18 = v1x18;
 
   static final RemoteApiVersion v1x19 = new RemoteApiVersion(1, 19, null);
   @Deprecated('See v1x19')
+  // ignore: non_constant_identifier_names
   static final RemoteApiVersion v1_19 = v1x19;
 
+  // ignore: non_constant_identifier_names
   static final RemoteApiVersion v1x20 = new RemoteApiVersion(1, 20, null);
   static final RemoteApiVersion v1x21 = new RemoteApiVersion(1, 21, null);
+  static final RemoteApiVersion v1x22 = new RemoteApiVersion(1, 22, null);
 
   static final List<RemoteApiVersion> versions = <RemoteApiVersion>[
     v1x15,
@@ -142,6 +149,7 @@ class RemoteApiVersion extends Version {
     v1x19,
     v1x20,
     v1x21,
+    v1x22,
   ];
 
   RemoteApiVersion(int major, int minor, int patch)

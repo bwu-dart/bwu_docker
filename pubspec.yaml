@@ -9,13 +9,13 @@ environment:
 
 dependencies:
   collection: '^1.1.0'
-  crypto: '^0.9.0'
+  crypto: '^1.0.0'
   http: '^0.11.2'
   quiver_hashcode: '^1.0.0-dev.1'
   stack_trace: '^1.2.1'
 
 dev_dependencies:
-  bwu_grinder_tasks: '^0.1.0'
+  bwu_grinder_tasks: '^0.1.1-dev'
   grinder: '>=0.7.0 <0.9.0'
   test: '^0.12.3+1'
 

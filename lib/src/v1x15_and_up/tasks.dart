@@ -58,7 +58,7 @@ Future<Iterable<Container>> stopAllContainers(
     DockerConnection connection) async {
   final Iterable<Container> containers = await connection.containers();
   await Future
-      .wait(containers.map /*<Future>*/ ((Container c) => connection.stop(c)));
+      .wait(containers.map/*<Future>*/((Container c) => connection.stop(c)));
   return containers;
 }
 
@@ -71,7 +71,7 @@ Future<Iterable<Container>> removeAllExitedContainers(
   });
 
   await Future.wait(stoppedContainers
-      .map /*<Future>*/ ((Container c) => connection.removeContainer(c)));
+      .map/*<Future>*/((Container c) => connection.removeContainer(c)));
   return stoppedContainers;
 }
 
@@ -79,7 +79,7 @@ Future<Iterable<Container>> removeAllExitedContainers(
 /// If images are referenced by containers they can't be removed.
 Future<Iterable<ImageInfo>> removeAllImages(DockerConnection connection) async {
   final Iterable<ImageInfo> images = await connection.images();
-  await Future.wait(images.map /*<Future>*/ (
+  await Future.wait(images.map/*<Future>*/(
       (ImageInfo i) => connection.removeImage(new Image(i.id))));
   return images;
 }
@@ -103,7 +103,7 @@ Future<CreateResponse> run(DockerConnection connection, String image,
   assert(image != null && image.isNotEmpty);
 
   assert(attach != null);
-  attach = attach.map /*<String>*/ ((String e) => e.toLowerCase()).toList();
+  attach = attach.map/*<String>*/((String e) => e.toLowerCase()).toList();
   assert(attach
       .every((String e) => const ['stdin', 'stdout', 'stderr'].contains(e)));
   assert(detach != null);
@@ -164,9 +164,12 @@ Future<CreateResponse> run(DockerConnection connection, String image,
   // stopped. Check again after some delay and then remove the container.
   if (rm) {
     StreamSubscription eventsSubscription;
-    eventsSubscription = connection.events(filters: new EventsFilter()
-      ..events.addAll([ContainerEvent.stop, ContainerEvent.kill, ContainerEvent.die])
-      ..containers.add(createdResponse.container)).listen((EventsResponse event) {
+    eventsSubscription = connection
+        .events(filters: new EventsFilter()
+          ..events.addAll(
+              [ContainerEvent.stop, ContainerEvent.kill, ContainerEvent.die])
+          ..containers.add(createdResponse.container))
+        .listen((EventsResponse event) {
       new Future.delayed(const Duration(milliseconds: 200), () async {
         final Iterable<Container> containers =
             await connection.containers(filters: {
@@ -216,9 +219,8 @@ Map<String, List<PortBinding>> parsePublishArgument(List<String> publish) {
       throw new ArgumentError.value(p, 'publish', 'Invalid value.');
     }
 
-    if (containerPort == null ||
-        containerPort.isEmpty) throw new ArgumentError.value(
-        p, 'publish', 'Invalid value.');
+    if (containerPort == null || containerPort.isEmpty)
+      throw new ArgumentError.value(p, 'publish', 'Invalid value.');
     if (containerPort.contains('-')) {
       final List<String> containerPortsRange = containerPort.split('-');
       if (containerPortsRange.length != 2 ||

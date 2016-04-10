@@ -9,8 +9,10 @@ import 'package:bwu_docker/src/shared/json_util.dart';
 import 'version.dart';
 import 'package:quiver_hashcode/hashcode.dart' show hash2;
 
+/// To check if a name is a valid Docker container name.
 final RegExp containerNameRegex = new RegExp(r'^/?[a-zA-Z0-9_-]+$');
 
+/// Throw if received JSON contains unknown keys.
 bool doCheckSurplusItems = false;
 
 /// Passed as `X-Registry-Auth` header in requests that need authentication to a
@@ -135,22 +137,22 @@ class BlkIoStats {
     if (json == null) {
       return;
     }
-    _ioServiceBytesRecursive = toUnmodifiableListView /*<int>*/ (
+    _ioServiceBytesRecursive = toUnmodifiableListView/*<int>*/(
         json['io_service_bytes_recursive'] as Iterable);
-    _ioServicedRecursive = toUnmodifiableListView /*<int>*/ (
+    _ioServicedRecursive = toUnmodifiableListView/*<int>*/(
         json['io_serviced_recursive'] as Iterable);
-    _ioQueueRecursive = toUnmodifiableListView /*<int>*/ (
-        json['io_queue_recursive'] as Iterable);
-    _ioServiceTimeRecursive = toUnmodifiableListView /*<int>*/ (
+    _ioQueueRecursive =
+        toUnmodifiableListView/*<int>*/(json['io_queue_recursive'] as Iterable);
+    _ioServiceTimeRecursive = toUnmodifiableListView/*<int>*/(
         json['io_service_time_recursive'] as Iterable);
-    _ioWaitTimeRecursive = toUnmodifiableListView /*<int>*/ (
+    _ioWaitTimeRecursive = toUnmodifiableListView/*<int>*/(
         json['io_wait_time_recursive'] as Iterable);
     _ioMergedRecursive = toUnmodifiableListView /*int*/ (
         json['io_merged_recursive'] as Iterable);
-    _ioTimeRecursive = toUnmodifiableListView /*<int>*/ (
-        json['io_time_recursive'] as Iterable);
-    _sectorsRecursive = toUnmodifiableListView /*<int>*/ (
-        json['sectors_recursive'] as Iterable);
+    _ioTimeRecursive =
+        toUnmodifiableListView/*<int>*/(json['io_time_recursive'] as Iterable);
+    _sectorsRecursive =
+        toUnmodifiableListView/*<int>*/(json['sectors_recursive'] as Iterable);
 
     checkSurplusItems(
         apiVersion,
@@ -184,8 +186,8 @@ class ChangesResponse {
 
   List<Map<String, dynamic>> toJson() {
     return _changes
-        .map /*<Map<String,dynamic>>*/ ((ChangesPath c) => c.toJson())
-        .toList /*<Map<String,dynamic>>*/ ();
+        .map/*<Map<String,dynamic>>*/((ChangesPath c) => c.toJson())
+        .toList();
   }
 
   ChangesResponse.fromJson(List json) {
@@ -337,8 +339,8 @@ class CreateImageResponse {
 
   CreateImageResponse.fromJson(Map<String, dynamic> json, Version apiVersion) {
     _status = json['status'];
-    _progressDetail =
-        toUnmodifiableMapView /*<String,Map>*/ (json['progressDetail']);
+    _progressDetail = toUnmodifiableMapView/*<String,Map>*/(
+        json['progressDetail'] as Map<String, Map>);
     _id = json['id'];
     _progress = json['progress'];
     checkSurplusItems(
@@ -410,7 +412,8 @@ class DockerEvent {
 
   final DockerEvent value;
   const DockerEvent(this.value);
-  @override String toString() => value.toString();
+  @override
+  String toString() => value.toString();
 }
 
 /// An item of the response to the events request.
@@ -500,9 +503,8 @@ class GraphDriver {
     Map<String, dynamic> dataJsonTmp = json['Data'] as Map<String, dynamic>;
     if (dataJsonTmp != null) {
       _data = new UnmodifiableListView<GraphDriverData>(dataJsonTmp.keys
-          .map /*<GraphDriverData>*/ ((String k) =>
-              new GraphDriverData.fromJson(
-                  dataJsonTmp[k] as Map<String, dynamic>, apiVersion)));
+          .map/*<GraphDriverData>*/((String k) => new GraphDriverData.fromJson(
+              dataJsonTmp[k] as Map<String, dynamic>, apiVersion)));
     }
     checkSurplusItems(
         apiVersion,
@@ -515,8 +517,9 @@ class GraphDriver {
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> json = <String, dynamic>{};
     if (name != null) json['Name'] = name;
-    if (data != null) json['Data'] =
-        data.map /*<String,dynamic>*/ ((GraphDriverData data) => data.toJson());
+    if (data != null)
+      json['Data'] = data.map/*<Map<String,dynamic>>*/(
+          (GraphDriverData data) => data.toJson());
     return json;
   }
 }
@@ -643,6 +646,8 @@ class NetworkMode {
 }
 
 abstract class Network {
+  Network();
+
   factory Network.fromJson(
       String type, Map<String, dynamic> json, RemoteApiVersion apiVersion) {
     switch (type) {
@@ -653,8 +658,6 @@ abstract class Network {
         throw 'Network type "${type}" isn\'t yet supported.';
     }
   }
-
-  Network();
 }
 
 class BridgeNetwork extends Network {
@@ -714,13 +717,15 @@ class BridgeNetwork extends Network {
 }
 
 class PortBindingRequest extends PortBinding {
+  @override
   String get hostIp => _hostIp;
-  void set hostIp(String val) {
+  set hostIp(String val) {
     _hostIp = val;
   }
 
+  @override
   String get hostPort => _hostPort;
-  void set hostPort(String val) {
+  set hostPort(String val) {
     _hostPort = val;
   }
 }
@@ -829,8 +834,7 @@ class ProcessConfig {
     _user = json['user'];
     _tty = json['tty'];
     _entrypoint = json['entrypoint'];
-    _arguments = toUnmodifiableListView(json['arguments'])
-        as UnmodifiableListView<String>;
+    _arguments = toUnmodifiableListView(json['arguments']);
     checkSurplusItems(
         apiVersion,
         {
@@ -860,7 +864,7 @@ class RegistryConfigs {
     }
 
     _indexConfigs = toUnmodifiableMapView(json['IndexConfigs'] as Map);
-    _insecureRegistryCidrs = toUnmodifiableListView /*<String>*/ (
+    _insecureRegistryCidrs = toUnmodifiableListView/*<String>*/(
         json['InsecureRegistryCIDRs'] as Iterable);
 
     checkSurplusItems(
@@ -1109,7 +1113,7 @@ class StatsResponseCpuUsage {
   StatsResponseCpuUsage.fromJson(
       Map<String, dynamic> json, Version apiVersion) {
     _perCpuUsage =
-        toUnmodifiableListView /*<int>*/ (json['percpu_usage'] as Iterable);
+        toUnmodifiableListView/*<int>*/(json['percpu_usage'] as Iterable);
     _usageInUserMode = json['usage_in_usermode'];
     _totalUsage = json['total_usage'];
     _usageInKernelMode = json['usage_in_kernelmode'];
@@ -1417,10 +1421,9 @@ class TopResponse {
   List<List<String>> get processes => _processes;
 
   TopResponse.fromJson(Map<String, dynamic> json, Version apiVersion) {
-    _titles =
-        toUnmodifiableListView /*<List<String>>*/ (json['Titles'] as Iterable);
-    _processes = toUnmodifiableListView /*<List<String>>*/ (
-        json['Processes'] as Iterable);
+    _titles = toUnmodifiableListView /*String>*/ (json['Titles'] as Iterable);
+    _processes =
+        toUnmodifiableListView/*<List<String>>*/(json['Processes'] as Iterable);
   }
 
   Map<String, dynamic> toJson() =>
@@ -1520,6 +1523,7 @@ class Volumes {
 }
 
 class VolumesRequest extends Volumes {
+  @override
   void add(String name, Map value) {
     _volumes[name] = value;
   }

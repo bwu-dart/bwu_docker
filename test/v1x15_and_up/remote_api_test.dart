@@ -2,7 +2,7 @@
 library bwu_docker.test.docker;
 
 import 'dart:io' as io;
-import 'dart:convert' show JSON, UTF8;
+import 'dart:convert' show UTF8;
 import 'dart:async' show Completer, Future, Stream, StreamSubscription;
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
@@ -30,8 +30,8 @@ dynamic main([List<String> args]) async {
 
   // Run tests for each [RemoteApiVersion] supported by this package and
   // supported by the Docker service.
-  for (RemoteApiVersion remoteApiVersion
-      in RemoteApiVersion.versions /*.where(
+  for (RemoteApiVersion remoteApiVersion in RemoteApiVersion
+          .versions /*.where(
       (RemoteApiVersion version) => version > RemoteApiVersion.v1x20 &&
           version <= RemoteApiVersion.v1x21)*/
       ) {
@@ -55,8 +55,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
 
   /// setUp helper to create a container from the image used in tests.
   Future createContainer() async {
-    createdContainer = (await connection
-            .createContainer(new CreateContainerRequest()
+    createdContainer =
+        (await connection.createContainer(new CreateContainerRequest()
               ..image = imageNameAndTag
               ..cmd = ['/bin/sh']
               ..attachStdin = false
@@ -66,7 +66,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
               ..stdinOnce = false
               ..tty = true
               ..hostConfig.logConfig = <String, String>{'Type': 'json-file'}))
-        .container;
+            .container;
   }
 
   /// tearDown helper to remove the container created in setUp
@@ -92,7 +92,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
             'Container with id "${container.id}" was left over by the previous test.');
         await utils.removeContainer(connection, container);
       }
-      assert(containers.isEmpty); // Otherwise the test left a container running
+      expect(containers, isEmpty); // Otherwise the test left a container running
     }
 
     assert(containers.isEmpty);
@@ -103,8 +103,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
   group('((prevent timeout))', () {
     setUp(() => ensureImageExists());
 
-    test('((dummy))', () {
-    }, timeout: const Timeout(const Duration(seconds: 300)));
+    test('((dummy))', () {},
+        timeout: const Timeout(const Duration(seconds: 300)));
   });
 
   group('containers', () {
@@ -135,8 +135,9 @@ void tests(RemoteApiVersion remoteApiVersion) {
 
         // exercise
         createdContainer = (await connection.createContainer(
-            new CreateContainerRequest()..image = imageNameAndTag,
-            name: 'dummy_name')).container;
+                new CreateContainerRequest()..image = imageNameAndTag,
+                name: 'dummy_name'))
+            .container;
         await utils.waitMilliseconds(100);
 //          print(createdContainer.id);
 
@@ -381,8 +382,10 @@ void tests(RemoteApiVersion remoteApiVersion) {
 
           // verification
           expect(container, new isInstanceOf<ContainerInfo>());
-          expect(container.id,
-              createdContainer.id); // TODO(zoechi) brittle, sometimes returns a different id
+          expect(
+              container.id,
+              createdContainer
+                  .id); // TODO(zoechi) brittle, sometimes returns a different id
           expect(container.config.cmd, [entryPoint]);
           expect(container.config.image, imageNameAndTag);
           expect(container.state.running, isTrue);
@@ -800,7 +803,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
           // exercise
           connection
               .wait(createdContainer)
-              .then /*<WaitResponse>*/ ((WaitResponse response) {
+              .then/*<WaitResponse>*/((WaitResponse response) {
             // verification
             expect(response, isNotNull);
             expect(response.statusCode, isNot(0));
@@ -869,10 +872,11 @@ void tests(RemoteApiVersion remoteApiVersion) {
       setUp(() async {
         createdContainer =
             (await connection.createContainer(new CreateContainerRequest()
-              ..image = imageNameAndTag
-              ..openStdin = false
-              ..attachStdin = false
-              ..cmd = ['/bin/sh', '-c', 'uptime'])).container;
+                  ..image = imageNameAndTag
+                  ..openStdin = false
+                  ..attachStdin = false
+                  ..cmd = ['/bin/sh', '-c', 'uptime']))
+                .container;
       });
 
       test(
@@ -922,7 +926,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
                 (ImageInfo img) => img.repoTags.contains(imageNameAndTag)));
         expect(
             images,
-            anyElement((ImageInfo img) => img.created.millisecondsSinceEpoch >
+            anyElement((ImageInfo img) =>
+                img.created.millisecondsSinceEpoch >
                 new DateTime(1, 1, 1).millisecondsSinceEpoch));
       });
 
@@ -985,7 +990,7 @@ void tests(RemoteApiVersion remoteApiVersion) {
             imageHistoryResponse,
             everyElement((ImageHistoryResponse e) =>
                 e.created.millisecondsSinceEpoch >
-                    new DateTime(1, 1, 1).millisecondsSinceEpoch));
+                new DateTime(1, 1, 1).millisecondsSinceEpoch));
         expect(
             imageHistoryResponse,
             anyElement((ImageHistoryResponse e) =>
@@ -1060,7 +1065,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
         expect(searchResponse, isNotNull);
         expect(
             searchResponse,
-            anyElement((SearchResponse e) => e.description ==
+            anyElement((SearchResponse e) =>
+                e.description ==
                 'Dockerized SSH service, built on top of official Ubuntu images.'));
         expect(
             searchResponse,
@@ -1091,7 +1097,8 @@ void tests(RemoteApiVersion remoteApiVersion) {
         expect(
             connection.auth(new AuthRequest('xxxxx', 'xxxxx', 'xxx@xxx.com',
                 'https://index.docker.io/v1/')),
-            throwsA((Object e) => e is DockerRemoteApiError &&
+            throwsA((Object e) =>
+                e is DockerRemoteApiError &&
                 //e.body == 'Wrong login/password, please try again\n'));
                 e.body ==
                     'Login: Account is not Active. Please check your e-mail for a confirmation link.\n'));
@@ -1370,9 +1377,11 @@ void tests(RemoteApiVersion remoteApiVersion) {
 
       // exercise
       StreamSubscription subscription;
-      subscription = connection.events(filters: new EventsFilter()
-        ..events.addAll([ContainerEvent.start, ContainerEvent.stop])
-        ..containers.add(createdContainer)).listen((EventsResponse event) {
+      subscription = connection
+          .events(filters: new EventsFilter()
+            ..events.addAll([ContainerEvent.start, ContainerEvent.stop])
+            ..containers.add(createdContainer))
+          .listen((EventsResponse event) {
         // verify
         if (event.id == createdContainer.id &&
             event.from == imageNameAndTag &&

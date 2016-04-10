@@ -1,8 +1,7 @@
 library bwu_docker.src.v1x15_and_up.remote_api;
 
-import 'dart:async' show Future, Stream, Completer, StreamController;
-import 'dart:convert' show JSON, UTF8;
-import 'package:crypto/crypto.dart' show CryptoUtils;
+import 'dart:async' show Future, Stream, Completer;
+import 'dart:convert' show JSON, UTF8, BASE64;
 import 'package:http/http.dart' as http;
 
 import 'package:bwu_docker/src/shared/remote_api.dart';
@@ -38,6 +37,25 @@ class DockerConnection {
     return _remoteApiVersion;
   }
 
+  /// Create a [DockerConnection] which uses the most recent remote API version
+  /// supported by the server (the version part is omitted in the request URI).
+  DockerConnection(Uri uri, http.Client client)
+      : this.useRemoteApiVersion(uri, null, client);
+
+  /// Create a [DockerConnection] which uses a specific remote API endpoint
+  /// version (the version is added to the request URI).
+  /// Without a specified version the most recent version supported
+  /// by the Docker service is used (the version part is omitted in the request
+  /// URI).
+  DockerConnection.useRemoteApiVersion(
+      Uri uri, this._remoteApiVersion, http.Client client) {
+    assert(uri != null);
+    assert(client != null);
+//    print('Uri: ${uri}');
+    _serverReference =
+        new ServerReference(uri, client, remoteApiVersion: remoteApiVersion);
+  }
+
   /// Loads the version information from the Docker service.
   /// The version information is used to adapt to differences in the Docker
   /// remote API between different Docker version.
@@ -55,30 +73,11 @@ class DockerConnection {
   ServerReference _serverReference;
   ServerReference get serverReference => _serverReference;
 
-  /// Create a [DockerConnection] which uses a specific remote API endpoint
-  /// version (the version is added to the request URI).
-  /// Without a specified version the most recent version supported
-  /// by the Docker service is used (the version part is omitted in the request
-  /// URI).
-  DockerConnection.useRemoteApiVersion(
-      Uri uri, this._remoteApiVersion, http.Client client) {
-    assert(uri != null);
-    assert(client != null);
-//    print('Uri: ${uri}');
-    _serverReference =
-        new ServerReference(uri, client, remoteApiVersion: remoteApiVersion);
-  }
-
-  /// Create a [DockerConnection] which uses the most recent remote API version
-  /// supported by the server (the version part is omitted in the request URI).
-  DockerConnection(Uri uri, http.Client client)
-      : this.useRemoteApiVersion(uri, null, client);
-
   String _jsonifyConcatenatedJson(String s) {
     return '[${s.replaceAll(new RegExp(r'\}\s*\{', multiLine: true), '},\n{')}]';
   }
 
-  Future /*<T>*/ _request /*<T>*/ (RequestType requestType, String path,
+  Future/*<T>*/ _request/*<T>*/(RequestType requestType, String path,
       {Map<String, dynamic> body,
       Map<String, String> query,
       Map<String, String> headers,
@@ -92,7 +91,7 @@ class DockerConnection {
     Map<String, String> _headers = headers != null ? headers : headersJson;
 
     final Uri url = serverReference.buildUri(path, query);
-    print('Uri: ${url}, ${requestType}');
+//    print('Uri: ${url}, ${requestType}');
 
     http.Response response;
     switch (requestType) {
@@ -122,7 +121,7 @@ class DockerConnection {
         data = preprocessor(response.body);
       }
       try {
-        return JSON.decode(data) as dynamic /*=T*/;
+        return JSON.decode(data) as dynamic/*=T*/;
       } catch (e) {
         print(data);
       }
@@ -208,10 +207,9 @@ class DockerConnection {
     if (filters != null) query['filters'] = JSON.encode(filters);
 
     final List<Map<String, dynamic>> response =
-        (await _request(RequestType.get, '/containers/json', query: query))
-        as List<Map<String, dynamic>>;
+        (await _request(RequestType.get, '/containers/json', query: query));
 //    print(response);
-    return response.map /*<Iterable<Container>>*/ ((Map<String, dynamic> e) =>
+    return response.map/*<Container>*/((Map<String, dynamic> e) =>
         new Container.fromJson(e, remoteApiVersion));
   }
 
@@ -232,7 +230,7 @@ class DockerConnection {
     }
     final Map<String, dynamic> response = (await _request(
         RequestType.post, '/containers/create',
-        body: request.toJson(), query: query)) as Map<String, dynamic>;
+        body: request.toJson(), query: query));
 //    print(response);
     return new CreateResponse.fromJson(response, remoteApiVersion);
   }
@@ -247,8 +245,7 @@ class DockerConnection {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
     final Map<String, dynamic> response =
-        (await _request(RequestType.get, '/containers/${container.id}/json'))
-        as Map<String, dynamic>;
+        (await _request(RequestType.get, '/containers/${container.id}/json'));
 //    print(response);
     return new ContainerInfo.fromJson(response, remoteApiVersion);
   }
@@ -268,9 +265,9 @@ class DockerConnection {
     }
 
     final Map<String, dynamic> response =
-        (await _request /*<Map<String,dynamic>>*/ (
+        (await _request/*<Map<String,dynamic>>*/(
             RequestType.get, '/containers/${container.id}/top',
-            query: query) as Map<String, dynamic>);
+            query: query));
     return new TopResponse.fromJson(response, remoteApiVersion);
   }
 
@@ -306,8 +303,9 @@ class DockerConnection {
     if (follow != null) query['follow'] = follow.toString();
     if (stdout != null) query['stdout'] = stdout.toString();
     if (stderr != null) query['stderr'] = stderr.toString();
-    if (since != null) query['since'] =
-        (since.toUtc().millisecondsSinceEpoch ~/ 1000).toString();
+    if (since != null)
+      query['since'] =
+          (since.toUtc().millisecondsSinceEpoch ~/ 1000).toString();
     if (timestamps != null) query['timestamps'] = timestamps.toString();
     if (tail != null) {
       assert(tail == 'all' || tail is int);
@@ -392,7 +390,7 @@ class DockerConnection {
     };
     final Map<String, dynamic> response = (await _request(
         RequestType.post, '/containers/${container.id}/resize',
-        query: query)) as Map<String, dynamic>;
+        query: query));
     return new SimpleResponse.fromJson(response, remoteApiVersion);
   }
 
@@ -411,7 +409,7 @@ class DockerConnection {
         hostConfig == null ? null : hostConfig.toJson();
     final Map<String, dynamic> response = (await _request(
         RequestType.post, '/containers/${container.id}/start',
-        body: body)) as Map<String, dynamic>;
+        body: body));
     return new SimpleResponse.fromJson(response, remoteApiVersion);
   }
 
@@ -429,7 +427,7 @@ class DockerConnection {
     final Map<String, String> query = <String, String>{'t': timeout.toString()};
     final Map<String, dynamic> response = (await _request(
         RequestType.post, '/containers/${container.id}/stop',
-        query: query)) as Map<String, dynamic>;
+        query: query));
 //    print(response);
     return new SimpleResponse.fromJson(response, remoteApiVersion);
   }
@@ -447,7 +445,7 @@ class DockerConnection {
     final Map<String, String> query = <String, String>{'t': timeout.toString()};
     final Map<String, dynamic> response = (await _request(
         RequestType.post, '/containers/${container.id}/restart',
-        query: query)) as Map<String, dynamic>;
+        query: query));
     return new SimpleResponse.fromJson(response, remoteApiVersion);
   }
 
@@ -470,7 +468,7 @@ class DockerConnection {
     };
     final Map<String, dynamic> response = (await _request(
         RequestType.post, '/containers/${container.id}/kill',
-        query: query)) as Map<String, dynamic>;
+        query: query));
     return new SimpleResponse.fromJson(response, remoteApiVersion);
   }
 
@@ -488,7 +486,7 @@ class DockerConnection {
     final Map<String, String> query = <String, String>{'name': name.toString()};
     final Map<String, dynamic> response = (await _request(
         RequestType.post, '/containers/${container.id}/rename',
-        query: query)) as Map<String, dynamic>;
+        query: query));
     return new SimpleResponse.fromJson(response, remoteApiVersion);
   }
 
@@ -501,8 +499,7 @@ class DockerConnection {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
     final Map<String, dynamic> response =
-        (await _request(RequestType.post, '/containers/${container.id}/pause'))
-        as Map<String, dynamic>;
+        (await _request(RequestType.post, '/containers/${container.id}/pause'));
     return new SimpleResponse.fromJson(response, remoteApiVersion);
   }
 
@@ -515,8 +512,7 @@ class DockerConnection {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
     final Map<String, dynamic> response = (await _request(
-            RequestType.post, '/containers/${container.id}/unpause'))
-        as Map<String, dynamic>;
+        RequestType.post, '/containers/${container.id}/unpause'));
     return new SimpleResponse.fromJson(response, remoteApiVersion);
   }
 
@@ -631,8 +627,7 @@ class DockerConnection {
     assert(
         container != null && container.id != null && container.id.isNotEmpty);
     final Map<String, dynamic> response =
-        (await _request(RequestType.post, '/containers/${container.id}/wait'))
-        as Map<String, dynamic>;
+        (await _request(RequestType.post, '/containers/${container.id}/wait'));
     return new WaitResponse.fromJson(response, remoteApiVersion);
   }
 
@@ -656,8 +651,7 @@ class DockerConnection {
     if (force != null) query['force'] = force.toString();
 
     final Map<String, dynamic> response =
-        (await _request(RequestType.delete, '/containers/${container.id}'))
-        as Map<String, dynamic>;
+        (await _request(RequestType.delete, '/containers/${container.id}'));
     return new SimpleResponse.fromJson(response, remoteApiVersion);
   }
 
@@ -705,9 +699,8 @@ class DockerConnection {
     if (filters != null) query['filters'] = JSON.encode(filters);
 
     final List<Map<String, dynamic>> response =
-        (await _request(RequestType.get, '/images/json', query: query))
-        as List<Map<String, dynamic>>;
-    return response.map /*<ImageInfo>*/ ((Map<String, dynamic> e) =>
+        (await _request(RequestType.get, '/images/json', query: query));
+    return response.map/*<ImageInfo>*/((Map<String, dynamic> e) =>
         new ImageInfo.fromJson(e, remoteApiVersion));
   }
 
@@ -774,8 +767,8 @@ class DockerConnection {
 
     final Map<String, String> headers = headersTar;
     if (authConfig != null) {
-      headers['X-Registry-Config'] = CryptoUtils
-          .bytesToBase64(UTF8.encode(JSON.encode(authConfig.toJson())));
+      headers['X-Registry-Config'] =
+          BASE64.encode(UTF8.encode(JSON.encode(authConfig.toJson())));
     }
     return _streamRequestStream('/build', stream, query: query)
         as Stream<List<int>>;
@@ -810,16 +803,16 @@ class DockerConnection {
 
     Map<String, String> headers;
     if (authConfig != null) {
-      headers['X-Registry-Config'] = CryptoUtils
-          .bytesToBase64(UTF8.encode(JSON.encode(authConfig.toJson())));
+      headers['X-Registry-Config'] =
+          BASE64.encode(UTF8.encode(JSON.encode(authConfig.toJson())));
     }
 
     final List<Map<String, dynamic>> response = (await _request(
         RequestType.post, '/images/create',
         query: query,
         headers: headers,
-        preprocessor: _jsonifyConcatenatedJson)) as List<Map<String, dynamic>>;
-    return response.map /*<CreateImageResponse>*/ ((Map<String, dynamic> e) =>
+        preprocessor: _jsonifyConcatenatedJson));
+    return response.map/*<CreateImageResponse>*/((Map<String, dynamic> e) =>
         new CreateImageResponse.fromJson(e, remoteApiVersion));
   }
 
@@ -830,8 +823,8 @@ class DockerConnection {
   /// 500 - server error
   Future<ImageInfo> image(Image image) async {
     assert(image != null && image.name != null && image.name.isNotEmpty);
-    final Map<String, dynamic> response = (await _request(
-        RequestType.get, '/images/${image.name}/json')) as Map<String, dynamic>;
+    final Map<String, dynamic> response =
+        (await _request(RequestType.get, '/images/${image.name}/json'));
 //    print(response);
     return new ImageInfo.fromJson(response, remoteApiVersion);
   }
@@ -844,10 +837,9 @@ class DockerConnection {
   Future<Iterable<ImageHistoryResponse>> history(Image image) async {
     assert(image != null && image.name != null && image.name.isNotEmpty);
     final List<Map<String, dynamic>> response =
-        (await _request(RequestType.get, '/images/${image.name}/history'))
-        as List<Map<String, dynamic>>;
+        (await _request(RequestType.get, '/images/${image.name}/history'));
 //    print(response);
-    return response.map /*<ImageHistoryResponse>*/ ((Map<String, dynamic> e) =>
+    return response.map/*<ImageHistoryResponse>*/((Map<String, dynamic> e) =>
         new ImageHistoryResponse.fromJson(e, remoteApiVersion));
   }
 
@@ -871,8 +863,8 @@ class DockerConnection {
 
     Map<String, String> headers;
     if (authConfig != null) {
-      headers['X-Registry-Config'] = CryptoUtils
-          .bytesToBase64(UTF8.encode(JSON.encode(authConfig.toJson())));
+      headers['X-Registry-Config'] =
+          BASE64.encode(UTF8.encode(JSON.encode(authConfig.toJson())));
     }
 
     String reg = '';
@@ -890,8 +882,8 @@ class DockerConnection {
         RequestType.post, '/images${reg}/${image.name}/push',
         query: query,
         headers: headers,
-        preprocessor: _jsonifyConcatenatedJson)) as List<Map<String, dynamic>>;
-    return response.map /*<ImagePushResponse>*/ ((Map<String, dynamic> e) =>
+        preprocessor: _jsonifyConcatenatedJson));
+    return response.map/*<ImagePushResponse>*/((Map<String, dynamic> e) =>
         new ImagePushResponse.fromJson(e, remoteApiVersion));
   }
 
@@ -918,7 +910,7 @@ class DockerConnection {
 
     final Map<String, dynamic> response = (await _request(
         RequestType.post, '/images/${image.name}/tag',
-        query: query)) as Map<String, dynamic>;
+        query: query));
     return new SimpleResponse.fromJson(response, remoteApiVersion);
   }
 
@@ -942,7 +934,7 @@ class DockerConnection {
     final List response = await _request(
         RequestType.delete, '/images/${image.name}',
         query: query);
-    return response.map /*<ImageRemoveResponse>*/ ((Map<String, dynamic> e) =>
+    return response.map/*<ImageRemoveResponse>*/((Map<String, dynamic> e) =>
         new ImageRemoveResponse.fromJson(e, remoteApiVersion));
   }
 
@@ -973,8 +965,7 @@ class DockerConnection {
     assert(auth != null);
 
     final Map<String, dynamic> response =
-        (await _request(RequestType.post, '/auth', body: auth.toJson()))
-        as Map<String, dynamic>;
+        (await _request(RequestType.post, '/auth', body: auth.toJson()));
     return new AuthResponse.fromJson(response, remoteApiVersion);
   }
 
@@ -984,7 +975,7 @@ class DockerConnection {
   /// 500 - server error
   Future<InfoResponse> info() async {
     final Map<String, dynamic> response =
-        (await _request(RequestType.get, '/info')) as Map<String, dynamic>;
+        (await _request(RequestType.get, '/info'));
     return new InfoResponse.fromJson(response, remoteApiVersion);
   }
 
@@ -994,7 +985,7 @@ class DockerConnection {
   /// 500 - server error
   Future<VersionResponse> version() async {
     final Map<String, dynamic> response =
-        (await _request(RequestType.get, '/version')) as Map<String, dynamic>;
+        (await _request(RequestType.get, '/version'));
     return new VersionResponse.fromJson(response, remoteApiVersion);
   }
 
@@ -1004,9 +995,8 @@ class DockerConnection {
   /// 500 - server error
   Future<SimpleResponse> ping() async {
     final Map<String, dynamic> response = (await _request(
-            RequestType.get, '/_ping',
-            preprocessor: (Object s) => '{"response": "${s}"}'))
-        as Map<String, dynamic>;
+        RequestType.get, '/_ping',
+        preprocessor: (Object s) => '{"response": "${s}"}'));
     if (response['response'] == 'OK') {
       return new SimpleResponse.fromJson(null, remoteApiVersion);
     }
@@ -1037,7 +1027,7 @@ class DockerConnection {
 
     final Map<String, dynamic> response = (await _request(
         RequestType.post, '/commit',
-        query: query, body: config.toJson())) as Map<String, dynamic>;
+        query: query, body: config.toJson()));
     return new CommitResponse.fromJson(response, remoteApiVersion);
   }
 
@@ -1062,10 +1052,12 @@ class DockerConnection {
   Stream<EventsResponse> events(
       {DateTime since, DateTime until, EventsFilter filters}) async* {
     Map<String, String> query = <String, String>{};
-    if (since != null) query['since'] =
-        (since.toUtc().millisecondsSinceEpoch ~/ 1000).toString();
-    if (until != null) query['until'] =
-        (until.toUtc().millisecondsSinceEpoch ~/ 1000).toString();
+    if (since != null)
+      query['since'] =
+          (since.toUtc().millisecondsSinceEpoch ~/ 1000).toString();
+    if (until != null)
+      query['until'] =
+          (until.toUtc().millisecondsSinceEpoch ~/ 1000).toString();
     if (filters != null) query['filters'] = JSON.encode(filters.toJson());
 
     final Stream<List<int>> response =
@@ -1161,7 +1153,7 @@ class DockerConnection {
 
     final Map<String, dynamic> response = (await _request(
         RequestType.post, '/containers/${container.id}/exec',
-        body: body)) as Map<String, dynamic>;
+        body: body));
     return new Exec.fromJson(response, remoteApiVersion);
   }
 
@@ -1205,7 +1197,7 @@ class DockerConnection {
 
     final Map<String, dynamic> response = (await _request(
         RequestType.post, '/exec/${exec.id}/resize',
-        body: body)) as Map<String, dynamic>;
+        body: body));
     return new Exec.fromJson(response, remoteApiVersion);
   }
 
@@ -1217,8 +1209,8 @@ class DockerConnection {
   Future<ExecInfo> execInspect(Exec exec) async {
     assert(exec != null && exec.id != null && exec.id.isNotEmpty);
 
-    final Map<String, dynamic> response = (await _request(
-        RequestType.get, '/exec/${exec.id}/json')) as Map<String, dynamic>;
+    final Map<String, dynamic> response =
+        (await _request(RequestType.get, '/exec/${exec.id}/json'));
     //print(response);
     return new ExecInfo.fromJson(response, remoteApiVersion);
   }

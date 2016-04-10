@@ -106,10 +106,10 @@ dynamic _testTaskImpl() async {
 
 /// Prepare Docker-in-Docker instances for running tests.
 Future _dindStartForTest(DockerConnection docker) async {
-  await _dindCreateContainer(docker, _dindPort1).then /*<Container>*/ (
+  await _dindCreateContainer(docker, _dindPort1).then/*<Container>*/(
       (Container container) => _dindRemoteApiTest = container);
   await _dindCreateContainer(docker, _dindPort1 + 1)
-      .then /*<Container>*/ ((Container container) => _dindTasksTest = container);
+      .then/*<Container>*/((Container container) => _dindTasksTest = container);
 }
 
 /// Create and start a Docker-in-Docker container.
@@ -145,6 +145,7 @@ Future<Container> _dindCreateContainer(
         ..hostConfig = hostConfig);
 
   // try several times to work around https://github.com/jpetazzo/dind/issues/19
+  // TODO(zoechi) is this still necessary?
   bool isRunning = false;
   int tryStartCount = 5;
   ContainerInfo containerInfo;
@@ -160,7 +161,9 @@ Future<Container> _dindCreateContainer(
     }
   }
   if (!isRunning) {
-    throw 'Docker container didn\'t start - message: "${(await docker.logs(response.container, stdout: true, stderr: true)).toList()}" - exitcode "${containerInfo.state.exitCode}".';
+    throw 'Docker container didn\'t start - message: "${
+        (await docker.logs(response.container, stdout: true, stderr: true))
+            .toList()}" - exitcode "${containerInfo.state.exitCode}".';
   }
   return response.container;
 

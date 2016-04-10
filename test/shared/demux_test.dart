@@ -2,7 +2,7 @@
 library bwu_docker.test.demux;
 
 import 'dart:async' show Future, StreamController, StreamSubscription;
-import 'package:collection/equality.dart';
+import 'package:collection/collection.dart' show ListEquality;
 import 'package:test/test.dart';
 import 'package:bwu_docker/src/shared/remote_api.dart';
 

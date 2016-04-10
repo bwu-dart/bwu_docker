@@ -1,6 +1,6 @@
 library bwu_docker.src.shared.remote_api;
 
-import 'dart:async' show Future, Stream, Completer, StreamController;
+import 'dart:async' show Stream, StreamController;
 import 'package:http/http.dart' as http;
 
 import 'version.dart';

@@ -14,7 +14,7 @@
 library bwu_docker.test.tasks;
 
 import 'dart:io' as io;
-import 'dart:async' show Future, Stream;
+import 'dart:async' show Future;
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 import 'package:bwu_docker/bwu_docker.dart';
@@ -48,12 +48,13 @@ void main() {
 
   /// setUp helper to create a container from the image used in tests.
   Future<Container> createContainer([String name]) async {
-    createdContainer =
-        await connection.createContainer(new CreateContainerRequest()
+    createdContainer = await connection.createContainer(
+        new CreateContainerRequest()
           ..image = imageNameAndTag
           ..cmd = ['/bin/sh']
           ..openStdin = true
-          ..tty = true, name: name);
+          ..tty = true,
+        name: name);
     return createdContainer.container;
   }
   ;
@@ -138,7 +139,8 @@ void main() {
       // each container was removed
       expect(
           containersBefore,
-          everyElement((Container c) => result.removedContainers
+          everyElement((Container c) =>
+              result.removedContainers
                   .firstWhere((Container r) => r.id == r.id) !=
               null));
       // each image was removed
@@ -146,7 +148,7 @@ void main() {
           imagesBefore,
           everyElement((ImageInfo i) =>
               result.removedImages.firstWhere((ImageInfo r) => r.id == i.id) !=
-                  null));
+              null));
 
       // Docker doesn't return any containers
       final Iterable<Container> containersAfter =

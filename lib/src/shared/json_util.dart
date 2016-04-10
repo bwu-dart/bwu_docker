@@ -96,55 +96,53 @@ UnmodifiableMapView<String, String> parseLabels(
     return null;
   }
   final Iterable<List<String>> l = json['Labels'] != null
-      ? json['Labels'].map /*<List<String>>*/ ((String l) => l.split('='))
+      ? json['Labels'].map/*<List<String>>*/((String l) => l.split('='))
       : null;
   return l == null
       ? null
-      : toUnmodifiableMapView /*<String,String>*/ (
+      : toUnmodifiableMapView/*<String,String>*/(
           new Map<String, String>.fromIterable(l,
               key: (List<String> l) => l[0],
               value: (String l) => l.length == 2 ? l[1] : null));
 }
 
-UnmodifiableMapView<dynamic /*=K*/,
-    dynamic /*=V*/ > toUnmodifiableMapView /*<K,V>*/ (
-    Map<dynamic /*=K*/, dynamic /*=V*/ > map) {
+UnmodifiableMapView<dynamic/*=K*/, dynamic/*=V*/ >
+    toUnmodifiableMapView/*<K,V>*/(Map<dynamic/*=K*/, dynamic/*=V*/ > map) {
   if (map == null) {
     return null;
   }
-  return new UnmodifiableMapView<dynamic /*=K*/, dynamic /*=V*/ >(
-      new Map<dynamic /*=K*/, dynamic /*=V*/ >.fromIterable(map.keys,
-          key: (dynamic /*=K*/ k) => k, value: (dynamic k) {
+  return new UnmodifiableMapView<dynamic/*=K*/, dynamic/*=V*/ >(
+      new Map<dynamic/*=K*/, dynamic/*=V*/ >.fromIterable(map.keys,
+          key: (dynamic/*=K*/ k) => k, value: (dynamic k) {
     if (map == null) {
       return null;
     }
     if (map[k] is Map) {
-      return toUnmodifiableMapView /*<V,dynamic>*/ (map[k] as Map)
-          as dynamic /*=V*/;
+      return toUnmodifiableMapView/*<V,dynamic>*/(
+          map[k] as Map<dynamic/*=V*/, dynamic>) as dynamic/*=V*/;
     } else if (map[k] is List) {
-      return toUnmodifiableListView /*<V>*/ (map[k] as List) as dynamic /*=V*/;
+      return toUnmodifiableListView/*<V>*/(map[k] as List) as dynamic/*=V*/;
     } else {
       return map[k];
     }
   }));
 }
 
-UnmodifiableListView /*<T>*/ toUnmodifiableListView /*<T>*/ (Iterable list) {
+UnmodifiableListView/*<T>*/ toUnmodifiableListView/*<T>*/(Iterable list) {
   if (list == null) {
     return null;
   }
   if (list.length == 0) {
-    return new UnmodifiableListView<dynamic /*=T*/ >(<dynamic /*=T*/ >[]);
+    return new UnmodifiableListView<dynamic/*=T*/ >(<dynamic/*=T*/ >[]);
   }
 
-  return new UnmodifiableListView<dynamic /*=T*/ >(
-      list.map /*<T>*/ ((dynamic e) {
+  return new UnmodifiableListView<dynamic/*=T*/ >(list.map/*<T>*/((dynamic e) {
     if (e is Map) {
-      return toUnmodifiableMapView(e) as dynamic /*=T*/;
+      return toUnmodifiableMapView(e) as dynamic/*=T*/;
     } else if (e is List) {
-      return toUnmodifiableListView(e) as dynamic /*=T*/;
+      return toUnmodifiableListView(e) as dynamic/*=T*/;
     } else {
-      return e as dynamic /*=T*/;
+      return e as dynamic/*=T*/;
     }
   }));
 }

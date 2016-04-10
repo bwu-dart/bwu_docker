@@ -75,8 +75,7 @@ class CommitResponse {
 
   CommitResponse.fromJson(Map<String, dynamic> json, Version apiVersion) {
     _id = json['Id'];
-    _warnings = toUnmodifiableListView(json['Warnings'])
-        as UnmodifiableListView<String>;
+    _warnings = toUnmodifiableListView(json['Warnings']);
     checkSurplusItems(
         apiVersion,
         {
@@ -95,16 +94,15 @@ class EventsFilter {
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> json = <String, dynamic>{};
     if (events.isNotEmpty) {
-      json['event'] = events
-          .map /*<String>*/ ((DockerEventBase e) => e.toString())
-          .toList();
+      json['event'] =
+          events.map/*<String>*/((DockerEventBase e) => e.toString()).toList();
     }
     if (images.isNotEmpty) {
-      json['image'] = images.map /*<String>*/ ((Image e) => e.name).toList();
+      json['image'] = images.map/*<String>*/((Image e) => e.name).toList();
     }
     if (containers.isNotEmpty) {
       json['container'] =
-          containers.map /*<String>*/ ((Container e) => e.id).toList();
+          containers.map/*<String>*/((Container e) => e.id).toList();
     }
     return json;
   }
@@ -153,7 +151,7 @@ class CommitRequest {
       this.workingDir,
       this.networkingDisabled,
       Map<String, Map> exposedPorts}) {
-    _portSpecs = toUnmodifiableListView(portSpecs) as List<PortArgument>;
+    _portSpecs = toUnmodifiableListView(portSpecs);
     _env = toUnmodifiableMapView(env);
     _name = toUnmodifiableMapView(exposedPorts);
   }
@@ -174,8 +172,8 @@ class CommitRequest {
     if (cmd != null) json['Cmd'] = cmd;
     if (volumes != null) json['Volumes'] = volumes.toJson();
     if (workingDir != null) json['WorkingDir'] = workingDir;
-    if (networkingDisabled != null) json['NetworkDisabled'] =
-        networkingDisabled;
+    if (networkingDisabled != null)
+      json['NetworkDisabled'] = networkingDisabled;
     if (name != null) json['ExposedPorts'] = name;
     return json;
   }
@@ -308,7 +306,7 @@ class InfoResponse {
     _debug = parseBool(json['Debug']);
     _dockerRootDir = json['DockerRootDir'];
     _driver = json['Driver'];
-    _driverStatus = toUnmodifiableListView /*<List<List>>*/ (
+    _driverStatus = toUnmodifiableListView/*<List<List>>*/(
         json['DriverStatus'] as Iterable);
     _executionDriver = json['ExecutionDriver'];
     _experimentalBuild = json['ExperimentalBuild'];
@@ -317,8 +315,8 @@ class InfoResponse {
     _id = json['ID'];
     _images = json['Images'];
     _indexServerAddress = json['IndexServerAddress'] is String
-        ? toUnmodifiableListView /*<String>*/ ([json['IndexServerAddress']])
-        : toUnmodifiableListView /*<String>*/ (
+        ? toUnmodifiableListView/*<String>*/([json['IndexServerAddress']])
+        : toUnmodifiableListView/*<String>*/(
             json['IndexServerAddress'] as Iterable);
     _initPath = json['InitPath'];
     _initSha1 = json['InitSha1'];
@@ -416,7 +414,7 @@ class ImageHistoryResponse {
     _created = parseDate(json['Created']);
     _createdBy = json['CreatedBy'];
     _size = json['Size'];
-    _tags = toUnmodifiableListView /*<String>*/ (json['Tags'] as Iterable);
+    _tags = toUnmodifiableListView/*<String>*/(json['Tags'] as Iterable);
     checkSurplusItems(
         apiVersion,
         {
@@ -463,8 +461,9 @@ class StatsResponse {
         json['cpu_stats'] as Map<String, dynamic>, apiVersion);
     _memoryStats = new StatsResponseMemoryStats.fromJson(
         json['memory_stats'] as Map<String, dynamic>, apiVersion);
-    if (json['network'] != null) _network = new StatsResponseNetwork.fromJson(
-        json['network'] as Map<String, dynamic>, apiVersion);
+    if (json['network'] != null)
+      _network = new StatsResponseNetwork.fromJson(
+          json['network'] as Map<String, dynamic>, apiVersion);
     if (json['networks'] != null) {
       Map<String, dynamic> tmpNetworks =
           json['networks'] as Map<String, dynamic>;
@@ -474,9 +473,9 @@ class StatsResponse {
               value: (String key) => new StatsResponseNetwork.fromJson(
                   tmpNetworks[key] as Map<String, dynamic>, apiVersion)));
     }
-    if (json['precpu_stats'] != null) _preCpuStats =
-        new StatsResponseCpuStats.fromJson(
-            json['precpu_stats'] as Map<String, dynamic>, apiVersion);
+    if (json['precpu_stats'] != null)
+      _preCpuStats = new StatsResponseCpuStats.fromJson(
+          json['precpu_stats'] as Map<String, dynamic>, apiVersion);
     _read = parseDate(json['read']);
     checkSurplusItems(
         apiVersion,
@@ -551,7 +550,7 @@ class Container {
     _ports = json['Ports'] == null
         ? null
         : (json['Ports'] as List<Map<String, dynamic>>)
-            .map /*<PortResponse>*/ ((Map<String, dynamic> p) =>
+            .map/*<PortResponse>*/((Map<String, dynamic> p) =>
                 new PortResponse.fromJson(p, apiVersion))
             .toList();
     _status = json['Status'];
@@ -690,9 +689,9 @@ class ImageInfo {
     _size = json['Size'];
     _virtualSize = json['VirtualSize'];
     _repoDigests =
-        toUnmodifiableListView /*<String>*/ (json['RepoDigests'] as Iterable);
+        toUnmodifiableListView/*<String>*/(json['RepoDigests'] as Iterable);
     _repoTags =
-        toUnmodifiableListView /*<String>*/ (json['RepoTags'] as Iterable);
+        toUnmodifiableListView/*<String>*/(json['RepoTags'] as Iterable);
 
     checkSurplusItems(
         apiVersion,
@@ -816,10 +815,8 @@ class ContainerInfo {
   String _mountLabel;
   String get mountLabel => _mountLabel;
 
-  UnmodifiableMapView<
-      String,
-      UnmodifiableListView<
-          String>> _mountPoints; // TODO check generic type with actual data
+  UnmodifiableMapView<String, UnmodifiableListView<String>>
+      _mountPoints; // TODO check generic type with actual data
   UnmodifiableMapView<String, UnmodifiableListView<String>> get mountPoints =>
       _mountPoints;
 
@@ -862,7 +859,7 @@ class ContainerInfo {
   ContainerInfo.fromJson(Map<String, dynamic> json, Version apiVersion) {
     _appArmorProfile = json['AppArmorProfile'];
     _appliedVolumesFrom = json['AppliedVolumesFrom'];
-    _args = toUnmodifiableListView /*<String>*/ (json['Args'] as Iterable);
+    _args = toUnmodifiableListView/*<String>*/(json['Args'] as Iterable);
     _config =
         new Config.fromJson(json['Config'] as Map<String, dynamic>, apiVersion);
     _created = parseDate(json['Created']);
@@ -886,10 +883,10 @@ class ContainerInfo {
     if (json['MountPoints'] != null &&
         (json['MountPoints'] as Map).isNotEmpty) {
       // TODO(zoechi) remove
-      print('MountPoints');
+      // print('MountPoints');
     }
     _mountPoints =
-        toUnmodifiableMapView /*<String,
+        toUnmodifiableMapView/*<String,
           UnmodifiableListView<
               String>>*/
             (json['MountPoints'] as Map<String,
@@ -1058,10 +1055,10 @@ class ContainerInfo {
     if (driver != null) json['Driver'] = driver;
     if (execDriver != null) json['ExecDriver'] = execDriver;
     if (graphDriver != null) json['GraphDriver'] = graphDriver.toJson();
-    if (hasBeenManuallyStopped != null) json['HasBeenManuallyStopped'] =
-        hasBeenManuallyStopped;
-    if (hasBeenStartedBefore != null) json['HasBeenStartedBefore'] =
-        hasBeenStartedBefore;
+    if (hasBeenManuallyStopped != null)
+      json['HasBeenManuallyStopped'] = hasBeenManuallyStopped;
+    if (hasBeenStartedBefore != null)
+      json['HasBeenStartedBefore'] = hasBeenStartedBefore;
     if (hostConfig != null) json['HostConfig'] = hostConfig.toJson();
     if (hostnamePath != null) json['HostnamePath'] = hostnamePath;
     if (hostsPath != null) json['HostsPath'] = hostsPath;
@@ -1071,8 +1068,8 @@ class ContainerInfo {
     if (mountPoints != null) json['MountPoints'] = mountPoints;
     if (mqueuePath != null) json['MqueuePath'] = mqueuePath;
     if (name != null) json['Name'] = name;
-    if (networkSettings != null) json['NetworkSettings'] =
-        networkSettings.toJson();
+    if (networkSettings != null)
+      json['NetworkSettings'] = networkSettings.toJson();
     if (path != null) json['Path'] = path;
     if (processLabel != null) json['ProcessLabel'] = processLabel;
     if (resolveConfPath != null) json['ResolvConfPath'] = resolveConfPath;
@@ -1087,16 +1084,16 @@ class ContainerInfo {
 /// See [HostConfigRequest] for documentation of the members.
 class HostConfig {
   List<String> _binds;
-  List<String> get binds => toUnmodifiableListView /*<String>*/ (_binds);
+  List<String> get binds => toUnmodifiableListView/*<String>*/(_binds);
 
   int _blkioWeight;
   int get blkioWeight => _blkioWeight;
 
   List<String> _capAdd;
-  List<String> get capAdd => toUnmodifiableListView /*<String>*/ (_capAdd);
+  List<String> get capAdd => toUnmodifiableListView/*<String>*/(_capAdd);
 
   List<String> _capDrop;
-  List<String> get capDrop => toUnmodifiableListView /*<String>*/ (_capDrop);
+  List<String> get capDrop => toUnmodifiableListView/*<String>*/(_capDrop);
 
   String _cGroupParent;
   String get cGroupParent => _cGroupParent;
@@ -1124,21 +1121,20 @@ class HostConfig {
 
   Map<String, String> _devices;
   Map<String, String> get devices =>
-      toUnmodifiableMapView /*<String,String>*/ (_devices);
+      toUnmodifiableMapView/*<String,String>*/(_devices);
 
   List<String> _dns;
-  List<String> get dns => toUnmodifiableListView /*<String>*/ (_dns);
+  List<String> get dns => toUnmodifiableListView/*<String>*/(_dns);
 
   String _dnsOptions; // TODO(zoechi) check actual type
   String get dnsOptions => _dnsOptions;
 
   List<String> _dnsSearch;
-  List<String> get dnsSearch =>
-      toUnmodifiableListView /*<String>*/ (_dnsSearch);
+  List<String> get dnsSearch => toUnmodifiableListView/*<String>*/(_dnsSearch);
 
   List<String> _extraHosts;
   List<String> get extraHosts =>
-      toUnmodifiableListView /*<String>*/ (_extraHosts);
+      toUnmodifiableListView/*<String>*/(_extraHosts);
 
   // TODO(zoechi) check actual type
   String _groupAdd;
@@ -1151,15 +1147,15 @@ class HostConfig {
   int get kernelMemory => _kernelMemory;
 
   List<String> _links;
-  List<String> get links => toUnmodifiableListView /*<String>*/ (_links);
+  List<String> get links => toUnmodifiableListView/*<String>*/(_links);
 
   Map<String, String> _logConfig;
   Map<String, String> get logConfig =>
-      toUnmodifiableMapView /*<String,String>*/ (_logConfig);
+      toUnmodifiableMapView/*<String,String>*/(_logConfig);
 
   Map<String, String> _lxcConf;
   Map<String, String> get lxcConf =>
-      toUnmodifiableMapView /*<String,String>*/ (_lxcConf);
+      toUnmodifiableMapView/*<String,String>*/(_lxcConf);
 
   int _memory;
   int get memory => _memory;
@@ -1214,7 +1210,7 @@ class HostConfig {
 
   List<String> _volumesFrom;
   List<String> get volumesFrom =>
-      toUnmodifiableListView /*<String>*/ (_volumesFrom);
+      toUnmodifiableListView/*<String>*/(_volumesFrom);
 
   HostConfig();
 
@@ -1261,7 +1257,7 @@ class HostConfig {
           portBindings.keys,
           key: (String k) => k,
           value: (String k) => portBindings[k]
-              .map /*<PortBinding>*/ ((Map<String, String> pb) =>
+              .map/*<PortBinding>*/((Map<String, String> pb) =>
                   new PortBinding.fromJson(pb, apiVersion))
               .toList());
     }
@@ -1395,10 +1391,8 @@ class HostConfig {
     if (capAdd != null) json['CapAdd'] = capAdd;
     if (capDrop != null) json['CapDrop'] = capDrop;
     if (cGroupParent != null) json['CgroupParent'] = cGroupParent;
-    if (consoleSize != null) json['ConsoleSize'] = [
-      consoleSize.x,
-      consoleSize.y
-    ];
+    if (consoleSize != null)
+      json['ConsoleSize'] = [consoleSize.x, consoleSize.y];
     if (containerIdFile != null) json['ContainerIDFile'] = containerIdFile;
     if (cpuPeriod != null) json['CpuPeriod'] = cpuPeriod;
     if (cpusetCpus != null) json['CpusetCpus'] = cpusetCpus;
@@ -1417,8 +1411,8 @@ class HostConfig {
     if (logConfig != null) json['LogConfig'] = logConfig;
     if (lxcConf != null) json['LxcConf'] = lxcConf;
     if (memory != null) json['Memory'] = memory;
-    if (memoryReservation != null) json['MemoryReservation'] =
-        memoryReservation;
+    if (memoryReservation != null)
+      json['MemoryReservation'] = memoryReservation;
     if (memorySwap != null) {
       assert(memory > 0);
       assert(memorySwap > memory);
@@ -1429,13 +1423,12 @@ class HostConfig {
     if (oomKillDisable != null) json['OomKillDisable'] = oomKillDisable;
     if (pidMode != null) json['PidMode'] = pidMode;
 //    if (portBindings != null) json['PortBindings'] = portBindings;
-    if (portBindings != null) json['PortBindings'] = new Map.fromIterable(
-        portBindings.keys,
-        key: (String k) => k,
-        value: (String k) => portBindings[k]
-            .map /*<List<Map<String,dynamic>>>*/ (
-                (PortBinding pb) => pb.toJson())
-            .toList());
+    if (portBindings != null)
+      json['PortBindings'] = new Map.fromIterable(portBindings.keys,
+          key: (String k) => k,
+          value: (String k) => portBindings[k]
+              .map/*<Map<String,dynamic>>*/((PortBinding pb) => pb.toJson())
+              .toList());
     if (privileged != null) json['Privileged'] = privileged;
     if (publishAllPorts != null) json['PublishAllPorts'] = publishAllPorts;
     if (readonlyRootFs != null) json['ReadonlyRootfs'] = readonlyRootFs;
@@ -1535,7 +1528,7 @@ class NetworkSettings {
         json['Networks'] as Map<String, dynamic>;
     if (networksJson != null) {
       _networks = networksJson.keys
-          .map /*<Network>*/ ((String type) => new Network.fromJson(
+          .map/*<Network>*/((String type) => new Network.fromJson(
               type, networksJson[type] as Map<String, dynamic>, apiVersion))
           .toList();
     }
@@ -1604,20 +1597,20 @@ class NetworkSettings {
     if (bridge != null) json['Bridge'] = bridge;
     if (endpointId != null) json['EndpointID'] = endpointId;
     if (gateway != null) json['Gateway'] = gateway;
-    if (globalIPv6Address != null) json['GlobalIPv6Address'] =
-        globalIPv6Address;
-    if (globalIPv6PrefixLen != null) json['GlobalIPv6PrefixLen'] =
-        globalIPv6PrefixLen;
+    if (globalIPv6Address != null)
+      json['GlobalIPv6Address'] = globalIPv6Address;
+    if (globalIPv6PrefixLen != null)
+      json['GlobalIPv6PrefixLen'] = globalIPv6PrefixLen;
     if (hairpinMode != null) json['HairpinMode'] = hairpinMode;
     if (ipAddress != null) json['IPAddress'] = ipAddress;
     if (ipPrefixLen != null) json['IPPrefixLen'] = ipPrefixLen;
     if (ipv6Gateway != null) json['IPv6Gateway'] = ipv6Gateway;
-    if (isAnonymousEndpoint != null) json['IsAnonymousEndpoint'] =
-        _isAnonymousEndpoint;
-    if (linkLocalIPv6Address != null) json['LinkLocalIPv6Address'] =
-        linkLocalIPv6Address;
-    if (linkLocalIPv6PrefixLen != null) json['LinkLocalIPv6PrefixLen'] =
-        linkLocalIPv6PrefixLen;
+    if (isAnonymousEndpoint != null)
+      json['IsAnonymousEndpoint'] = _isAnonymousEndpoint;
+    if (linkLocalIPv6Address != null)
+      json['LinkLocalIPv6Address'] = linkLocalIPv6Address;
+    if (linkLocalIPv6PrefixLen != null)
+      json['LinkLocalIPv6PrefixLen'] = linkLocalIPv6PrefixLen;
     if (macAddress != null) json['MacAddress'] = macAddress;
     if (portMapping != null) json['PortMapping'] = portMapping;
     if (ports != null) json['Ports'] = ports;
@@ -1653,10 +1646,10 @@ class Config {
   UnmodifiableMapView<String, String> _env;
   UnmodifiableMapView<String, String> get env => _env;
 
-  UnmodifiableMapView<String,
-      UnmodifiableMapView<String, String>> _exposedPorts;
-  UnmodifiableMapView<String,
-      UnmodifiableMapView<String, String>> get exposedPorts => _exposedPorts;
+  UnmodifiableMapView<String, UnmodifiableMapView<String, String>>
+      _exposedPorts;
+  UnmodifiableMapView<String, UnmodifiableMapView<String, String>>
+      get exposedPorts => _exposedPorts;
 
   String _hostName;
   String get hostName => _hostName;
@@ -1716,7 +1709,7 @@ class Config {
     _attachStderr = json['AttachStderr'];
     _attachStdin = json['AttachStdin'];
     _attachStdout = json['AttachStdout'];
-    _cmd = toUnmodifiableListView /*<String>*/ (json['Cmd'] as Iterable);
+    _cmd = toUnmodifiableListView/*<String>*/(json['Cmd'] as Iterable);
     _cpuShares = json['CpuShares'];
     _cpuSet = json['Cpuset'];
     _domainName = json['Domainname'];
@@ -1724,11 +1717,11 @@ class Config {
     final List<String> e = json['Env'] as List<String>;
     if (e != null) {
       _env = toUnmodifiableMapView(new Map<String, String>.fromIterable(
-          e.map /*<String>*/ ((String i) => i.split('=')),
+          e.map/*<List<String>>*/((String i) => i.split('=')),
           key: (List<String> i) => i[0],
           value: (List<String> i) => i.length == 2 ? i[1] : null));
     }
-    _exposedPorts = toUnmodifiableMapView /*<String,Map<String, String>>*/ (
+    _exposedPorts = toUnmodifiableMapView/*<String,Map<String, String>>*/(
         json['ExposedPorts'] as Map<String, Map<String, String>>);
     _hostName = json['Hostname'];
     _image = json['Image'];
@@ -1737,8 +1730,7 @@ class Config {
     _memory = json['Memory'];
     _memorySwap = json['MemorySwap'];
     _networkDisabled = json['NetworkDisabled'];
-    _onBuild =
-        toUnmodifiableListView /*<String>*/ (json['OnBuild'] as Iterable);
+    _onBuild = toUnmodifiableListView/*<String>*/(json['OnBuild'] as Iterable);
     _openStdin = json['OpenStdin'];
     _portSpecs = json['PortSpecs'];
     _stdinOnce = json['StdinOnce'];
@@ -1967,8 +1959,9 @@ class CreateContainerRequest {
     if (tty != null) json['Tty'] = tty;
     if (openStdin != null) json['OpenStdin'] = openStdin;
     if (stdinOnce != null) json['StdinOnce'] = stdinOnce;
-    if (env != null) json['Env'] =
-        env.keys.map /*<String>*/ ((String k) => '${k}=${env[k]}').toList();
+    if (env != null)
+      json['Env'] =
+          env.keys.map/*<String>*/((String k) => '${k}=${env[k]}').toList();
     if (cmd != null) json['Cmd'] = cmd;
     if (entryPoint != null) json['Entrypoint'] = entryPoint;
     if (image != null) json['Image'] = image;
@@ -1991,20 +1984,23 @@ class HostConfigRequest extends HostConfig {
   ///  `host_path:container_path` (to bind-mount a host path into the container),
   ///  or `host_path:container_path:ro` (to make the bind-mount read-only inside
   ///  the container).
+  @override
   List<String> get binds => _binds;
-  void set binds(List<String> val) {
+  set binds(List<String> val) {
     _binds = val;
   }
 
   /// Kernel capabilities to add to the container.
+  @override
   List<String> get capAdd => _capAdd;
-  void set capAdd(List<String> val) {
+  set capAdd(List<String> val) {
     _capAdd = val;
   }
 
   /// Kernel capabilities to drop from the container.
+  @override
   List<String> get capDrop => _capDrop;
-  void set capDrop(List<String> val) {
+  set capDrop(List<String> val) {
     _capDrop = val;
   }
 
@@ -2012,114 +2008,131 @@ class HostConfigRequest extends HostConfig {
   /// If the path is not absolute, the path is considered to be relative to the
   /// cgroups path of the init process. Cgroups will be created if they do not
   /// already exist.
+  @override
   String get cGroupParent => _cGroupParent;
-  void set cGroupParent(String val) {
+  set cGroupParent(String val) {
     _cGroupParent = val;
   }
 
   /// The CPU Shares for container (ie. the relative weight vs othercontainers).
+  @override
   int get cpuShares => _cpuShares;
-  void set cpuShares(int val) {
+  set cpuShares(int val) {
     _cpuShares = val;
   }
 
   /// The cgroups CpusetCpus to use.
+  @override
   String get cpusetCpus => _cpusetCpus;
-  void set cpusetCpus(String val) {
+  set cpusetCpus(String val) {
     _cpusetCpus = val;
   }
 
   /// Devices to add to the container specified in the form
   /// `{ "PathOnHost": "/dev/deviceName", "PathInContainer": "/dev/deviceName", "CgroupPermissions": "mrw"}`
+  @override
   Map<String, String> get devices => _devices;
-  void set devices(Map<String, String> val) {
+  set devices(Map<String, String> val) {
     _devices = val;
   }
 
   /// A list of dns servers for the container to use.
+  @override
   List<String> get dns => _dns;
-  void set dns(List<String> val) {
+  set dns(List<String> val) {
     _dns = val;
   }
 
   /// A list of DNS search domains.
+  @override
   List<String> get dnsSearch => _dnsSearch;
-  void set dnsSearch(List<String> val) {
+  set dnsSearch(List<String> val) {
     _dnsSearch = val;
   }
 
   /// A list of hostnames/IP mappings to be added to the container's /etc/hosts
   /// file. Specified in the form `["hostname:IP"]`.
+  @override
   List<String> get extraHosts => _extraHosts;
-  void set extraHosts(List<String> val) {
+  set extraHosts(List<String> val) {
     _extraHosts = val;
   }
 
   /// Links for the container. Each link entry should be of of the form
   /// "container_name:alias".
+  @override
   List<String> get links => _links;
-  void set links(List<String> val) {
+  set links(List<String> val) {
     _links = val;
   }
 
   /// Logging configuration for the container in the form
   /// `{ "Type": "<driver_name>", "Config": {"key1": "val1"}}`
   /// Available types:`json-file`, `syslog`, `none`.
+  @override
   Map<String, String> get logConfig => _logConfig;
-  void set logConfig(Map<String, String> val) {
+  set logConfig(Map<String, String> val) {
     _logConfig = val;
   }
 
   /// LXC specific configurations. These configurations will only work when
   /// using the lxc execution driver.
+  @override
   Map<String, String> get lxcConf => _lxcConf;
-  void set lxcConf(Map<String, String> val) {
+  set lxcConf(Map<String, String> val) {
     _lxcConf = val;
   }
 
   /// Memory limit in bytes.
+  @override
   int get memory => _memory;
-  void set memory(int val) {
+  set memory(int val) {
     _memory = val;
   }
 
   /// Total memory limit (memory + swap); set -1 to disable swap, always use
   /// this with [memory], and make the value larger than [memory].
+  @override
   int get memorySwap => _memorySwap;
-  void set memorySwap(int val) {
+  set memorySwap(int val) {
     _memorySwap = val;
   }
 
   /// Sets the networking mode for the container. Supported values are:
   /// [NetworkMode.bridge], [NetworkMode.host], and `container:<name|id>`
+  @override
   String get networkMode => _networkMode;
-  void set networkMode(String val) {
+  set networkMode(String val) {
     _networkMode = val;
   }
 
   /// Exposed container ports and the host port they should map to. It should be
   /// specified in the form `{ <port>/<protocol>: [{ "HostPort": "<port>" }] }`.
   /// Take note that port is specified as a string and not an integer value.
+  @override
   Map<String, List<PortBinding>> get portBindings => _portBindings;
-  void set portBindings(Map<String, List<PortBinding>> val) {
+  set portBindings(Map<String, List<PortBinding>> val) {
     _portBindings = val;
   }
 
   /// Allocates a random host port for all of a container's exposed ports.
+  @override
   bool get publishAllPorts => _publishAllPorts;
-  void set publishAllPorts(bool val) {
+  set publishAllPorts(bool val) {
     _publishAllPorts = val;
   }
 
   /// Gives the container full access to the host.
+  @override
   bool get privileged => _privileged;
-  void set privileged(bool val) {
+  set privileged(bool val) {
     _privileged = val;
   }
 
   ///  Mount the container's root filesystem as read only.
+  @override
   bool get readonlyRootFs => _readonlyRootFs;
-  void set readonlyRootFs(bool val) {
+  set readonlyRootFs(bool val) {
     _readonlyRootFs = val;
   }
 
@@ -2130,23 +2143,26 @@ class HostConfigRequest extends HostConfig {
   /// to retry before giving up. The default is not to restart. (optional) An
   /// ever increasing delay (double the previous delay, starting at 100mS) is
   /// added before each restart to prevent flooding the server.
+  @override
   RestartPolicy get restartPolicy => _restartPolicy;
-  void set restartPolicy(RestartPolicy val) {
+  set restartPolicy(RestartPolicy val) {
     _restartPolicy = val;
   }
 
   /// Ulimits to be set in the container, specified as
   /// `{ "Name": <name>, "Soft": <soft limit>, "Hard": <hard limit> }`, for example:
   /// `Ulimits: { "Name": "nofile", "Soft": 1024, "Hard", 2048 }`
+  @override
   Map get ulimits => _ulimits;
-  void set ulimits(Map val) {
+  set ulimits(Map val) {
     _ulimits = val;
   }
 
   /// A list of volumes to inherit from another container. Specified in the
   /// form `<container name>[:<ro|rw>]`
+  @override
   List<String> get volumesFrom => _volumesFrom;
-  void set volumesFrom(List<String> val) {
+  set volumesFrom(List<String> val) {
     _volumesFrom = val;
   }
 }
